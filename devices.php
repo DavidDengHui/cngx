@@ -1,0 +1,755 @@
+<?php
+// 设置页面标题
+$title = '设备信息查询';
+
+// 引入配置文件和页眉
+include 'config.php';
+include 'header.php';
+
+// 获取数据库连接
+$pdo = getDbConnection();
+
+// 判断是否为设备详情页面
+if (isset($_GET['did'])) {
+    $did = $_GET['did'];
+    
+    // 判断是否为编辑模式
+    if (isset($_GET['mode']) && $_GET['mode'] == 'edit') {
+        // 设备编辑页面逻辑
+        include 'devices_edit.php';
+    } else {
+        // 设备详情页面逻辑
+        include 'devices_detail.php';
+    }
+} else {
+    // 设备查询页面逻辑
+    ?>
+    <div class="devices-container">
+        <h2 style="text-align: center; margin-bottom: 30px;">设备信息查询</h2>
+        
+        <div class="devices-layout">
+            <div class="devices-search">
+                <form id="search-form">
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label for="department">请选择部门</label>
+                            <div class="select-container">
+                                <input type="text" id="department" readonly placeholder="请选择部门">
+                                <input type="hidden" id="department-id">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label for="station">请选择站场</label>
+                            <div class="select-container">
+                                <input type="text" id="station" readonly placeholder="请选择站场">
+                                <input type="hidden" id="station-id">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label for="type">请选择类型</label>
+                            <div class="select-container">
+                                <input type="text" id="type" readonly placeholder="请选择类型">
+                                <input type="hidden" id="type-id">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label for="keywords">请输入关键字词<span class="remark-badge" data-remark="与设备名称/备注有关的关键字词">!</span></label>
+                            <div class="select-container">
+                                <input type="text" id="keywords" placeholder="请输入关键字词">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="search-button-container">
+                        <button type="button" id="search-button">查询</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="search-result" class="search-result">
+                <p class="no-result">请选择分类后点击按钮查询设备</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 多级选择菜单模态框 -->
+    <div id="select-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <button type="button" class="modal-btn reset-btn">重置</button>
+                    <button type="button" class="modal-btn default-btn" style="display: none;">默认</button>
+                </div>
+                <div class="modal-header-right">
+                    <button type="button" class="modal-btn cancel-btn">取消</button>
+                    <button type="button" class="modal-btn confirm-btn">确认</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="select-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量存储当前选择类型和路径
+        let currentSelectType = '';
+        let currentSelectPath = [];
+        
+        // 初始化选择框点击事件
+        document.getElementById('department').addEventListener('click', function() {
+            openSelectModal('department', '部门');
+        });
+        
+        document.getElementById('station').addEventListener('click', function() {
+            openSelectModal('station', '站场');
+        });
+        
+        document.getElementById('type').addEventListener('click', function() {
+            openSelectModal('type', '类型');
+        });
+        
+        // 打开选择模态框
+        function openSelectModal(type, label) {
+            currentSelectType = type;
+            
+            // 根据类型决定是否显示默认按钮
+            if (type === 'department') {
+                document.querySelector('.default-btn').style.display = 'inline-block';
+            } else {
+                document.querySelector('.default-btn').style.display = 'none';
+            }
+            
+            // 重置选择路径
+            currentSelectPath = [];
+            
+            // 加载第一级数据
+            loadSelectData(0);
+            
+            // 显示模态框
+            document.getElementById('select-modal').style.display = 'block';
+        }
+        
+        // 加载选择数据
+        function loadSelectData(parentId) {
+            const type = currentSelectType;
+            const contentDiv = document.getElementById('select-content');
+            
+            // 清空内容
+            contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+            
+            // 根据类型获取API URL
+            let apiUrl = '';
+            switch(type) {
+                case 'department':
+                    apiUrl = `api.php?action=getDepartments&parentId=${parentId}`;
+                    break;
+                case 'station':
+                    apiUrl = `api.php?action=getStations&parentId=${parentId}`;
+                    break;
+                case 'type':
+                    apiUrl = `api.php?action=getTypes&parentId=${parentId}`;
+                    break;
+            }
+            
+            // 发送请求获取数据
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        let html = '';
+                        
+                        // 显示当前路径
+                        if (currentSelectPath.length > 0) {
+                            html += '<div class="select-path">';
+                            currentSelectPath.forEach((item, index) => {
+                                html += `<span class="path-item" data-id="${item.id}">${item.name}</span>`;
+                                if (index < currentSelectPath.length - 1) {
+                                    html += ' / ';
+                                }
+                            });
+                            html += '</div>';
+                        }
+                        
+                        // 显示选项列表
+                        html += '<div class="select-items">';
+                        data.forEach(item => {
+                            html += `<div class="select-item" data-id="${item.id}" data-name="${item.name}" data-shortname="${item.shortname || item.name}">${item.name}</div>`;
+                        });
+                        html += '</div>';
+                        
+                        contentDiv.innerHTML = html;
+                        
+                        // 添加选项点击事件
+                        document.querySelectorAll('.select-item').forEach(item => {
+                            item.addEventListener('click', function() {
+                                const id = this.getAttribute('data-id');
+                                const name = this.getAttribute('data-name');
+                                const shortname = this.getAttribute('data-shortname');
+                                
+                                // 添加到选择路径
+                                currentSelectPath.push({id, name, shortname});
+                                
+                                // 加载下一级数据
+                                loadSelectData(id);
+                            });
+                        });
+                        
+                        // 添加路径点击事件
+                        document.querySelectorAll('.path-item').forEach(item => {
+                            item.addEventListener('click', function() {
+                                const id = this.getAttribute('data-id');
+                                // 重置路径到点击的位置
+                                currentSelectPath = currentSelectPath.filter(item => item.id === id);
+                                // 加载对应级别的数据
+                                loadSelectData(id);
+                            });
+                        });
+                    } else {
+                        // 没有下一级数据，直接确认选择
+                        confirmSelect();
+                    }
+                })
+                .catch(error => {
+                    contentDiv.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+                });
+        }
+        
+        // 确认选择
+        function confirmSelect() {
+            if (currentSelectPath.length > 0) {
+                const type = currentSelectType;
+                const lastItem = currentSelectPath[currentSelectPath.length - 1];
+                
+                // 根据类型更新输入框
+                if (type === 'department') {
+                    const pathStr = currentSelectPath.map(item => item.shortname).join('/');
+                    document.getElementById('department').value = pathStr;
+                    document.getElementById('department-id').value = lastItem.id;
+                } else if (type === 'station') {
+                    const pathStr = currentSelectPath.map(item => item.name).join('/');
+                    document.getElementById('station').value = pathStr;
+                    document.getElementById('station-id').value = lastItem.id;
+                } else if (type === 'type') {
+                    const pathStr = currentSelectPath.map(item => item.name).join('/');
+                    document.getElementById('type').value = pathStr;
+                    document.getElementById('type-id').value = lastItem.id;
+                }
+            }
+            
+            // 关闭模态框
+            document.getElementById('select-modal').style.display = 'none';
+        }
+        
+        // 重置选择
+        function resetSelect() {
+            currentSelectPath = [];
+            loadSelectData(0);
+            
+            // 清空对应的输入框值
+            if (currentSelectType === 'department') {
+                document.getElementById('department').value = '';
+                document.getElementById('department-id').value = '';
+            } else if (currentSelectType === 'station') {
+                document.getElementById('station').value = '';
+                document.getElementById('station-id').value = '';
+            } else if (currentSelectType === 'type') {
+                document.getElementById('type').value = '';
+                document.getElementById('type-id').value = '';
+            }
+        }
+        
+        // 设置默认部门
+        function setDefaultDepartment() {
+            currentSelectPath = [
+                {id: '100001', name: '中国铁路', shortname: '国铁'},
+                {id: '100002', name: '中国铁路广州局集团有限公司', shortname: '广州局'},
+                {id: '100003', name: '长沙电务段', shortname: '长电段'},
+                {id: '100004', name: '长沙南高铁信号车间', shortname: '长南高信车间'}
+            ];
+            confirmSelect();
+        }
+        
+        // 添加模态框按钮事件
+        document.querySelector('.confirm-btn').addEventListener('click', confirmSelect);
+        document.querySelector('.cancel-btn').addEventListener('click', function() {
+            document.getElementById('select-modal').style.display = 'none';
+        });
+        document.querySelector('.reset-btn').addEventListener('click', resetSelect);
+        document.querySelector('.default-btn').addEventListener('click', setDefaultDepartment);
+        
+        // 查询按钮事件
+        document.getElementById('search-button').addEventListener('click', function() {
+            const departmentId = document.getElementById('department-id').value;
+            const stationId = document.getElementById('station-id').value;
+            const typeId = document.getElementById('type-id').value;
+            const keywords = document.getElementById('keywords').value;
+            
+            // 发送查询请求
+            fetch(`api.php?action=searchDevices&departmentId=${departmentId}&stationId=${stationId}&typeId=${typeId}&keywords=${encodeURIComponent(keywords)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('search-result');
+                    
+                    if (data.length > 0) {
+                        let html = '<table class="devices-table">';
+                        html += '<thead><tr><th>序号</th><th>设备名称</th></tr></thead>';
+                        html += '<tbody>';
+                        
+                        data.forEach((device, index) => {
+                            const hasRemark = device.remark ? 'has-remark' : '';
+                            html += `<tr><td>${index + 1}</td><td class="${hasRemark}"><a href="devices.php?did=${device.did}">${device.device_name}</a>${device.remark ? '<span class="remark-badge" data-remark="' + device.remark + '">!</span>' : ''}</td></tr>`;
+                        });
+                        
+                        html += '</tbody></table>';
+                        resultDiv.innerHTML = html;
+                        // 更新备注图标以确保气泡功能正常
+                        updateRemarkBadges();
+                    } else {
+                        resultDiv.innerHTML = '<p class="no-result">没有查询到设备</p>';
+                    }
+                })
+                .catch(error => {
+                    const resultDiv = document.getElementById('search-result');
+                    resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
+                });
+        });
+    </script>
+    
+    <style>
+        .devices-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        /* 宽屏设备左右分栏布局 */
+        .devices-layout {
+            display: flex;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .devices-search {
+            flex: 0 0 320px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+        }
+        
+        .search-row {
+            margin-bottom: 20px;
+        }
+        
+        .search-item {
+            margin-bottom: 15px;
+        }
+        
+        .search-item label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .select-container {
+            position: relative;
+        }
+        
+        .select-container input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: white;
+        }
+        
+        .select-container input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .search-button-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        #search-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+        
+        #search-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .search-result {
+            flex: 1;
+            min-height: 400px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        
+        .no-result {
+            text-align: center;
+            color: #999;
+            padding: 50px 0;
+        }
+        
+        .error {
+            text-align: center;
+            color: #e74c3c;
+            padding: 20px 0;
+        }
+        
+        .devices-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .devices-table th,
+        .devices-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .devices-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .devices-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .devices-table a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .devices-table a:hover {
+            text-decoration: underline;
+        }
+        
+        .has-remark {
+            position: relative;
+        }
+        
+        .remark-badge {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+            margin-left: 5px;
+            cursor: help;
+            position: relative;
+        }
+        
+        /* 模态框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .modal-body {
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .modal-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+        
+        .reset-btn,
+        .cancel-btn {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .default-btn,
+        .confirm-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .modal-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .select-path {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .path-item {
+            cursor: pointer;
+            color: #3498db;
+        }
+        
+        .path-item:hover {
+            text-decoration: underline;
+        }
+        
+        .select-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .select-item {
+            padding: 10px 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .select-item:hover {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .loading,
+        .error {
+            text-align: center;
+            padding: 50px 0;
+            color: #999;
+        }
+        
+        .error {
+            color: #e74c3c;
+        }
+        
+        @media (max-width: 768px) {
+            .devices-layout {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .devices-search {
+                flex: none;
+                width: auto;
+                padding: 20px;
+            }
+            
+            .search-result {
+                min-height: 300px;
+                padding: 15px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                max-height: 90vh;
+            }
+        }
+    </style>
+    
+    <!-- 气泡提示样式 -->
+    <style>
+        .remark-bubble {
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            white-space: nowrap;
+            z-index: 1000;
+            max-width: 300px;
+            word-wrap: break-word;
+            white-space: normal;
+            display: none;
+        }
+        
+        .remark-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .remark-badge:hover .remark-bubble,
+        .remark-badge.active .remark-bubble {
+            display: block;
+        }
+    </style>
+    
+    <script>
+        // 为所有备注图标添加气泡提示功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // 使用事件委托来处理动态生成的备注图标
+            document.addEventListener('click', function(event) {
+                // 点击其他区域关闭所有气泡
+                if (!event.target.classList.contains('remark-badge')) {
+                    document.querySelectorAll('.remark-badge.active').forEach(badge => {
+                        badge.classList.remove('active');
+                    });
+                    return;
+                }
+                
+                // 点击备注图标切换显示/隐藏气泡
+                const badge = event.target;
+                badge.classList.toggle('active');
+                
+                // 确保只有一个气泡显示
+                if (badge.classList.contains('active')) {
+                    document.querySelectorAll('.remark-badge.active').forEach(otherBadge => {
+                        if (otherBadge !== badge) {
+                            otherBadge.classList.remove('active');
+                        }
+                    });
+                }
+                
+                // 阻止事件冒泡
+                event.stopPropagation();
+            });
+            
+            // 为备注图标添加鼠标悬浮事件（桌面端）
+            document.addEventListener('mouseover', function(event) {
+                if (event.target.classList.contains('remark-badge')) {
+                    const badge = event.target;
+                    const remark = badge.getAttribute('data-remark');
+                    
+                    // 检查是否已经有气泡
+                    let bubble = badge.querySelector('.remark-bubble');
+                    if (!bubble) {
+                        // 创建气泡元素
+                        bubble = document.createElement('span');
+                        bubble.className = 'remark-bubble';
+                        bubble.textContent = remark;
+                        badge.appendChild(bubble);
+                    } else {
+                        // 如果气泡已存在但被隐藏，显示它
+                        bubble.style.display = 'block';
+                    }
+                    
+                    // 计算气泡位置
+                    const badgeRect = badge.getBoundingClientRect();
+                    
+                    // 气泡显示在图标上方
+                    bubble.style.bottom = (badgeRect.height + 10) + 'px';
+                    bubble.style.left = '50%';
+                    bubble.style.transform = 'translateX(-50%)';
+                }
+            });
+            
+            // 鼠标离开备注图标时隐藏气泡（桌面端）
+            document.addEventListener('mouseout', function(event) {
+                if (event.target.classList.contains('remark-badge') && !event.target.classList.contains('active')) {
+                    const bubble = event.target.querySelector('.remark-bubble');
+                    if (bubble) {
+                        bubble.style.display = 'none';
+                    }
+                }
+            });
+            
+            // 为备注图标添加触摸事件（移动端）
+            document.addEventListener('touchstart', function(event) {
+                if (event.target.classList.contains('remark-badge')) {
+                    const badge = event.target;
+                    const remark = badge.getAttribute('data-remark');
+                    
+                    // 创建气泡元素
+                    let bubble = badge.querySelector('.remark-bubble');
+                    if (!bubble) {
+                        bubble = document.createElement('span');
+                        bubble.className = 'remark-bubble';
+                        bubble.textContent = remark;
+                        badge.appendChild(bubble);
+                    } else {
+                        // 如果气泡已存在但被隐藏，显示它
+                        bubble.style.display = 'block';
+                    }
+                    
+                    // 计算气泡位置
+                    const badgeRect = badge.getBoundingClientRect();
+                    
+                    // 气泡显示在图标上方
+                    bubble.style.bottom = (badgeRect.height + 10) + 'px';
+                    bubble.style.left = '50%';
+                    bubble.style.transform = 'translateX(-50%)';
+                    
+                    // 阻止默认行为
+                    event.preventDefault();
+                }
+            });
+        });
+        
+        // 在页面内容更新后（如查询结果更新）重新绑定事件
+        function updateRemarkBadges() {
+            // 移除所有现有气泡
+            document.querySelectorAll('.remark-bubble').forEach(bubble => {
+                bubble.remove();
+            });
+        }
+    </script>
+    
+    <?php
+}
+
+// 引入页脚
+include 'footer.php';
