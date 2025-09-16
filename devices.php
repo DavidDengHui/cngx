@@ -613,9 +613,9 @@ if (isset($_GET['did'])) {
             padding: 8px 12px;
             border-radius: 4px;
             font-size: 14px;
-            white-space: nowrap;
             z-index: 1000;
-            max-width: 300px;
+            width: 150px;
+            max-width: 200px;
             word-wrap: break-word;
             white-space: normal;
             display: none;
