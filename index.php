@@ -18,7 +18,7 @@ $stmt = $pdo->query("SELECT COUNT(*) as problem_count FROM problems WHERE status
 $problem_count = $stmt->fetch()['problem_count'];
 ?>
     <div class="dashboard">
-        <h1 style="text-align: center; margin-bottom: 40px;">欢迎使用设备信息管理平台</h1>
+        <h2 style="text-align: center; margin-bottom: 40px;">您好，<?php echo '长南高信车间'; ?>！</h2>
         
         <div class="dashboard-cards">
             <div class="dashboard-card" onclick="window.location.href='/devices.php'">
