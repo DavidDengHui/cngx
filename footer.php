@@ -10,14 +10,14 @@ if (basename($_SERVER['PHP_SELF']) == 'footer.php') {
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-left">
-                <img src="/files/logo.svg"><a href="/">csngx.cn</a> © 2025<?php if(date('Y')>2025) echo ' - '.date('Y'); ?> 版权所有
+                <img src="/files/logo.svg"><a href="/readme.php">csngx.cn</a> © 2025<?php if(date('Y')>2025) echo ' - '.date('Y'); ?> 版权所有
             </div>
             <div class="footer-right">
                 <img src="/files/gaba.ico"><a href="https://beian.mps.gov.cn/#/query/webSearch?code=43020002000058" target="_blank">湘公网安备43020002000058号</a> | <img src="/files/icpba.ico" ><a href="https://beian.miit.gov.cn/" target="_blank">湘ICP备17019987号</a>
             </div>
         </div>
         <div class="footer-mobile">
-            <div><img src="/files/logo.svg"><a href="/">csngx.cn</a> © 2025<?php if(date('Y')>2025) echo ' - '.date('Y'); ?> 版权所有</div>
+            <div><img src="/files/logo.svg"><a href="/readme.php">csngx.cn</a> © 2025<?php if(date('Y')>2025) echo ' - '.date('Y'); ?> 版权所有</div>
             <div><img src="/files/gaba.ico"><a href="https://beian.mps.gov.cn/#/query/webSearch?code=43020002000058" target="_blank">湘公网安备43020002000058号</a></div>
             <div><img src="/files/icpba.ico"><a href="https://beian.miit.gov.cn/" target="_blank">湘ICP备17019987号</a></div>
         </div>

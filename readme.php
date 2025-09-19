@@ -13,7 +13,6 @@ include 'header.php';
             <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">基本信息</h2>
             <p><strong>备案网站主办者：</strong>长南高信车间</p>
             <p><strong>域名：</strong>csngx.cn</p>
-            <p><strong>网站性质：</strong>企业内部管理系统</p>
         </div>
         
         <div class="section" style="margin-bottom: 40px;">
@@ -75,18 +74,18 @@ include 'header.php';
                     <tbody>
                         <tr>
                             <td style="border: 1px solid #ddd; padding: 12px;">Web服务器</td>
-                            <td style="border: 1px solid #ddd; padding: 12px;">Intel Core i5 CPU, 8GB RAM, 500GB SSD</td>
-                            <td style="border: 1px solid #ddd; padding: 12px;">运行网站应用程序</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">租赁于“火山引擎”的4核CPU、4GB RAM、40GB SSD</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">运行网站应用程序，存储设备信息、作业记录和问题数据</td>
                         </tr>
                         <tr style="background-color: #f9f9f9;">
-                            <td style="border: 1px solid #ddd; padding: 12px;">数据库服务器</td>
-                            <td style="border: 1px solid #ddd; padding: 12px;">Intel Core i7 CPU, 16GB RAM, 1TB SSD</td>
-                            <td style="border: 1px solid #ddd; padding: 12px;">存储设备信息、作业记录和问题数据</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">数据备份盘</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">租赁于“又拍云”的储存池</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">定时、增量备份网站文件和数据库</td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #ddd; padding: 12px;">网络设备</td>
-                            <td style="border: 1px solid #ddd; padding: 12px;">企业级路由器、交换机</td>
-                            <td style="border: 1px solid #ddd; padding: 12px;">提供内部网络连接</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">5M宽带、1个IPv4地址</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">公网传输</td>
                         </tr>
                     </tbody>
                 </table>
@@ -116,7 +115,7 @@ include 'header.php';
             
             <div>
                 <h3 style="color: #333; margin-bottom: 15px;">4. 部署情况</h3>
-                <p style="line-height: 1.6; color: #666; margin-bottom: 15px;">系统部署在长南高信车间内部机房，采用物理服务器方式部署。所有数据存储在本地服务器，确保数据安全和访问控制。系统支持Windows和Linux操作系统，目前主要面向内部员工访问使用。</p>
+                <p style="line-height: 1.6; color: #666; margin-bottom: 15px;">系统部署在“火山引擎”ECS云服务器，使用安全组保数据安全和访问控制。系统支持Windows和Linux操作系统，目前主要面向内部员工访问使用。</p>
                 <p style="line-height: 1.6; color: #666;">备份策略：系统数据每日自动备份，备份数据存储在独立的存储设备上，保留最近30天的备份记录。</p>
             </div>
         </div>
