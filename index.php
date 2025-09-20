@@ -1,6 +1,6 @@
 <?php
 // 设置页面标题
-$title = '设备信息管理平台';
+$title = '个人设备信息管理平台';
 
 // 引入配置文件和页眉
 include 'config.php';
@@ -18,7 +18,7 @@ $stmt = $pdo->query("SELECT COUNT(*) as problem_count FROM problems WHERE status
 $problem_count = $stmt->fetch()['problem_count'];
 ?>
     <div class="dashboard">
-        <h2 style="text-align: center; margin-bottom: 40px;">您好，<?php echo '长南高信车间'; ?>！</h2>
+        <h2 style="text-align: center; margin-bottom: 40px;">您好<?php if(isset($_SESSION['username'])) echo '，'.$_SESSION['username'].'！'; ?>！</h2>
         
         <div class="dashboard-cards">
             <div class="dashboard-card" onclick="window.location.href='/devices.php'">

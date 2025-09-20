@@ -5,8 +5,8 @@ if (basename($_SERVER['PHP_SELF']) == 'header.php') {
     exit();
 }
 
-// 获取页面标题参数
-$page_title = isset($title) ? $title : '设备信息管理平台';
+// 设置页面标题
+$page_title = isset($title) ? $title : '个人设备信息管理平台';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
