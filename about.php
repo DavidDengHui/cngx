@@ -26,7 +26,7 @@ include 'header.php';
                 
                 <!-- 网站内容截图 -->
                 <div style="margin: 20px 0; text-align: center;">
-                    <img src="/files/screenshot.png" alt="网站首页截图" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;">
+                    <img src="./files/screenshot.png" alt="网站首页截图" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;">
                     <p style="color: #666; font-size: 14px; margin-top: 10px;">网站首页截图</p>
                 </div>
             </div>
@@ -99,7 +99,7 @@ include 'header.php';
                 
                 <!-- 组网结构图 -->
                 <div style="margin: 20px 0; text-align: center;">
-                    <img src="/files/network.png" alt="网络结构图" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;">
+                    <img src="./files/network.png" alt="网络结构图" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;">
                     <p style="color: #666; font-size: 14px; margin-top: 10px;">网络结构图</p>
                 </div>
             </div>

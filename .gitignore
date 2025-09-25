@@ -1,2 +1,5 @@
 config.php
 readme.txt
+upload/
+Thumbs.db
+.DS_Store
