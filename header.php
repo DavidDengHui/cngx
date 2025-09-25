@@ -5,8 +5,9 @@ if (basename($_SERVER['PHP_SELF']) == 'header.php') {
     exit();
 }
 
-// 设置页面标题
-$page_title = isset($title) ? $title : '个人设备信息管理平台';
+// 设置页面标题和导航标题
+$nav_title = isset($nav_title) ? $nav_title : (isset($title) ? $title : '个人设备信息管理平台');
+$page_title = isset($page_title) ? $page_title : (isset($title) ? $title : '个人设备信息管理平台');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -81,7 +82,7 @@ $page_title = isset($title) ? $title : '个人设备信息管理平台';
             &lt;
         </button>
         <div class="header-title">
-            <?php echo $page_title; ?>
+            <?php echo $nav_title; ?>
         </div>
         <button class="header-button" onclick="window.location.href='/';">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
