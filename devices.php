@@ -378,6 +378,11 @@ if (isset($_GET['did'])) {
             background-color: white;
         }
         
+        /* 为关键字输入框设置正确的光标样式 */
+        .select-container #keywords {
+            cursor: text;
+        }
+        
         .select-container input[type="text"]:focus {
             outline: none;
             border-color: #3498db;
