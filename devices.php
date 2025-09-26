@@ -32,7 +32,7 @@ if (isset($_GET['did'])) {
                 <form id="search-form">
                     <div class="search-row">
                         <div class="search-item">
-                            <label for="department">请选择部门</label>
+                            <label>请选择部门</label>
                             <div class="select-container">
                                 <input type="text" id="department" readonly placeholder="请选择部门">
                                 <input type="hidden" id="department-id">
@@ -42,7 +42,7 @@ if (isset($_GET['did'])) {
 
                     <div class="search-row">
                         <div class="search-item">
-                            <label for="station">请选择站场</label>
+                            <label>请选择站场</label>
                             <div class="select-container">
                                 <input type="text" id="station" readonly placeholder="请选择站场">
                                 <input type="hidden" id="station-id">
@@ -52,7 +52,7 @@ if (isset($_GET['did'])) {
 
                     <div class="search-row">
                         <div class="search-item">
-                            <label for="type">请选择类型</label>
+                            <label>请选择类型</label>
                             <div class="select-container">
                                 <input type="text" id="type" readonly placeholder="请选择类型">
                                 <input type="hidden" id="type-id">
@@ -135,8 +135,18 @@ if (isset($_GET['did'])) {
             // 加载第一级数据
             loadSelectData(0);
 
-            // 显示模态框
-            document.getElementById('select-modal').style.display = 'block';
+            // 显示模态框并确保居中
+            const modal = document.getElementById('select-modal');
+            modal.style.display = 'block';
+            
+            // 确保模态框容器居中
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            
+            // 确保模态框内容居中
+            const modalContent = document.querySelector('.modal-content');
+            modalContent.style.margin = 'auto';
         }
 
         // 加载选择数据
@@ -529,13 +539,31 @@ if (isset($_GET['did'])) {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
+            width: 100%;
+            height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            margin: 0;
+            padding: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* 确保选择模态框居中显示 */
+        #select-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 2000;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-content {
@@ -546,6 +574,10 @@ if (isset($_GET['did'])) {
             max-height: 80vh;
             display: flex;
             flex-direction: column;
+            /* 确保内容不会溢出容器 */
+            overflow: hidden;
+            /* 使用flex布局让模态框内容居中 */
+            margin: auto;
         }
 
         .modal-header {
