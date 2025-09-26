@@ -65,7 +65,7 @@ if (isset($_GET['did'])) {
 
                     <div class="search-row">
                         <div class="search-item">
-                            <label for="keywords">请输入关键字词<span class="remark-badge" data-remark="与设备名称/备注有关的关键字词">!</span></label>
+                            <label>请输入关键字词<span class="remark-badge" data-remark="与设备名称/备注有关的关键字词">!</span></label>
                             <div class="select-container">
                                 <input type="text" id="keywords" placeholder="请输入关键字词">
                             <button type="button" class="clear-btn" data-target="keywords"></button>
