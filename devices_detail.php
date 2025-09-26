@@ -1337,8 +1337,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     }
 
     .drawings-table a,
-    .problems-table a,
-    .download-btn {
+    .problems-table a {
         color: #3498db;
         text-decoration: none;
     }
@@ -1349,15 +1348,18 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         text-decoration: underline;
     }
 
+    .drawings-table .download-btn,
+    .problems-table .download-btn,
     .download-btn {
         background-color: #27ae60;
-        color: white;
+        color: white !important;
         border: none;
         padding: 5px 15px;
         border-radius: 4px;
         cursor: pointer;
         font-size: 14px;
         display: inline-block;
+        text-decoration: none !important;
     }
 
     .download-btn:hover {
