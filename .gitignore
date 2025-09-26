@@ -1,6 +1,6 @@
 config.php
 readme.txt
-upload/
+uploads/
 Thumbs.db
 .DS_Store
 *.htaccess

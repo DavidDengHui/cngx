@@ -65,6 +65,9 @@ switch ($action) {
     case 'addProblemProcess':
         addProblemProcess();
         break;
+    case 'getDrawings':
+        getDrawings();
+        break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
         break;
@@ -613,5 +616,22 @@ function addProblemProcess() {
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '添加失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取设备图纸
+function getDrawings() {
+    global $pdo;
+    
+    try {
+        $did = $_GET['did'];
+        
+        $stmt = $pdo->prepare("SELECT id, original_name, link_name, root_dir, file_size FROM drawings WHERE did = :did AND status = 1");
+        $stmt->execute(['did' => $did]);
+        $drawings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode($drawings);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取图纸失败: ' . $e->getMessage()]);
     }
 }
