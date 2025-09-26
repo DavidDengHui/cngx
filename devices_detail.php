@@ -62,7 +62,21 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         </div>
         <div class="info-item">
             <label>包保人姓名：</label>
-            <span><?php echo $device['keepers']; ?></span>
+            <span>
+                <?php
+                $keepers = $device['keepers'];
+                if (!empty($keepers)) {
+                    $keeperArray = explode('||', $keepers);
+                    $formattedKeepers = array();
+                    foreach ($keeperArray as $keeper) {
+                        $formattedKeepers[] = '<span class="keeper-tag">' . $keeper . '</span>';
+                    }
+                    echo implode('', $formattedKeepers);
+                } else {
+                    echo '无';
+                }
+                ?>
+            </span>
         </div>
         <div class="info-item">
             <label>备注：</label>
@@ -1236,6 +1250,15 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
     .info-item span {
         flex: 1;
+    }
+    
+    .keeper-tag {
+        background-color: rgba(52, 152, 219, 0.2); /* 半透明蓝色 */
+        color: #2c3e50;
+        padding: 2px 8px;
+        margin-right: 8px;
+        border-radius: 4px;
+        display: inline-block;
     }
 
     .collapse-block {
