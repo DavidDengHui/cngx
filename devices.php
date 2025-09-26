@@ -226,10 +226,14 @@ if (isset($_GET['did'])) {
                         document.querySelectorAll('.path-item').forEach(item => {
                             item.addEventListener('click', function() {
                                 const id = this.getAttribute('data-id');
-                                // 重置路径到点击的位置
-                                currentSelectPath = currentSelectPath.filter(item => item.id === id);
-                                // 加载对应级别的数据
-                                loadSelectData(id);
+                                // 找到点击项在路径中的索引
+                                const clickedIndex = currentSelectPath.findIndex(item => item.id === id);
+                                // 如果找到了对应项，则重置路径到该位置
+                                if (clickedIndex !== -1) {
+                                    currentSelectPath = currentSelectPath.slice(0, clickedIndex + 1);
+                                    // 加载对应级别的数据
+                                    loadSelectData(id);
+                                }
                             });
                         });
                     } else {
