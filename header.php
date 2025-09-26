@@ -11,6 +11,7 @@ $page_title = isset($page_title) ? $page_title : (isset($title) ? $title : 'ä¸ªä
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,7 +23,7 @@ $page_title = isset($page_title) ? $page_title : (isset($title) ? $title : 'ä¸ªä
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
@@ -30,7 +31,7 @@ $page_title = isset($page_title) ? $page_title : (isset($title) ? $title : 'ä¸ªä
             background-color: #f5f5f5;
             padding-top: 60px;
         }
-        
+
         .header {
             position: fixed;
             top: 0;
@@ -43,17 +44,17 @@ $page_title = isset($page_title) ? $page_title : (isset($title) ? $title : 'ä¸ªä
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             z-index: 1000;
         }
-        
+
         .header-title {
             font-size: 18px;
             font-weight: bold;
             text-align: center;
             flex: 1;
         }
-        
+
         .header-button {
             background: none;
             border: none;
@@ -64,11 +65,11 @@ $page_title = isset($page_title) ? $page_title : (isset($title) ? $title : 'ä¸ªä
             border-radius: 4px;
             transition: background-color 0.3s;
         }
-        
+
         .header-button:hover {
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255, 255, 255, 0.1);
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -76,19 +77,23 @@ $page_title = isset($page_title) ? $page_title : (isset($title) ? $title : 'ä¸ªä
         }
     </style>
 </head>
+
 <body>
     <header class="header">
         <button class="header-button" onclick="window.history.back();">
-            &lt;
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 18L9 12L15 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
         </button>
         <div class="header-title">
             <?php echo $nav_title; ?>
         </div>
         <button class="header-button" onclick="window.location.href='/';">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3L2 12h3v8h6v-6h4v6h6v-8h3L12 3z" fill="white"/>
+                <path d="M4 10L12 4L20 10V19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 19.5523 4 19V10Z
+       M10 15H14V20H10V15Z" fill="white" fill-rule="evenodd" clip-rule="evenodd" />
             </svg>
         </button>
     </header>
-    
+
     <div class="container">
