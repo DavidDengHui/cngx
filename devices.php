@@ -35,7 +35,8 @@ if (isset($_GET['did'])) {
                             <label>请选择部门</label>
                             <div class="select-container">
                                 <input type="text" id="department" readonly placeholder="请选择部门">
-                                <input type="hidden" id="department-id">
+                            <input type="hidden" id="department-id">
+                            <button type="button" class="clear-btn" data-target="department"></button>
                             </div>
                         </div>
                     </div>
@@ -45,7 +46,8 @@ if (isset($_GET['did'])) {
                             <label>请选择站场</label>
                             <div class="select-container">
                                 <input type="text" id="station" readonly placeholder="请选择站场">
-                                <input type="hidden" id="station-id">
+                            <input type="hidden" id="station-id">
+                            <button type="button" class="clear-btn" data-target="station"></button>
                             </div>
                         </div>
                     </div>
@@ -55,7 +57,8 @@ if (isset($_GET['did'])) {
                             <label>请选择类型</label>
                             <div class="select-container">
                                 <input type="text" id="type" readonly placeholder="请选择类型">
-                                <input type="hidden" id="type-id">
+                            <input type="hidden" id="type-id">
+                            <button type="button" class="clear-btn" data-target="type"></button>
                             </div>
                         </div>
                     </div>
@@ -65,6 +68,7 @@ if (isset($_GET['did'])) {
                             <label for="keywords">请输入关键字词<span class="remark-badge" data-remark="与设备名称/备注有关的关键字词">!</span></label>
                             <div class="select-container">
                                 <input type="text" id="keywords" placeholder="请输入关键字词">
+                            <button type="button" class="clear-btn" data-target="keywords"></button>
                             </div>
                         </div>
                     </div>
@@ -249,14 +253,23 @@ if (isset($_GET['did'])) {
                     const pathStr = currentSelectPath.map(item => item.shortname).join('/');
                     document.getElementById('department').value = pathStr;
                     document.getElementById('department-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="department"]');
+                    updateClearButtonVisibility(document.getElementById('department'), btn);
                 } else if (type === 'station') {
                     const pathStr = currentSelectPath.map(item => item.name).join('/');
                     document.getElementById('station').value = pathStr;
                     document.getElementById('station-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="station"]');
+                    updateClearButtonVisibility(document.getElementById('station'), btn);
                 } else if (type === 'type') {
                     const pathStr = currentSelectPath.map(item => item.name).join('/');
                     document.getElementById('type').value = pathStr;
                     document.getElementById('type-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="type"]');
+                    updateClearButtonVisibility(document.getElementById('type'), btn);
                 }
             }
 
@@ -315,6 +328,58 @@ if (isset($_GET['did'])) {
         });
         document.querySelector('.reset-btn').addEventListener('click', resetSelect);
         document.querySelector('.default-btn').addEventListener('click', setDefaultDepartment);
+
+        // 初始化删除按钮功能
+        function initClearButtons() {
+            // 为所有删除按钮添加点击事件
+            document.querySelectorAll('.clear-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // 阻止事件冒泡，避免触发输入框的点击事件
+                    const target = this.getAttribute('data-target');
+                    clearInput(target);
+                });
+            });
+
+            // 监听输入框内容变化，控制删除按钮的显示/隐藏
+            ['department', 'station', 'type', 'keywords'].forEach(type => {
+                const input = document.getElementById(type);
+                const btn = document.querySelector(`.clear-btn[data-target="${type}"]`);
+                
+                // 初始化检查
+                updateClearButtonVisibility(input, btn);
+                
+                // 添加事件监听
+                input.addEventListener('input', function() {
+                    updateClearButtonVisibility(this, btn);
+                });
+            });
+        }
+
+        // 更新删除按钮的可见性
+        function updateClearButtonVisibility(input, btn) {
+            if (input.value.trim() !== '') {
+                btn.style.display = 'flex';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        // 清空输入框内容
+        function clearInput(type) {
+            document.getElementById(type).value = '';
+            
+            // 对于带ID的输入框，也清空对应的ID值
+            if (type === 'department' || type === 'station' || type === 'type') {
+                document.getElementById(`${type}-id`).value = '';
+            }
+            
+            // 隐藏对应的删除按钮
+            const btn = document.querySelector(`.clear-btn[data-target="${type}"]`);
+            btn.style.display = 'none';
+        }
+
+        // 页面加载完成后初始化删除按钮功能
+        window.addEventListener('DOMContentLoaded', initClearButtons);
 
         // 全局变量存储当前分页状态
         let currentPage = 1;
@@ -425,12 +490,13 @@ if (isset($_GET['did'])) {
 
         .select-container input[type="text"] {
             width: 100%;
-            padding: 12px;
+            padding: 12px 40px 12px 12px; /* 右侧留出40px空间给删除按钮 */
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
             cursor: pointer;
             background-color: white;
+            box-sizing: border-box;
         }
 
         /* 为关键字输入框设置正确的光标样式 */
@@ -441,6 +507,36 @@ if (isset($_GET['did'])) {
         .select-container input[type="text"]:focus {
             outline: none;
             border-color: #3498db;
+        }
+        
+        /* 删除按钮样式 */
+        .clear-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: #ddd;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            line-height: 1;
+            color: #666;
+        }
+        
+        .clear-btn:before {
+            content: '×';
+            font-weight: bold;
+        }
+        
+        .clear-btn:hover {
+            background: #ccc;
+            color: #333;
         }
 
         .search-button-container {
