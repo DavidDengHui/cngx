@@ -26,7 +26,6 @@ if (isset($_GET['did'])) {
     // 设备查询页面逻辑
 ?>
     <div class="devices-container">
-        <h2 style="text-align: center; margin-bottom: 30px;">设备信息查询</h2>
 
         <div class="devices-layout">
             <div class="devices-search">
@@ -633,20 +632,42 @@ if (isset($_GET['did'])) {
         }
 
         @media (max-width: 768px) {
+
+            /* 窄屏时调整全局容器宽度 */
+            .container {
+                max-width: none;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+
+            /* 窄屏时去除外层容器的背景和内边距 */
+            .devices-container {
+                background: none;
+                border-radius: 0;
+                box-shadow: none;
+                padding: 0;
+                width: 100%;
+            }
+
             .devices-layout {
                 flex-direction: column;
                 gap: 20px;
+                width: 100%;
+                padding: 0 10px;
             }
 
             .devices-search {
                 flex: none;
-                width: auto;
+                width: 100%;
                 padding: 20px;
+                border-radius: 8px;
             }
 
             .search-result {
                 min-height: 300px;
                 padding: 15px;
+                border-radius: 8px;
             }
 
             .modal-content {
