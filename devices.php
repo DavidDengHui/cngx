@@ -937,28 +937,59 @@ if (isset($_GET['did'])) {
             // 使用事件委托来处理动态生成的备注图标
             document.addEventListener('click', function(event) {
                 // 点击其他区域关闭所有气泡
-                if (!event.target.classList.contains('remark-badge')) {
+                if (!event.target.classList.contains('remark-badge') && !event.target.classList.contains('remark-bubble')) {
+                    document.querySelectorAll('.remark-bubble').forEach(bubble => {
+                        bubble.style.display = 'none';
+                    });
                     document.querySelectorAll('.remark-badge.active').forEach(badge => {
                         badge.classList.remove('active');
                     });
                     return;
                 }
 
-                // 点击备注图标切换显示/隐藏气泡
-                const badge = event.target;
-                badge.classList.toggle('active');
+                // 点击备注图标或气泡时显示气泡
+                if (event.target.classList.contains('remark-badge') || event.target.classList.contains('remark-bubble')) {
+                    const badge = event.target.classList.contains('remark-badge') ? event.target : event.target.closest('.remark-badge');
+                    const remark = badge.getAttribute('data-remark');
 
-                // 确保只有一个气泡显示
-                if (badge.classList.contains('active')) {
+                    // 检查是否已经有气泡
+                    let bubble = badge.querySelector('.remark-bubble');
+                    if (!bubble) {
+                        // 创建气泡元素
+                        bubble = document.createElement('span');
+                        bubble.className = 'remark-bubble';
+                        bubble.textContent = remark;
+                        badge.appendChild(bubble);
+                    } else {
+                        // 显示气泡
+                        bubble.style.display = 'block';
+                    }
+
+                    // 计算气泡位置
+                    const badgeRect = badge.getBoundingClientRect();
+
+                    // 气泡显示在图标上方
+                    bubble.style.bottom = (badgeRect.height + 10) + 'px';
+                    bubble.style.left = '50%';
+                    bubble.style.transform = 'translateX(-50%)';
+
+                    // 为气泡添加active类
+                    badge.classList.add('active');
+
+                    // 确保只有一个气泡显示
                     document.querySelectorAll('.remark-badge.active').forEach(otherBadge => {
                         if (otherBadge !== badge) {
                             otherBadge.classList.remove('active');
+                            const otherBubble = otherBadge.querySelector('.remark-bubble');
+                            if (otherBubble) {
+                                otherBubble.style.display = 'none';
+                            }
                         }
                     });
-                }
 
-                // 阻止事件冒泡
-                event.stopPropagation();
+                    // 阻止事件冒泡
+                    event.stopPropagation();
+                }
             });
 
             // 为备注图标添加鼠标悬浮事件（桌面端）
@@ -992,10 +1023,14 @@ if (isset($_GET['did'])) {
 
             // 鼠标离开备注图标时隐藏气泡（桌面端）
             document.addEventListener('mouseout', function(event) {
-                if (event.target.classList.contains('remark-badge') && !event.target.classList.contains('active')) {
-                    const bubble = event.target.querySelector('.remark-bubble');
-                    if (bubble) {
-                        bubble.style.display = 'none';
+                if (event.target.classList.contains('remark-badge') || event.target.classList.contains('remark-bubble')) {
+                    const badge = event.target.classList.contains('remark-badge') ? event.target : event.target.closest('.remark-badge');
+                    // 只有非点击模式（无active类）下才在鼠标离开时隐藏气泡
+                    if (!badge.classList.contains('active')) {
+                        const bubble = badge.querySelector('.remark-bubble');
+                        if (bubble) {
+                            bubble.style.display = 'none';
+                        }
                     }
                 }
             });
@@ -1013,10 +1048,10 @@ if (isset($_GET['did'])) {
                         bubble.className = 'remark-bubble';
                         bubble.textContent = remark;
                         badge.appendChild(bubble);
-                    } else {
-                        // 如果气泡已存在但被隐藏，显示它
-                        bubble.style.display = 'block';
                     }
+
+                    // 显示气泡
+                    bubble.style.display = 'block';
 
                     // 计算气泡位置
                     const badgeRect = badge.getBoundingClientRect();
@@ -1026,10 +1061,24 @@ if (isset($_GET['did'])) {
                     bubble.style.left = '50%';
                     bubble.style.transform = 'translateX(-50%)';
 
+                    // 为气泡添加active类
+                    badge.classList.add('active');
+
+                    // 确保只有一个气泡显示
+                    document.querySelectorAll('.remark-badge.active').forEach(otherBadge => {
+                        if (otherBadge !== badge) {
+                            otherBadge.classList.remove('active');
+                            const otherBubble = otherBadge.querySelector('.remark-bubble');
+                            if (otherBubble) {
+                                otherBubble.style.display = 'none';
+                            }
+                        }
+                    });
+
                     // 阻止默认行为
                     event.preventDefault();
                 }
-            });
+            }, { passive: false });
         });
 
         // 添加分页控件
