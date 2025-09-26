@@ -131,6 +131,17 @@ function searchDevices() {
         $typeId = isset($_GET['typeId']) ? trim($_GET['typeId']) : '';
         $keywords = isset($_GET['keywords']) ? trim($_GET['keywords']) : '';
         
+        // 获取分页参数
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 20;
+        
+        // 如果pageSize为0，表示查询所有记录
+        $limitClause = '';
+        if ($pageSize > 0) {
+            $offset = ($page - 1) * $pageSize;
+            $limitClause = "LIMIT $offset, $pageSize";
+        }
+        
         // 构建查询条件
         $conditions = "WHERE status = 1";
         $params = [];
@@ -170,11 +181,23 @@ function searchDevices() {
             $params[] = $keywords;
         }
         
-        $stmt = $pdo->prepare("SELECT did, device_name, remark FROM devices $conditions ORDER BY device_name ASC");
+        // 查询总记录数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM devices $conditions");
+        $stmt->execute($params);
+        $total = $stmt->fetchColumn();
+        
+        // 查询当前页数据
+        $stmt = $pdo->prepare("SELECT did, device_name, remark FROM devices $conditions ORDER BY device_name ASC $limitClause");
         $stmt->execute($params);
         $devices = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        echo json_encode($devices);
+        // 返回分页结果
+        echo json_encode([
+            'data' => $devices,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize
+        ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '查询设备失败: ' . $e->getMessage()]);
     }
