@@ -304,11 +304,22 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
 
 
+                        // 确定文件类型
+                        const fileExtension = drawing.original_name.split('.').pop()?.toLowerCase() || '';
+                        let fileType = '其他文件';
+                        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
+                            fileType = '图片';
+                        } else if (['dwg', 'dxf', 'dgn', 'rvt'].includes(fileExtension)) {
+                            fileType = 'CAD';
+                        } else if (['doc', 'docx', 'pdf', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(fileExtension)) {
+                            fileType = '文档';
+                        }
+
                         html += `<tr>`;
                         html += `<td>${index + 1}</td>`;
                         html += `<td><a href="javascript:void(0)" onclick="previewDrawing('${fullUrl}', '${drawing.original_name}')">${drawing.original_name}</a></td>`;
                         html += `<td>${fileSize}</td>`;
-                        html += `<td><a href="${fullUrl}" download="${drawing.original_name}" class="download-btn">下载</a></td>`;
+                        html += `<td><a href="javascript:void(0)" class="download-btn" data-url="${fullUrl}" data-name="${drawing.original_name}" data-type="${fileType}" data-size="${fileSize}">下载</a></td>`;
                         html += `</tr>`;
                     });
 
@@ -336,6 +347,213 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
+
+    // 下载确认框
+    function showDownloadConfirm(element) {
+        // 获取设备名称
+        const deviceName = '<?php echo addslashes($device['device_name']); ?>';
+        
+        // 获取文件信息
+        let url = element.getAttribute('data-url');
+        const fileName = element.getAttribute('data-name');
+        const fileType = element.getAttribute('data-type');
+        const fileSize = element.getAttribute('data-size');
+        
+        // 确保URL包含域名（完整链接）
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            const baseUrl = window.location.origin;
+            // 确保拼接正确（处理url开头的斜杠）
+            if (url.startsWith('/')) {
+                url = baseUrl + url;
+            } else {
+                url = baseUrl + '/' + url;
+            }
+        }
+        
+        // 创建模态框
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'none';
+        
+        // 创建模态框内容
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        
+        // 创建头部
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'modal-header';
+        
+        const modalTitle = document.createElement('h3');
+        modalTitle.textContent = '确认下载';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-btn';
+        closeBtn.textContent = '×';
+        closeBtn.onclick = function() {
+            modal.remove();
+        };
+        
+        modalHeader.appendChild(modalTitle);
+        modalHeader.appendChild(closeBtn);
+        
+        // 创建主体
+        const modalBody = document.createElement('div');
+        modalBody.className = 'modal-body';
+        
+        const infoList = document.createElement('div');
+        infoList.style.marginBottom = '20px';
+        
+        infoList.innerHTML = `
+            <div style="margin-bottom: 10px;"><strong>设备名称:</strong> ${deviceName}</div>
+            <div style="margin-bottom: 10px;"><strong>图纸名称:</strong> ${fileName}</div>
+            <div style="margin-bottom: 10px;"><strong>文件类型:</strong> ${fileType}</div>
+            <div style="margin-bottom: 10px;"><strong>文件大小:</strong> ${fileSize}</div>
+        `;
+        
+        modalBody.appendChild(infoList);
+        
+        // 创建按钮区域
+        const modalFooter = document.createElement('div');
+        modalFooter.className = 'modal-footer';
+        modalFooter.style.display = 'flex';
+        modalFooter.style.justifyContent = 'flex-end';
+        modalFooter.style.gap = '10px';
+        modalFooter.style.padding = '15px';
+        modalFooter.style.borderTop = '1px solid #ddd';
+        
+        // 复制链接按钮
+        const copyLinkBtn = document.createElement('button');
+        copyLinkBtn.className = 'edit-btn';
+        copyLinkBtn.style.backgroundColor = '#95a5a6';
+        copyLinkBtn.style.padding = '8px 20px';
+        copyLinkBtn.style.fontSize = '14px';
+        copyLinkBtn.textContent = '复制下载链接';
+        copyLinkBtn.style.cursor = 'pointer'; // 确保显示为可点击
+        copyLinkBtn.style.userSelect = 'none'; // 防止文本选中
+        
+        // 增强移动设备上的点击体验
+        copyLinkBtn.style.touchAction = 'manipulation';
+        copyLinkBtn.style.webkitTapHighlightColor = 'rgba(0, 0, 0, 0.1)';
+        
+        copyLinkBtn.onclick = function() {
+            // 优先使用现代的Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(url).then(function() {
+                    showCopySuccess();
+                }).catch(function() {
+                    // 降级方案
+                    fallbackCopyTextToClipboard(url);
+                });
+            } else {
+                // 降级方案
+                fallbackCopyTextToClipboard(url);
+            }
+        };
+        
+        // 复制成功提示
+        function showCopySuccess() {
+            const originalText = copyLinkBtn.textContent;
+            const originalBg = copyLinkBtn.style.backgroundColor;
+            
+            copyLinkBtn.textContent = '已复制！';
+            copyLinkBtn.style.backgroundColor = '#27ae60';
+            
+            setTimeout(function() {
+                copyLinkBtn.textContent = originalText;
+                copyLinkBtn.style.backgroundColor = originalBg;
+            }, 2000);
+        }
+        
+        // 降级复制方案，兼容不支持Clipboard API的设备
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            
+            // 避免界面闪烁
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            textArea.style.opacity = '0';
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showCopySuccess();
+                } else {
+                    alert('复制失败，请手动复制');
+                }
+            } catch (err) {
+                alert('复制失败，请手动复制');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // 取消按钮
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'delete-btn';
+        cancelBtn.style.backgroundColor = '#95a5a6';
+        cancelBtn.style.padding = '8px 20px';
+        cancelBtn.style.fontSize = '14px';
+        cancelBtn.textContent = '取消';
+        cancelBtn.onclick = function() {
+            modal.remove();
+        };
+        
+        // 确认按钮
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'download-btn';
+        confirmBtn.style.padding = '8px 20px';
+        confirmBtn.style.fontSize = '14px';
+        confirmBtn.textContent = '确认';
+        confirmBtn.onclick = function() {
+            // 创建隐藏的a标签进行下载
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            modal.remove();
+        };
+        
+        modalFooter.appendChild(copyLinkBtn);
+        modalFooter.appendChild(cancelBtn);
+        modalFooter.appendChild(confirmBtn);
+        
+        // 组装模态框
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalBody);
+        modalContent.appendChild(modalFooter);
+        modal.appendChild(modalContent);
+        
+        // 添加到文档
+        document.body.appendChild(modal);
+        
+        // 显示模态框
+        modal.style.display = 'flex';
+        
+        // 点击模态框背景关闭
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        };
+    }
+
+    // 为所有下载按钮添加点击事件
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('download-btn') && e.target.getAttribute('data-url')) {
+                e.preventDefault();
+                showDownloadConfirm(e.target);
+            }
+        });
+    });
 
     // 预览图纸
     function previewDrawing(url, title) {
@@ -1676,6 +1894,27 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             box-shadow: none;
             padding: 20px 15px;
             width: 100%;
+        }
+
+        /* 窄屏时表格内容自动换行 */
+        .drawings-table td:nth-child(2),
+        .records-table td:nth-child(2),
+        .problems-table td:nth-child(2) {
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+
+        /* 窄屏时隐藏文件大小列，优化显示空间 */
+        .drawings-table th:nth-child(3),
+        .drawings-table td:nth-child(3) {
+            display: none;
+        }
+
+        /* 确保下载按钮里的文字保持一行显示 */
+        .download-btn {
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: center;
         }
 
         .info-item {
