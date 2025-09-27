@@ -354,7 +354,23 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             z-index: 1000;
             user-select: none;
             display: block;
+            overflow: hidden;
         `;
+        
+        // 阻止模态框内的滑动事件传递到背景页面，但允许按钮点击
+        modal.addEventListener('touchstart', function(e) {
+            // 检查是否点击的是按钮元素或按钮内的元素
+            if (!e.target.closest('button')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        modal.addEventListener('touchmove', function(e) {
+            // 检查是否点击的是按钮元素或按钮内的元素
+            if (!e.target.closest('button')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
@@ -424,6 +440,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            white-space: nowrap;
             transition: all 0.3s;
         `;
 
@@ -438,6 +455,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            white-space: nowrap;
             transition: all 0.3s;
         `;
 
@@ -452,6 +470,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            white-space: nowrap;
             transition: all 0.3s;
         `;
 
