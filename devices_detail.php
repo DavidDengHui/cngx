@@ -356,21 +356,25 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             display: block;
             overflow: hidden;
         `;
-        
+
         // 阻止模态框内的滑动事件传递到背景页面，但允许按钮点击
         modal.addEventListener('touchstart', function(e) {
             // 检查是否点击的是按钮元素或按钮内的元素
             if (!e.target.closest('button')) {
                 e.preventDefault();
             }
-        }, { passive: false });
-        
+        }, {
+            passive: false
+        });
+
         modal.addEventListener('touchmove', function(e) {
             // 检查是否点击的是按钮元素或按钮内的元素
             if (!e.target.closest('button')) {
                 e.preventDefault();
             }
-        }, { passive: false });
+        }, {
+            passive: false
+        });
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
@@ -415,7 +419,86 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             text-overflow: ellipsis;
             white-space: nowrap;
             line-height: 20px;
+            cursor: pointer;
         `;
+
+        // 完整文件名气泡
+        let filenameBubble = null;
+
+        // 处理点击事件的函数
+        function handleTitleClick(e) {
+            e.stopPropagation(); // 阻止冒泡到模态框
+
+            if (filenameBubble && document.body.contains(filenameBubble)) {
+                document.body.removeChild(filenameBubble);
+                filenameBubble = null;
+            } else {
+                // 创建气泡元素
+                filenameBubble = document.createElement('div');
+                filenameBubble.textContent = title;
+                filenameBubble.style.cssText = `
+                    position: fixed;
+                    top: 40px;
+                    left: 30px;
+                    background-color: rgba(255, 255, 255, 0.95);
+                    color: #333;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    z-index: 1001;
+                    max-width: 80%;
+                    word-wrap: break-word;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                `;
+
+                // 添加小三角形
+                const triangle = document.createElement('div');
+                triangle.style.cssText = `
+                    position: absolute;
+                    top: -6px;
+                    left: 15px;
+                    width: 0;
+                    height: 0;
+                    border-left: 6px solid transparent;
+                    border-right: 6px solid transparent;
+                    border-bottom: 6px solid rgba(255, 255, 255, 0.95);
+                `;
+                filenameBubble.appendChild(triangle);
+                document.body.appendChild(filenameBubble);
+            }
+        }
+
+        // 添加点击事件（鼠标）
+        titleElement.addEventListener('click', handleTitleClick);
+
+        // 添加触摸事件（移动设备）
+        titleElement.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // 阻止默认行为
+            handleTitleClick(e);
+        }, {
+            passive: false
+        });
+
+        // 点击气泡以外区域关闭气泡
+        function closeFilenameBubble(e) {
+            if (filenameBubble && document.body.contains(filenameBubble) &&
+                !filenameBubble.contains(e.target) && e.target !== titleElement) {
+                document.body.removeChild(filenameBubble);
+                filenameBubble = null;
+            }
+        }
+
+        // 添加全局点击事件监听
+        document.addEventListener('click', closeFilenameBubble);
+
+        // 移除模态框时也移除事件监听
+        modal.addEventListener('remove', function() {
+            document.removeEventListener('click', closeFilenameBubble);
+            if (filenameBubble && document.body.contains(filenameBubble)) {
+                document.body.removeChild(filenameBubble);
+                filenameBubble = null;
+            }
+        });
 
         // 创建操作按钮容器
         const controlsContainer = document.createElement('div');
@@ -494,8 +577,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         // 创建图片容器
         const viewport = document.createElement('div');
         viewport.style.cssText = `
-            max-width: 98%;
-            width: 98%;
+            max-width: 100%;
+            width: 100%;
             position: absolute;
             top: 45px;
             bottom: 50px;
