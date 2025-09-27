@@ -3,12 +3,12 @@
 if (basename($_SERVER['PHP_SELF']) == 'devices_detail.php') {
     header('Location: /devices.php');
     exit();
-} else {
-    // 被包含时，确保did参数存在
-    if (!isset($did)) {
-        header('Location: /devices.php');
-        exit();
-    }
+}
+
+// 确保did参数存在
+if (!isset($did)) {
+    header('Location: /devices.php');
+    exit();
 }
 
 // 查询设备信息
@@ -22,15 +22,8 @@ if (!$device) {
     exit();
 }
 
-// 设置页面标题和导航标题
-$nav_title = $device['device_name'];
-$page_title = $device['device_name'] . ' - 个人设备信息管理平台';
-
-// 如果是被包含的情况，同时更新全局变量，确保标题正确显示
-if (basename($_SERVER['PHP_SELF']) != 'devices_detail.php') {
-    $GLOBALS['page_title'] = $page_title;
-    $GLOBALS['nav_title'] = $nav_title;
-}
+// 设置页面标题
+$page_title = $device['device_name'];
 
 include 'header.php';
 

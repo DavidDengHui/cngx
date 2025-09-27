@@ -8,7 +8,19 @@ if (basename($_SERVER['PHP_SELF']) == 'header.php') {
 // 设置页面标题和导航标题
 // 优先使用全局变量，然后是当前作用域变量，最后是默认值
 $nav_title = isset($GLOBALS['nav_title']) ? $GLOBALS['nav_title'] : (isset($nav_title) ? $nav_title : (isset($title) ? $title : '个人设备信息管理平台'));
-$page_title = isset($GLOBALS['page_title']) ? $GLOBALS['page_title'] : (isset($page_title) ? $page_title : (isset($title) ? $title : '个人设备信息管理平台'));
+
+// 设置页面标题，自动添加尾缀
+$base_title = isset($GLOBALS['page_title']) ? $GLOBALS['page_title'] : (isset($page_title) ? $page_title : (isset($title) ? $title : ''));
+$site_suffix = ' - 个人设备信息管理平台';
+
+// 只有当标题不为空且不包含尾缀时才添加尾缀
+if (!empty($base_title) && strpos($base_title, $site_suffix) === false) {
+    $page_title = $base_title . $site_suffix;
+} else if (!empty($base_title)) {
+    $page_title = $base_title;
+} else {
+    $page_title = '个人设备信息管理平台';
+}
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
