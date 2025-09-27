@@ -536,12 +536,41 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         
         // 显示模态框
         modal.style.display = 'flex';
+        // 阻止背景页面滚动
+        document.body.style.overflow = 'hidden';
         
         // 点击模态框背景关闭
         modal.onclick = function(e) {
             if (e.target === modal) {
                 modal.remove();
+                // 恢复背景页面滚动
+                document.body.style.overflow = '';
             }
+        };
+
+        // 添加复制链接和确认下载的点击事件
+        copyLinkBtn.onclick = function() {
+            copyDownloadLink(url);
+        };
+        
+        cancelBtn.onclick = function() {
+            modal.remove();
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
+        };
+        
+        confirmBtn.onclick = function() {
+            // 创建一个隐藏的a标签用于下载
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            modal.remove();
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
         };
     }
 
@@ -575,6 +604,9 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             overflow: hidden;
         `;
 
+        // 阻止背景页面滚动
+        document.body.style.overflow = 'hidden';
+        
         // 阻止模态框内的滑动事件传递到背景页面，但允许按钮点击
         modal.addEventListener('touchstart', function(e) {
             // 检查是否点击的是按钮元素或按钮内的元素
@@ -615,6 +647,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         `;
         closeBtn.onclick = () => {
             document.body.removeChild(modal);
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
         };
         closeBtn.onmouseover = () => {
             closeBtn.style.color = '#ff6b6b';
@@ -937,6 +971,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             // 只有当点击的是模态框本身（而不是其内部元素）时才关闭
             if (e.target === modal) {
                 document.body.removeChild(modal);
+                // 恢复背景页面滚动
+                document.body.style.overflow = '';
             }
         });
 
@@ -964,6 +1000,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             if (e.key === 'Escape') {
                 document.body.removeChild(modal);
                 document.removeEventListener('keydown', escListener);
+                // 恢复背景页面滚动
+                document.body.style.overflow = '';
             }
         });
 
@@ -1404,12 +1442,16 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('work-date').value = today;
 
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
+        // 阻止背景页面滚动
+        document.body.style.overflow = 'hidden';
     }
 
     // 关闭新增记录模态框
     function closeAddRecordModal() {
         document.getElementById('add-record-modal').style.display = 'none';
+        // 恢复背景页面滚动
+        document.body.style.overflow = '';
     }
 
     // 提交新增记录
@@ -1467,12 +1509,16 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('problem-date').value = today;
 
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
+        // 阻止背景页面滚动
+        document.body.style.overflow = 'hidden';
     }
 
     // 关闭新增问题模态框
     function closeAddProblemModal() {
         document.getElementById('add-problem-modal').style.display = 'none';
+        // 恢复背景页面滚动
+        document.body.style.overflow = '';
     }
 
     // 提交新增问题
