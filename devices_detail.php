@@ -1,8 +1,14 @@
 <?php
-// 确保did参数存在
-if (!isset($did)) {
+// 检查是否被直接访问
+if (basename($_SERVER['PHP_SELF']) == 'devices_detail.php') {
     header('Location: /devices.php');
     exit();
+} else {
+    // 被包含时，确保did参数存在
+    if (!isset($did)) {
+        header('Location: /devices.php');
+        exit();
+    }
 }
 
 // 查询设备信息
@@ -15,6 +21,18 @@ if (!$device) {
     header("Location: /devices.php?did=$did&mode=edit");
     exit();
 }
+
+// 设置页面标题和导航标题
+$nav_title = $device['device_name'];
+$page_title = $device['device_name'] . ' - 个人设备信息管理平台';
+
+// 如果是被包含的情况，同时更新全局变量，确保标题正确显示
+if (basename($_SERVER['PHP_SELF']) != 'devices_detail.php') {
+    $GLOBALS['page_title'] = $page_title;
+    $GLOBALS['nav_title'] = $nav_title;
+}
+
+include 'header.php';
 
 // 获取设备类型名称
 $stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
@@ -41,13 +59,9 @@ $drawing_count = $stmt->fetch();
 $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 ?>
 <div class="device-detail">
-    <h2 style="text-align: center; margin-bottom: 30px;">设备详情</h2>
+    <h2 style="text-align: center; margin-bottom: 30px;"><?php echo $device['device_name']; ?></h2>
 
     <div class="device-info">
-        <div class="info-item">
-            <label>设备名称：</label>
-            <span><?php echo $device['device_name']; ?></span>
-        </div>
         <div class="info-item">
             <label>设备类型：</label>
             <span><?php echo $type_name; ?></span>
@@ -287,16 +301,16 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                         if (rootDir && !rootDir.endsWith('/')) {
                             rootDir += '/';
                         }
-                        
+
                         // 构建完整的URL
                         const fullUrl = rootDir + drawing.link_name;
-                        
+
                         // 格式化文件大小
                         const fileSize = formatFileSize(drawing.file_size);
-                        
 
-        
-                        
+
+
+
                         html += `<tr>`;
                         html += `<td>${index + 1}</td>`;
                         html += `<td><a href="javascript:void(0)" onclick="previewDrawing('${fullUrl}', '${drawing.original_name}')">${drawing.original_name}</a></td>`;
@@ -304,7 +318,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                         html += `<td><a href="${fullUrl}" download="${drawing.original_name}" class="download-btn">下载</a></td>`;
                         html += `</tr>`;
                     });
-                    
+
 
 
                     html += '</tbody></table>';
@@ -322,18 +336,18 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     // 格式化文件大小
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
-        
+
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        
+
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     // 预览图纸
     function previewDrawing(url, title) {
-        
-        
+
+
         // 创建预览模态框
         const modal = document.createElement('div');
         modal.className = 'preview-modal';
@@ -348,7 +362,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             user-select: none;
             display: block;
         `;
-        
+
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
         closeBtn.style.cssText = `
@@ -377,7 +391,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         closeBtn.onmouseout = () => {
             closeBtn.style.color = 'white';
         };
-        
+
         // 创建标题
         const titleElement = document.createElement('div');
         titleElement.textContent = title;
@@ -393,7 +407,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             white-space: nowrap;
             line-height: 20px;
         `;
-        
+
         // 创建操作按钮容器
         const controlsContainer = document.createElement('div');
         controlsContainer.style.cssText = `
@@ -405,7 +419,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             gap: 10px;
             z-index: 10;
         `;
-        
+
         // 创建缩小按钮
         const zoomOutBtn = document.createElement('button');
         zoomOutBtn.textContent = '缩小';
@@ -419,7 +433,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             font-size: 14px;
             transition: all 0.3s;
         `;
-        
+
         // 创建重置按钮
         const resetBtn = document.createElement('button');
         resetBtn.textContent = '重置';
@@ -433,7 +447,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             font-size: 14px;
             transition: all 0.3s;
         `;
-        
+
         // 创建放大按钮
         const zoomInBtn = document.createElement('button');
         zoomInBtn.textContent = '放大';
@@ -447,7 +461,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             font-size: 14px;
             transition: all 0.3s;
         `;
-        
+
         // 按钮悬停效果
         [zoomOutBtn, resetBtn, zoomInBtn].forEach(btn => {
             btn.onmouseover = () => {
@@ -459,12 +473,12 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 btn.style.borderColor = 'rgba(255, 255, 255, 0.3)';
             };
         });
-        
+
         // 添加到控制容器
         controlsContainer.appendChild(zoomOutBtn);
         controlsContainer.appendChild(resetBtn);
         controlsContainer.appendChild(zoomInBtn);
-        
+
         // 创建图片容器
         const viewport = document.createElement('div');
         viewport.style.cssText = `
@@ -481,7 +495,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             align-items: center;
             justify-content: center;
         `;
-        
+
         // 创建可拖动的内容容器
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = `
@@ -498,10 +512,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         contentContainer.onmouseup = () => {
             contentContainer.style.cursor = 'grab';
         };
-        
+
         // 检查文件扩展名，决定如何预览
         const fileExtension = url.split('.').pop().toLowerCase();
-        
+
         if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
             // 图片文件直接预览
             const img = document.createElement('img');
@@ -515,7 +529,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 display: block;
             `;
             contentContainer.appendChild(img);
-            
+
             // 初始化一个空的图片占位符
             const placeholder = document.createElement('div');
             placeholder.className = 'image-placeholder';
@@ -531,22 +545,22 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             `;
             placeholder.textContent = '图片加载中...';
             viewport.appendChild(placeholder);
-            
+
             // 显示加载中
             placeholder.style.display = 'block';
-            
+
             // 等待图片加载完成后初始化
             img.onload = () => {
                 placeholder.style.display = 'none';
                 initZoomAndPan(img, contentContainer, viewport, zoomInBtn, resetBtn, zoomOutBtn);
             };
-            
+
             // 处理图片加载失败的情况
             img.onerror = () => {
                 placeholder.style.display = 'block';
                 placeholder.textContent = '图片加载失败，请尝试下载查看';
                 placeholder.style.color = '#ff6b6b';
-                
+
                 // 添加下载按钮
                 const downloadBtn = document.createElement('a');
                 downloadBtn.href = url;
@@ -584,27 +598,27 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 downloadLink.style.backgroundColor = '#3498db';
             };
             contentContainer.appendChild(downloadLink);
-            
+
             // 居中显示
             contentContainer.style.left = '50%';
             contentContainer.style.top = '50%';
             contentContainer.style.transform = 'translate(-50%, -50%)';
         }
-        
+
         // 添加到视口
         viewport.appendChild(contentContainer);
-        
+
         // 组装模态框
         modal.appendChild(closeBtn);
         modal.appendChild(titleElement);
         modal.appendChild(viewport);
         modal.appendChild(controlsContainer);
-        
+
         // 添加到文档
-        
+
         document.body.appendChild(modal);
-        
-        
+
+
         // 点击空白处关闭
         modal.addEventListener('click', (e) => {
             // 只有当点击的是模态框本身（而不是其内部元素）时才关闭
@@ -612,26 +626,26 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 document.body.removeChild(modal);
             }
         });
-        
+
         // 为标题元素、控制按钮和视口添加事件监听器，防止事件冒泡
         titleElement.addEventListener('click', (e) => {
             e.stopPropagation();
         });
-        
+
         controlsContainer.addEventListener('click', (e) => {
             e.stopPropagation();
         });
-        
+
         // 为关闭按钮添加阻止冒泡，确保只有点击关闭按钮本身才关闭弹窗
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
         });
-        
+
         // 为视口添加阻止冒泡，确保点击图片区域不会关闭弹窗
         viewport.addEventListener('click', (e) => {
             e.stopPropagation();
         });
-        
+
         // ESC键关闭
         document.addEventListener('keydown', function escListener(e) {
             if (e.key === 'Escape') {
@@ -639,10 +653,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 document.removeEventListener('keydown', escListener);
             }
         });
-        
+
 
     }
-    
+
     // 初始化缩放和平移功能
     function initZoomAndPan(img, contentContainer, viewport, zoomInBtn, resetBtn, zoomOutBtn) {
         // 确保图片已经完全加载
@@ -651,21 +665,21 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             img.onload = () => initZoomAndPan(img, contentContainer, viewport, zoomInBtn, resetBtn, zoomOutBtn);
             return;
         }
-        
+
         // 确保视口元素已经添加到文档中再获取其尺寸
         setTimeout(() => {
             // 获取视口和图片的尺寸
             const viewportRect = viewport.getBoundingClientRect();
-            
 
-            
+
+
             // 确保内容容器的基本样式正确
             contentContainer.style.width = 'auto';
             contentContainer.style.height = 'auto';
             contentContainer.style.position = 'absolute';
             contentContainer.style.top = '50%';
             contentContainer.style.left = '50%';
-            
+
             // 处理视口高度为0的情况
             let effectiveViewportHeight = viewportRect.height;
             if (effectiveViewportHeight <= 0) {
@@ -673,109 +687,109 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 effectiveViewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
 
             }
-            
+
             // 计算初始缩放比例，使图片尽可能大但完全在视口内
             let scale = Math.min(
                 viewportRect.width / img.width,
                 effectiveViewportHeight / img.height
             );
-        
+
             // 如果图片很小，设置一个合理的最小缩放比例
             // 例如，如果图片宽度小于视口的50%，我们可以放大一些
             const minScaleForSmallImages = 1; // 最小放大到1倍
             if (scale < minScaleForSmallImages && img.width < viewportRect.width * 0.5) {
                 scale = Math.min(minScaleForSmallImages, scale * 2); // 尝试放大一些，但不超过视口限制
             }
-            
+
             // 防止缩放比例过小
             if (isNaN(scale) || scale <= 0) {
                 scale = 1;
             }
-            
+
             // 存储当前位置和缩放比例
             let offsetX = 0;
             let offsetY = 0;
-            
+
             // 是否正在拖动
             let isDragging = false;
             let startX, startY, startOffsetX, startOffsetY;
-            
+
             // 更新内容容器的变换
             function updateTransform() {
                 // 将容器定位到视口中心，然后应用偏移和缩放
                 contentContainer.style.transform = `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
             }
-            
 
-            
+
+
             // 应用初始变换
             updateTransform();
-            
+
             // 放大按钮事件
             zoomInBtn.onclick = () => {
                 scale *= 1.2;
                 updateTransform();
             };
-            
+
             // 缩小按钮事件
             zoomOutBtn.onclick = () => {
                 scale /= 1.2;
                 // 不限制最小缩放比例，允许用户强制缩小图片
                 updateTransform();
             };
-            
+
             // 重置按钮事件
             resetBtn.onclick = () => {
                 // 直接设置偏移量为0，确保图片在水平和垂直方向上居中
                 offsetX = 0;
                 offsetY = 0;
-                
+
                 // 计算重置后的缩放比例，使图片尽可能大但完全在视口内
                 const currentViewportRect = viewport.getBoundingClientRect();
                 let currentEffectiveViewportHeight = currentViewportRect.height;
-                
+
                 if (currentEffectiveViewportHeight <= 0) {
                     currentEffectiveViewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
                 }
-                
+
                 scale = Math.min(
                     currentViewportRect.width / img.width,
                     currentEffectiveViewportHeight / img.height
                 );
-                
+
                 // 如果图片很小，保持最小缩放比例
                 if (scale < minScaleForSmallImages && img.width < currentViewportRect.width * 0.5) {
                     scale = Math.min(minScaleForSmallImages, scale * 2);
                 }
-                
+
                 updateTransform();
             };
-            
+
             // 鼠标滚轮缩放事件
             viewport.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                
+
                 // 获取鼠标在视口中的位置
                 const mouseX = e.clientX - viewportRect.left;
                 const mouseY = e.clientY - viewportRect.top;
-                
+
                 // 计算鼠标相对于视口中心的位置
                 const centerX = viewportRect.width / 2;
                 const centerY = effectiveViewportHeight / 2;
                 const relX = mouseX - centerX;
                 const relY = mouseY - centerY;
-                
+
                 // 根据滚轮方向调整缩放比例
                 const delta = e.deltaY > 0 ? 0.8 : 1.2;
                 const newScale = scale * delta;
-                
+
                 // 不限制缩放范围，允许用户自由缩放图片
                 offsetX += relX * (1 - delta);
                 offsetY += relY * (1 - delta);
                 scale = newScale;
                 updateTransform();
             });
-            
+
             // 鼠标按下事件（开始拖动）
             viewport.addEventListener('mousedown', (e) => {
                 // 只有在图片上点击才触发拖动
@@ -786,13 +800,13 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     startOffsetX = offsetX;
                     startOffsetY = offsetY;
                     viewport.style.cursor = 'grabbing';
-                    
+
                     // 添加到文档的鼠标移动和释放事件，确保在鼠标移出视口时也能响应
                     document.addEventListener('mousemove', onMouseMove);
                     document.addEventListener('mouseup', onMouseUp);
                 }
             });
-            
+
             // 鼠标移动事件（拖动中）
             function onMouseMove(e) {
                 if (isDragging) {
@@ -801,22 +815,22 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     updateTransform();
                 }
             }
-            
+
             // 鼠标释放事件（结束拖动）
             function onMouseUp() {
                 isDragging = false;
                 viewport.style.cursor = 'grab';
-                
+
                 // 移除事件监听器
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
             }
-            
+
             // 触摸开始事件（对应鼠标按下）
             let touchStartX, touchStartY;
             let initialDistance = null; // 用于存储初始手指距离
             let initialScale = null; // 用于存储初始缩放比例
-            
+
             viewport.addEventListener('touchstart', (e) => {
                 // 只有在图片上点击才触发拖动
                 if (e.target === img) {
@@ -829,7 +843,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     startOffsetY = offsetY;
                     touchStartX = touch.clientX;
                     touchStartY = touch.clientY;
-                    
+
                     // 检查是否有两个手指（捏合缩放）
                     if (e.touches.length === 2) {
                         const touch1 = e.touches[0];
@@ -843,40 +857,40 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     }
                 }
             });
-            
+
             // 触摸移动事件（对应鼠标移动）
             viewport.addEventListener('touchmove', (e) => {
                 if (isDragging) {
                     e.preventDefault(); // 阻止页面滚动
-                    
+
                     // 处理捏合缩放
                     if (e.touches.length === 2 && initialDistance) {
                         const touch1 = e.touches[0];
                         const touch2 = e.touches[1];
-                        
+
                         // 计算当前两个手指之间的距离
                         const currentDistance = Math.sqrt(
                             Math.pow(touch2.clientX - touch1.clientX, 2) +
                             Math.pow(touch2.clientY - touch1.clientY, 2)
                         );
-                        
+
                         // 计算缩放比例变化
                         const scaleFactor = currentDistance / initialDistance;
                         let newScale = initialScale * scaleFactor;
-                        
+
                         // 不限制缩放范围，允许用户自由缩放图片
-                        
+
                         if (newScale !== scale) {
                             // 计算两个手指的中点（缩放中心）
                             const midX = (touch1.clientX + touch2.clientX) / 2;
                             const midY = (touch1.clientY + touch2.clientY) / 2;
-                            
+
                             // 计算中点相对于视口中心的位置
                             const centerX = viewportRect.width / 2;
                             const centerY = effectiveViewportHeight / 2;
                             const relX = midX - centerX;
                             const relY = midY - centerY;
-                            
+
                             // 调整位置，使手指中点保持不变
                             offsetX += relX * (1 - newScale / scale);
                             offsetY += relY * (1 - newScale / scale);
@@ -893,11 +907,11 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     }
                 }
             });
-            
+
             // 触摸相关变量
             let lastTapTime = 0; // 上次点击时间，用于检测双击
             const DOUBLE_TAP_TIME_THRESHOLD = 300; // 双击时间阈值（毫秒）
-            
+
             // 触摸结束事件（对应鼠标释放）
             viewport.addEventListener('touchend', (e) => {
                 if (isDragging) {
@@ -905,21 +919,21 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     // 重置捏合缩放相关变量
                     initialDistance = null;
                     initialScale = null;
-                    
+
                     // 检查是否是点击操作而不是拖动
                     const touch = e.changedTouches[0];
                     const dx = Math.abs(touch.clientX - touchStartX);
                     const dy = Math.abs(touch.clientY - touchStartY);
-                    
+
                     // 如果移动距离很小，视为点击
                     if (dx < 10 && dy < 10) {
                         const currentTime = new Date().getTime();
                         const tapTimeInterval = currentTime - lastTapTime;
-                        
+
                         // 检查是否是双击（两次点击时间间隔在阈值内）
                         if (tapTimeInterval < DOUBLE_TAP_TIME_THRESHOLD && tapTimeInterval > 0) {
                             e.preventDefault();
-                            
+
                             if (!isDoubleClickMode) {
                                 // 第一次双击：缩放到图片的100%比例
                                 scale = 1;
@@ -931,7 +945,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                                 scale = originalOptimalScale;
                                 isDoubleClickMode = false;
                             }
-                            
+
                             updateTransform();
                             // 重置双击检测
                             lastTapTime = 0;
@@ -945,16 +959,16 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                     }
                 }
             });
-            
+
             // 存储原始最合适的缩放比例，用于双击复原
             const originalOptimalScale = scale;
             let isDoubleClickMode = false; // 标记是否处于双击模式（100%比例）
-            
+
             // 添加双击事件处理
             viewport.addEventListener('dblclick', (e) => {
                 if (e.target === img) {
                     e.preventDefault();
-                    
+
                     if (!isDoubleClickMode) {
                         // 第一次双击：缩放到图片的100%比例
                         scale = 1;
@@ -966,7 +980,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                         scale = originalOptimalScale;
                         isDoubleClickMode = false;
                     }
-                    
+
                     updateTransform();
                 }
             });
@@ -1251,9 +1265,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     .info-item span {
         flex: 1;
     }
-    
+
     .keeper-tag {
-        background-color: rgba(52, 152, 219, 0.2); /* 半透明蓝色 */
+        background-color: rgba(52, 152, 219, 0.2);
+        /* 半透明蓝色 */
         color: #2c3e50;
         padding: 2px 8px;
         margin-right: 8px;
@@ -1550,8 +1565,22 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     }
 
     @media (max-width: 768px) {
+
+        /* 窄屏时调整全局容器宽度 */
+        .container {
+            max-width: none;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* 窄屏时让主体内容宽度铺满屏幕 */
         .device-detail {
-            padding: 20px;
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 20px 15px;
+            width: 100%;
         }
 
         .info-item {

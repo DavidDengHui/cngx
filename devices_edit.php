@@ -1,4 +1,10 @@
 <?php
+// 检查是否被直接访问
+if (basename($_SERVER['PHP_SELF']) == 'devices_edit.php') {
+    header('Location: /devices.php');
+    exit();
+}
+
 // 确保did参数存在
 if (!isset($did)) {
     header('Location: /devices.php');

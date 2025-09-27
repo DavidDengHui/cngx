@@ -5,7 +5,6 @@ $page_title = '设备信息查询 - 个人设备信息管理平台';
 
 // 引入配置文件和页眉
 include 'config.php';
-include 'header.php';
 
 // 获取数据库连接
 $pdo = getDbConnection();
@@ -23,6 +22,7 @@ if (isset($_GET['did'])) {
         include 'devices_detail.php';
     }
 } else {
+    include 'header.php';
     // 设备查询页面逻辑
 ?>
     <div class="devices-container">
@@ -35,8 +35,8 @@ if (isset($_GET['did'])) {
                             <label>请选择部门</label>
                             <div class="select-container">
                                 <input type="text" id="department" readonly placeholder="请选择部门">
-                            <input type="hidden" id="department-id">
-                            <button type="button" class="clear-btn" data-target="department"></button>
+                                <input type="hidden" id="department-id">
+                                <button type="button" class="clear-btn" data-target="department"></button>
                             </div>
                         </div>
                     </div>
@@ -46,8 +46,8 @@ if (isset($_GET['did'])) {
                             <label>请选择站场</label>
                             <div class="select-container">
                                 <input type="text" id="station" readonly placeholder="请选择站场">
-                            <input type="hidden" id="station-id">
-                            <button type="button" class="clear-btn" data-target="station"></button>
+                                <input type="hidden" id="station-id">
+                                <button type="button" class="clear-btn" data-target="station"></button>
                             </div>
                         </div>
                     </div>
@@ -57,8 +57,8 @@ if (isset($_GET['did'])) {
                             <label>请选择类型</label>
                             <div class="select-container">
                                 <input type="text" id="type" readonly placeholder="请选择类型">
-                            <input type="hidden" id="type-id">
-                            <button type="button" class="clear-btn" data-target="type"></button>
+                                <input type="hidden" id="type-id">
+                                <button type="button" class="clear-btn" data-target="type"></button>
                             </div>
                         </div>
                     </div>
@@ -68,7 +68,7 @@ if (isset($_GET['did'])) {
                             <label>请输入关键字词<span class="remark-badge" data-remark="与设备名称/备注有关的关键字词">!</span></label>
                             <div class="select-container">
                                 <input type="text" id="keywords" placeholder="请输入关键字词">
-                            <button type="button" class="clear-btn" data-target="keywords"></button>
+                                <button type="button" class="clear-btn" data-target="keywords"></button>
                             </div>
                         </div>
                     </div>
@@ -142,12 +142,12 @@ if (isset($_GET['did'])) {
             // 显示模态框并确保居中
             const modal = document.getElementById('select-modal');
             modal.style.display = 'block';
-            
+
             // 确保模态框容器居中
             modal.style.display = 'flex';
             modal.style.alignItems = 'center';
             modal.style.justifyContent = 'center';
-            
+
             // 确保模态框内容居中
             const modalContent = document.querySelector('.modal-content');
             modalContent.style.margin = 'auto';
@@ -348,10 +348,10 @@ if (isset($_GET['did'])) {
             ['department', 'station', 'type', 'keywords'].forEach(type => {
                 const input = document.getElementById(type);
                 const btn = document.querySelector(`.clear-btn[data-target="${type}"]`);
-                
+
                 // 初始化检查
                 updateClearButtonVisibility(input, btn);
-                
+
                 // 添加事件监听
                 input.addEventListener('input', function() {
                     updateClearButtonVisibility(this, btn);
@@ -371,12 +371,12 @@ if (isset($_GET['did'])) {
         // 清空输入框内容
         function clearInput(type) {
             document.getElementById(type).value = '';
-            
+
             // 对于带ID的输入框，也清空对应的ID值
             if (type === 'department' || type === 'station' || type === 'type') {
                 document.getElementById(`${type}-id`).value = '';
             }
-            
+
             // 隐藏对应的删除按钮
             const btn = document.querySelector(`.clear-btn[data-target="${type}"]`);
             btn.style.display = 'none';
@@ -494,7 +494,8 @@ if (isset($_GET['did'])) {
 
         .select-container input[type="text"] {
             width: 100%;
-            padding: 12px 40px 12px 12px; /* 右侧留出40px空间给删除按钮 */
+            padding: 12px 40px 12px 12px;
+            /* 右侧留出40px空间给删除按钮 */
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
@@ -512,7 +513,7 @@ if (isset($_GET['did'])) {
             outline: none;
             border-color: #3498db;
         }
-        
+
         /* 删除按钮样式 */
         .clear-btn {
             position: absolute;
@@ -532,12 +533,12 @@ if (isset($_GET['did'])) {
             line-height: 1;
             color: #666;
         }
-        
+
         .clear-btn:before {
             content: '×';
             font-weight: bold;
         }
-        
+
         .clear-btn:hover {
             background: #ccc;
             color: #333;
@@ -1078,7 +1079,9 @@ if (isset($_GET['did'])) {
                     // 阻止默认行为
                     event.preventDefault();
                 }
-            }, { passive: false });
+            }, {
+                passive: false
+            });
         });
 
         // 添加分页控件
