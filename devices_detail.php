@@ -58,110 +58,110 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         <!-- 左侧设备信息 -->
         <div class="detail-sidebar">
             <div class="device-info">
-        <div class="info-item">
-            <label>设备类型：</label>
-            <span><?php echo $type_name; ?></span>
-        </div>
-        <div class="info-item">
-            <label>所属站场：</label>
-            <span><?php echo $station_name; ?></span>
-        </div>
-        <div class="info-item">
-            <label>包保部门：</label>
-            <span><?php echo $department_name; ?></span>
-        </div>
-        <div class="info-item">
-            <label>包保人姓名：</label>
-            <span>
-                <?php
-                $keepers = $device['keepers'];
-                if (!empty($keepers)) {
-                    $keeperArray = explode('||', $keepers);
-                    $formattedKeepers = array();
-                    foreach ($keeperArray as $keeper) {
-                        $formattedKeepers[] = '<span class="keeper-tag">' . $keeper . '</span>';
-                    }
-                    echo implode('', $formattedKeepers);
-                } else {
-                    echo '无';
-                }
-                ?>
-            </span>
-        </div>
-        <div class="info-item">
-            <label>备注：</label>
-            <span><?php echo $device['remark'] ? $device['remark'] : '无'; ?></span>
-        </div>
-    </div>
+                <div class="info-item">
+                    <label>设备类型：</label>
+                    <span><?php echo $type_name; ?></span>
+                </div>
+                <div class="info-item">
+                    <label>所属站场：</label>
+                    <span><?php echo $station_name; ?></span>
+                </div>
+                <div class="info-item">
+                    <label>包保部门：</label>
+                    <span><?php echo $department_name; ?></span>
+                </div>
+                <div class="info-item">
+                    <label>包保人：</label>
+                    <span>
+                        <?php
+                        $keepers = $device['keepers'];
+                        if (!empty($keepers)) {
+                            $keeperArray = explode('||', $keepers);
+                            $formattedKeepers = array();
+                            foreach ($keeperArray as $keeper) {
+                                $formattedKeepers[] = '<span class="keeper-tag">' . $keeper . '</span>';
+                            }
+                            echo implode('', $formattedKeepers);
+                        } else {
+                            echo '无';
+                        }
+                        ?>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <label>备注：</label>
+                    <span><?php echo $device['remark'] ? $device['remark'] : '无'; ?></span>
+                </div>
+            </div>
         </div>
         <!-- 右侧内容 -->
         <div class="detail-content">
-        <!-- 图纸折叠块 -->
-    <div class="collapse-block">
-        <div class="collapse-header" onclick="toggleCollapse('drawings')">
-            <div class="header-title">
-                <span>设备图纸</span>
-                <span class="record-count"> (<?php echo $device['drawing_count']; ?>)</span>
+            <!-- 图纸折叠块 -->
+            <div class="collapse-block">
+                <div class="collapse-header" onclick="toggleCollapse('drawings')">
+                    <div class="header-title">
+                        <span>设备图纸</span>
+                        <span class="record-count"> (<?php echo $device['drawing_count']; ?>)</span>
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div id="drawings" class="collapse-content" style="display: none;">
+                    <div id="drawings-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
             </div>
-            <span class="collapse-icon">▼</span>
-        </div>
-        <div id="drawings" class="collapse-content" style="display: none;">
-            <div id="drawings-content">
-                <div class="loading">加载中...</div>
-            </div>
-        </div>
-    </div>
 
-    <!-- 巡视记录折叠块 -->
-    <div class="collapse-block">
-        <div class="collapse-header" onclick="toggleCollapse('inspection-records')">
-            <div class="header-title">
-                <span>巡视记录</span>
-                <span id="inspection-count" class="record-count">(0)</span>
-                <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
+            <!-- 巡视记录折叠块 -->
+            <div class="collapse-block">
+                <div class="collapse-header" onclick="toggleCollapse('inspection-records')">
+                    <div class="header-title">
+                        <span>巡视记录</span>
+                        <span id="inspection-count" class="record-count">(0)</span>
+                        <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div id="inspection-records" class="collapse-content" style="display: none;">
+                    <div id="inspection-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
             </div>
-            <span class="collapse-icon">▼</span>
-        </div>
-        <div id="inspection-records" class="collapse-content" style="display: none;">
-            <div id="inspection-content">
-                <div class="loading">加载中...</div>
-            </div>
-        </div>
-    </div>
 
-    <!-- 检修记录折叠块 -->
-    <div class="collapse-block">
-        <div class="collapse-header" onclick="toggleCollapse('maintenance-records')">
-            <div class="header-title">
-                <span>检修记录</span>
-                <span id="maintenance-count" class="record-count">(0)</span>
-                <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
+            <!-- 检修记录折叠块 -->
+            <div class="collapse-block">
+                <div class="collapse-header" onclick="toggleCollapse('maintenance-records')">
+                    <div class="header-title">
+                        <span>检修记录</span>
+                        <span id="maintenance-count" class="record-count">(0)</span>
+                        <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div id="maintenance-records" class="collapse-content" style="display: none;">
+                    <div id="maintenance-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
             </div>
-            <span class="collapse-icon">▼</span>
-        </div>
-        <div id="maintenance-records" class="collapse-content" style="display: none;">
-            <div id="maintenance-content">
-                <div class="loading">加载中...</div>
-            </div>
-        </div>
-    </div>
 
-    <!-- 问题库记录折叠块 -->
-    <div class="collapse-block">
-        <div class="collapse-header" onclick="toggleCollapse('problem-records')">
-            <div class="header-title">
-                <span>问题记录</span>
-                <span id="problem-count" class="record-count">(0)</span>
-                <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
+            <!-- 问题库记录折叠块 -->
+            <div class="collapse-block">
+                <div class="collapse-header" onclick="toggleCollapse('problem-records')">
+                    <div class="header-title">
+                        <span>问题记录</span>
+                        <span id="problem-count" class="record-count">(0)</span>
+                        <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
+                    </div>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div id="problem-records" class="collapse-content" style="display: none;">
+                    <div id="problem-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
             </div>
-            <span class="collapse-icon">▼</span>
-        </div>
-        <div id="problem-records" class="collapse-content" style="display: none;">
-            <div id="problem-content">
-                <div class="loading">加载中...</div>
-            </div>
-        </div>
-    </div>
 
         </div>
     </div>
@@ -372,13 +372,13 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     function showDownloadConfirm(element) {
         // 获取设备名称
         const deviceName = '<?php echo addslashes($device['device_name']); ?>';
-        
+
         // 获取文件信息
         let url = element.getAttribute('data-url');
         const fileName = element.getAttribute('data-name');
         const fileType = element.getAttribute('data-type');
         const fileSize = element.getAttribute('data-size');
-        
+
         // 确保URL包含域名（完整链接）
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
             const baseUrl = window.location.origin;
@@ -389,49 +389,49 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 url = baseUrl + '/' + url;
             }
         }
-        
+
         // 创建模态框
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.style.display = 'none';
-        
+
         // 创建模态框内容
         const modalContent = document.createElement('div');
         modalContent.className = 'modal-content';
-        
+
         // 创建头部
         const modalHeader = document.createElement('div');
         modalHeader.className = 'modal-header';
-        
+
         const modalTitle = document.createElement('h3');
         modalTitle.textContent = '确认下载';
-        
+
         const closeBtn = document.createElement('button');
         closeBtn.className = 'close-btn';
         closeBtn.textContent = '×';
         closeBtn.onclick = function() {
             modal.remove();
         };
-        
+
         modalHeader.appendChild(modalTitle);
         modalHeader.appendChild(closeBtn);
-        
+
         // 创建主体
         const modalBody = document.createElement('div');
         modalBody.className = 'modal-body';
-        
+
         const infoList = document.createElement('div');
         infoList.style.marginBottom = '20px';
-        
+
         infoList.innerHTML = `
             <div style="margin-bottom: 10px;"><strong>设备名称:</strong> ${deviceName}</div>
             <div style="margin-bottom: 10px;"><strong>图纸名称:</strong> ${fileName}</div>
             <div style="margin-bottom: 10px;"><strong>文件类型:</strong> ${fileType}</div>
             <div style="margin-bottom: 10px;"><strong>文件大小:</strong> ${fileSize}</div>
         `;
-        
+
         modalBody.appendChild(infoList);
-        
+
         // 创建按钮区域
         const modalFooter = document.createElement('div');
         modalFooter.className = 'modal-footer';
@@ -440,7 +440,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         modalFooter.style.gap = '10px';
         modalFooter.style.padding = '15px';
         modalFooter.style.borderTop = '1px solid #ddd';
-        
+
         // 复制链接按钮
         const copyLinkBtn = document.createElement('button');
         copyLinkBtn.className = 'edit-btn';
@@ -450,11 +450,11 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         copyLinkBtn.textContent = '复制下载链接';
         copyLinkBtn.style.cursor = 'pointer'; // 确保显示为可点击
         copyLinkBtn.style.userSelect = 'none'; // 防止文本选中
-        
+
         // 增强移动设备上的点击体验
         copyLinkBtn.style.touchAction = 'manipulation';
         copyLinkBtn.style.webkitTapHighlightColor = 'rgba(0, 0, 0, 0.1)';
-        
+
         copyLinkBtn.onclick = function() {
             // 优先使用现代的Clipboard API
             if (navigator.clipboard && window.isSecureContext) {
@@ -469,36 +469,36 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 fallbackCopyTextToClipboard(url);
             }
         };
-        
+
         // 复制成功提示
         function showCopySuccess() {
             const originalText = copyLinkBtn.textContent;
             const originalBg = copyLinkBtn.style.backgroundColor;
-            
+
             copyLinkBtn.textContent = '已复制！';
             copyLinkBtn.style.backgroundColor = '#27ae60';
-            
+
             setTimeout(function() {
                 copyLinkBtn.textContent = originalText;
                 copyLinkBtn.style.backgroundColor = originalBg;
             }, 2000);
         }
-        
+
         // 降级复制方案，兼容不支持Clipboard API的设备
         function fallbackCopyTextToClipboard(text) {
             const textArea = document.createElement('textarea');
             textArea.value = text;
-            
+
             // 避免界面闪烁
             textArea.style.position = 'fixed';
             textArea.style.left = '-999999px';
             textArea.style.top = '-999999px';
             textArea.style.opacity = '0';
-            
+
             document.body.appendChild(textArea);
             textArea.focus();
             textArea.select();
-            
+
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
@@ -509,10 +509,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             } catch (err) {
                 alert('复制失败，请手动复制');
             }
-            
+
             document.body.removeChild(textArea);
         }
-        
+
         // 取消按钮
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'delete-btn';
@@ -523,7 +523,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         cancelBtn.onclick = function() {
             modal.remove();
         };
-        
+
         // 确认按钮
         const confirmBtn = document.createElement('button');
         confirmBtn.className = 'download-btn';
@@ -540,25 +540,25 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             document.body.removeChild(a);
             modal.remove();
         };
-        
+
         modalFooter.appendChild(copyLinkBtn);
         modalFooter.appendChild(cancelBtn);
         modalFooter.appendChild(confirmBtn);
-        
+
         // 组装模态框
         modalContent.appendChild(modalHeader);
         modalContent.appendChild(modalBody);
         modalContent.appendChild(modalFooter);
         modal.appendChild(modalContent);
-        
+
         // 添加到文档
         document.body.appendChild(modal);
-        
+
         // 显示模态框
         modal.style.display = 'flex';
         // 阻止背景页面滚动
         document.body.style.overflow = 'hidden';
-        
+
         // 点击模态框背景关闭
         modal.onclick = function(e) {
             if (e.target === modal) {
@@ -572,13 +572,13 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         copyLinkBtn.onclick = function() {
             copyDownloadLink(url);
         };
-        
+
         cancelBtn.onclick = function() {
             modal.remove();
             // 恢复背景页面滚动
             document.body.style.overflow = '';
         };
-        
+
         confirmBtn.onclick = function() {
             // 创建一个隐藏的a标签用于下载
             const a = document.createElement('a');
@@ -587,7 +587,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            
+
             modal.remove();
             // 恢复背景页面滚动
             document.body.style.overflow = '';
@@ -626,7 +626,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
         // 阻止背景页面滚动
         document.body.style.overflow = 'hidden';
-        
+
         // 阻止模态框内的滑动事件传递到背景页面，但允许按钮点击
         modal.addEventListener('touchstart', function(e) {
             // 检查是否点击的是按钮元素或按钮内的元素
@@ -1371,7 +1371,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 const countElement = document.getElementById('inspection-count');
                 countElement.textContent = `(0)`;
             });
-        
+
         // 加载检修记录数量
         fetch(`api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=2`)
             .then(response => response.json())
@@ -1383,7 +1383,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 const countElement = document.getElementById('maintenance-count');
                 countElement.textContent = `(0)`;
             });
-        
+
         // 加载问题记录数量
         fetch(`api.php?action=getProblems&did=<?php echo $did; ?>`)
             .then(response => response.json())
@@ -1396,7 +1396,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 countElement.textContent = `(0)`;
             });
     }
-    
+
     // 在页面加载完成后自动加载记录数量
     document.addEventListener('DOMContentLoaded', loadRecordCounts);
 
@@ -2045,7 +2045,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             max-height: 90vh;
         }
     }
-    
+
     /* 新增的样式：记录数量和标题布局 */
     .collapse-header .header-title {
         display: flex;
@@ -2053,14 +2053,14 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         gap: 10px;
         flex: 1;
     }
-    
+
     /* 统一标题样式 */
     .collapse-header .header-title span:first-child,
-    .collapse-header > span:not(.record-count):not(.collapse-icon) {
+    .collapse-header>span:not(.record-count):not(.collapse-icon) {
         font-size: 16px;
         font-weight: bold;
     }
-    
+
     /* 统一数量显示样式 */
     .record-count {
         font-size: 16px;
@@ -2068,7 +2068,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         font-weight: bold;
         margin-left: 5px;
     }
-    
+
     .collapse-header .header-title .add-btn {
         margin-left: auto;
         padding: 6px 16px;
@@ -2079,77 +2079,82 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         cursor: pointer;
         font-size: 14px;
     }
-    
+
     .collapse-header .header-title .add-btn:hover {
         background-color: #45a049;
     }
-    
+
     /* 宽屏模式下的两列布局 */
     @media (min-width: 769px) {
-        /* 增加全局容器最大宽度 */
+
+        /* 容器自适应窗口宽度，当窗口宽度缩小时跟随一起缩小 */
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
+            width: 100%;
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         .device-detail {
             display: flex;
             flex-direction: column;
             width: 100%;
             max-width: none;
         }
-        
+
         .detail-layout {
             display: flex;
             gap: 40px;
             margin-bottom: 20px;
+            /* 允许容器内元素在空间不足时缩小 */
+            min-width: 0;
         }
-        
-        /* 增加左侧边栏宽度 */
+
+        /* 左侧设备信息宽度基本保持不变，但在窗口宽度非常小时允许适当缩小 */
         .detail-sidebar {
-            flex: 0 0 400px;
+            flex: 1 1 600px;
+            min-width: 250px;
         }
-        
-        /* 确保右侧内容充分利用剩余空间 */
+
+        /* 右侧内容区域 - 展开后调整为更适合展示列表的宽度 */
         .detail-content {
-            flex: 1;
+            flex: 2 1 800px;
+            min-width: 400px;
         }
-        
+
         .device-info {
             background-color: #f9f9f9;
             padding: 25px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
-        
+
         .info-item {
             display: flex;
             align-items: flex-start;
             margin-bottom: 20px;
             padding-bottom: 20px;
             border-bottom: 1px solid #eee;
-            gap: 20px;
         }
-        
+
         .info-item label {
             font-weight: bold;
             color: #555;
-            width: 120px;
+            width: 90px;
             flex-shrink: 0;
         }
-        
+
         .info-item span {
             color: #333;
             flex: 1;
         }
-        
+
         .info-item:last-child {
             margin-bottom: 0;
             padding-bottom: 0;
             border-bottom: none;
         }
-        
+
         /* 优化右侧内容区域的折叠块样式 */
         .collapse-block {
             background: white;
@@ -2158,24 +2163,24 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             overflow: hidden;
         }
-        
+
         .collapse-header {
             padding: 20px 25px;
             background-color: #f9f9f9;
             border-bottom: 1px solid #eee;
         }
-        
+
         .collapse-content {
             padding: 25px;
         }
     }
-    
+
     /* 窄屏模式下恢复单列布局 - 与原有的窄屏样式统一使用768px断点 */
     @media (max-width: 768px) {
         .detail-layout {
             display: block;
         }
-        
+
         .device-info {
             margin-bottom: 20px;
         }
