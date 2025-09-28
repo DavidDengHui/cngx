@@ -54,7 +54,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 <div class="device-detail">
     <h2 style="text-align: center; margin-bottom: 30px;"><?php echo $device['device_name']; ?></h2>
 
-    <div class="device-info">
+    <div class="detail-layout">
+        <!-- 左侧设备信息 -->
+        <div class="detail-sidebar">
+            <div class="device-info">
         <div class="info-item">
             <label>设备类型：</label>
             <span><?php echo $type_name; ?></span>
@@ -90,8 +93,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             <span><?php echo $device['remark'] ? $device['remark'] : '无'; ?></span>
         </div>
     </div>
-
-    <!-- 图纸折叠块 -->
+        </div>
+        <!-- 右侧内容 -->
+        <div class="detail-content">
+        <!-- 图纸折叠块 -->
     <div class="collapse-block">
         <div class="collapse-header" onclick="toggleCollapse('drawings')">
             <div class="header-title">
@@ -155,6 +160,9 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             <div id="problem-content">
                 <div class="loading">加载中...</div>
             </div>
+        </div>
+    </div>
+
         </div>
     </div>
 
@@ -2074,5 +2082,102 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     
     .collapse-header .header-title .add-btn:hover {
         background-color: #45a049;
+    }
+    
+    /* 宽屏模式下的两列布局 */
+    @media (min-width: 769px) {
+        /* 增加全局容器最大宽度 */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .device-detail {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: none;
+        }
+        
+        .detail-layout {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+        
+        /* 增加左侧边栏宽度 */
+        .detail-sidebar {
+            flex: 0 0 400px;
+        }
+        
+        /* 确保右侧内容充分利用剩余空间 */
+        .detail-content {
+            flex: 1;
+        }
+        
+        .device-info {
+            background-color: #f9f9f9;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            gap: 20px;
+        }
+        
+        .info-item label {
+            font-weight: bold;
+            color: #555;
+            width: 120px;
+            flex-shrink: 0;
+        }
+        
+        .info-item span {
+            color: #333;
+            flex: 1;
+        }
+        
+        .info-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        /* 优化右侧内容区域的折叠块样式 */
+        .collapse-block {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .collapse-header {
+            padding: 20px 25px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .collapse-content {
+            padding: 25px;
+        }
+    }
+    
+    /* 窄屏模式下恢复单列布局 - 与原有的窄屏样式统一使用768px断点 */
+    @media (max-width: 768px) {
+        .detail-layout {
+            display: block;
+        }
+        
+        .device-info {
+            margin-bottom: 20px;
+        }
     }
 </style>
