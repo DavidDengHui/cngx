@@ -68,6 +68,12 @@ switch ($action) {
     case 'getDrawings':
         getDrawings();
         break;
+    case 'getWorkLogs':
+        getWorkLogs();
+        break;
+    case 'getProblems':
+        getProblems();
+        break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
         break;
@@ -633,5 +639,87 @@ function getDrawings() {
         echo json_encode($drawings);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取图纸失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取工作记录（巡视记录和检修记录）
+function getWorkLogs() {
+    global $pdo;
+    
+    try {
+        $did = $_GET['did'];
+        $type = $_GET['type'];
+        
+        if ($type == 1 || $type === 'inspection') {
+            // 获取巡视记录
+            $stmt = $pdo->prepare("SELECT id as wid, inspector as workers, inspection_time as work_date, content, create_time, status as flow FROM inspections WHERE did = :did AND status = 1 ORDER BY inspection_time DESC");
+        } else if ($type == 2 || $type === 'maintenance') {
+            // 获取检修记录
+            $stmt = $pdo->prepare("SELECT id as wid, maintainer as workers, maintenance_time as work_date, content, create_time, status as flow FROM maintenances WHERE did = :did AND status = 1 ORDER BY maintenance_time DESC");
+        } else {
+            echo json_encode(['success' => false, 'message' => '无效的记录类型']);
+            return;
+        }
+        
+        $stmt->execute(['did' => $did]);
+        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 格式化状态
+        foreach ($records as &$record) {
+            switch ($record['flow']) {
+                case 1:
+                    $record['flow_text'] = '已完成';
+                    break;
+                default:
+                    $record['flow_text'] = '未知状态';
+                    break;
+            }
+        }
+        
+        echo json_encode($records);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取记录失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取问题记录
+function getProblems() {
+    global $pdo;
+    
+    try {
+        $did = $_GET['did'];
+        
+        $stmt = $pdo->prepare("SELECT pid, reporter, report_time, description, urgency, status, create_time, update_time FROM problems WHERE did = :did AND status != -1 ORDER BY report_time DESC");
+        $stmt->execute(['did' => $did]);
+        $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 格式化紧急程度和状态，并映射字段名以匹配前端代码
+        foreach ($problems as &$problem) {
+            // 紧急程度
+            switch ($problem['urgency']) {
+                case 1:
+                    $problem['urgency_text'] = '低';
+                    break;
+                case 2:
+                    $problem['urgency_text'] = '中';
+                    break;
+                case 3:
+                    $problem['urgency_text'] = '高';
+                    break;
+                default:
+                    $problem['urgency_text'] = '未知';
+                    break;
+            }
+            
+            // 问题状态 - 映射为前端期望的字段名flow
+            $problem['flow'] = $problem['status'];
+            
+            // 将report_time映射为create_time，以匹配前端代码
+            $problem['create_time'] = $problem['report_time'];
+        }
+        
+        echo json_encode($problems);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取问题记录失败: ' . $e->getMessage()]);
     }
 }

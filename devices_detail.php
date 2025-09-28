@@ -94,7 +94,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     <!-- 图纸折叠块 -->
     <div class="collapse-block">
         <div class="collapse-header" onclick="toggleCollapse('drawings')">
-            <span>设备图纸 (<?php echo $device['drawing_count']; ?>)</span>
+            <div class="header-title">
+                <span>设备图纸</span>
+                <span class="record-count"> (<?php echo $device['drawing_count']; ?>)</span>
+            </div>
             <span class="collapse-icon">▼</span>
         </div>
         <div id="drawings" class="collapse-content" style="display: none;">
@@ -107,8 +110,11 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     <!-- 巡视记录折叠块 -->
     <div class="collapse-block">
         <div class="collapse-header" onclick="toggleCollapse('inspection-records')">
-            <span>巡视记录</span>
-            <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
+            <div class="header-title">
+                <span>巡视记录</span>
+                <span id="inspection-count" class="record-count">(0)</span>
+                <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
+            </div>
             <span class="collapse-icon">▼</span>
         </div>
         <div id="inspection-records" class="collapse-content" style="display: none;">
@@ -121,8 +127,11 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     <!-- 检修记录折叠块 -->
     <div class="collapse-block">
         <div class="collapse-header" onclick="toggleCollapse('maintenance-records')">
-            <span>检修记录</span>
-            <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
+            <div class="header-title">
+                <span>检修记录</span>
+                <span id="maintenance-count" class="record-count">(0)</span>
+                <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
+            </div>
             <span class="collapse-icon">▼</span>
         </div>
         <div id="maintenance-records" class="collapse-content" style="display: none;">
@@ -135,8 +144,11 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
     <!-- 问题库记录折叠块 -->
     <div class="collapse-block">
         <div class="collapse-header" onclick="toggleCollapse('problem-records')">
-            <span>问题记录</span>
-            <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
+            <div class="header-title">
+                <span>问题记录</span>
+                <span id="problem-count" class="record-count">(0)</span>
+                <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
+            </div>
             <span class="collapse-icon">▼</span>
         </div>
         <div id="problem-records" class="collapse-content" style="display: none;">
@@ -1338,12 +1350,56 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         }, 10); // 短暂延迟确保元素已渲染到DOM中
     }
 
+    // 加载记录数量（页面加载时自动执行）
+    function loadRecordCounts() {
+        // 加载巡视记录数量
+        fetch(`api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=1`)
+            .then(response => response.json())
+            .then(data => {
+                const countElement = document.getElementById('inspection-count');
+                countElement.textContent = `(${data.length})`;
+            })
+            .catch(error => {
+                const countElement = document.getElementById('inspection-count');
+                countElement.textContent = `(0)`;
+            });
+        
+        // 加载检修记录数量
+        fetch(`api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=2`)
+            .then(response => response.json())
+            .then(data => {
+                const countElement = document.getElementById('maintenance-count');
+                countElement.textContent = `(${data.length})`;
+            })
+            .catch(error => {
+                const countElement = document.getElementById('maintenance-count');
+                countElement.textContent = `(0)`;
+            });
+        
+        // 加载问题记录数量
+        fetch(`api.php?action=getProblems&did=<?php echo $did; ?>`)
+            .then(response => response.json())
+            .then(data => {
+                const countElement = document.getElementById('problem-count');
+                countElement.textContent = `(${data.length})`;
+            })
+            .catch(error => {
+                const countElement = document.getElementById('problem-count');
+                countElement.textContent = `(0)`;
+            });
+    }
+    
+    // 在页面加载完成后自动加载记录数量
+    document.addEventListener('DOMContentLoaded', loadRecordCounts);
+
     // 加载巡视记录
     function loadInspectionRecords() {
         fetch(`api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=1`)
             .then(response => response.json())
             .then(data => {
                 const content = document.getElementById('inspection-content');
+
+                // 数量已在页面加载时更新，这里不再重复更新
 
                 if (data.length > 0) {
                     let html = '<table class="records-table">';
@@ -1373,6 +1429,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             .then(data => {
                 const content = document.getElementById('maintenance-content');
 
+                // 数量已在页面加载时更新，这里不再重复更新
+
                 if (data.length > 0) {
                     let html = '<table class="records-table">';
                     html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th><th>操作</th></tr></thead>';
@@ -1400,6 +1458,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             .then(response => response.json())
             .then(data => {
                 const content = document.getElementById('problem-content');
+
+                // 数量已在页面加载时更新，这里不再重复更新
 
                 if (data.length > 0) {
                     let html = '<table class="problems-table">';
@@ -1976,5 +2036,43 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             width: 95%;
             max-height: 90vh;
         }
+    }
+    
+    /* 新增的样式：记录数量和标题布局 */
+    .collapse-header .header-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+    }
+    
+    /* 统一标题样式 */
+    .collapse-header .header-title span:first-child,
+    .collapse-header > span:not(.record-count):not(.collapse-icon) {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    
+    /* 统一数量显示样式 */
+    .record-count {
+        font-size: 16px;
+        color: #666;
+        font-weight: bold;
+        margin-left: 5px;
+    }
+    
+    .collapse-header .header-title .add-btn {
+        margin-left: auto;
+        padding: 6px 16px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .collapse-header .header-title .add-btn:hover {
+        background-color: #45a049;
     }
 </style>
