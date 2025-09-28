@@ -631,12 +631,34 @@ function getDrawings() {
     
     try {
         $did = $_GET['did'];
+        // 获取分页参数
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 5;
         
-        $stmt = $pdo->prepare("SELECT id, original_name, link_name, root_dir, file_size FROM drawings WHERE did = :did AND status = 1");
+        // 如果pageSize为0，表示查询所有记录
+        $limitClause = '';
+        if ($pageSize > 0) {
+            $offset = ($page - 1) * $pageSize;
+            $limitClause = "LIMIT $offset, $pageSize";
+        }
+        
+        // 查询总记录数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM drawings WHERE did = :did AND status = 1");
+        $stmt->execute(['did' => $did]);
+        $total = $stmt->fetchColumn();
+        
+        // 查询当前页数据
+        $stmt = $pdo->prepare("SELECT id, original_name, link_name, root_dir, file_size FROM drawings WHERE did = :did AND status = 1 ORDER BY upload_time DESC $limitClause");
         $stmt->execute(['did' => $did]);
         $drawings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        echo json_encode($drawings);
+        // 返回分页结果
+        echo json_encode([
+            'data' => $drawings,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize
+        ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取图纸失败: ' . $e->getMessage()]);
     }
@@ -649,13 +671,33 @@ function getWorkLogs() {
     try {
         $did = $_GET['did'];
         $type = $_GET['type'];
+        // 获取分页参数
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 5;
+        
+        // 如果pageSize为0，表示查询所有记录
+        $limitClause = '';
+        if ($pageSize > 0) {
+            $offset = ($page - 1) * $pageSize;
+            $limitClause = "LIMIT $offset, $pageSize";
+        }
         
         if ($type == 1 || $type === 'inspection') {
-            // 获取巡视记录
-            $stmt = $pdo->prepare("SELECT id as wid, inspector as workers, inspection_time as work_date, content, create_time, status as flow FROM inspections WHERE did = :did AND status = 1 ORDER BY inspection_time DESC");
+            // 获取巡视记录总记录数
+            $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM inspections WHERE did = :did AND status = 1");
+            $stmt->execute(['did' => $did]);
+            $total = $stmt->fetchColumn();
+            
+            // 查询当前页巡视记录
+            $stmt = $pdo->prepare("SELECT id as wid, inspector as workers, inspection_time as work_date, content, create_time, status as flow FROM inspections WHERE did = :did AND status = 1 ORDER BY inspection_time DESC $limitClause");
         } else if ($type == 2 || $type === 'maintenance') {
-            // 获取检修记录
-            $stmt = $pdo->prepare("SELECT id as wid, maintainer as workers, maintenance_time as work_date, content, create_time, status as flow FROM maintenances WHERE did = :did AND status = 1 ORDER BY maintenance_time DESC");
+            // 获取检修记录总记录数
+            $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM maintenances WHERE did = :did AND status = 1");
+            $stmt->execute(['did' => $did]);
+            $total = $stmt->fetchColumn();
+            
+            // 查询当前页检修记录
+            $stmt = $pdo->prepare("SELECT id as wid, maintainer as workers, maintenance_time as work_date, content, create_time, status as flow FROM maintenances WHERE did = :did AND status = 1 ORDER BY maintenance_time DESC $limitClause");
         } else {
             echo json_encode(['success' => false, 'message' => '无效的记录类型']);
             return;
@@ -676,7 +718,13 @@ function getWorkLogs() {
             }
         }
         
-        echo json_encode($records);
+        // 返回分页结果
+        echo json_encode([
+            'data' => $records,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize
+        ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取记录失败: ' . $e->getMessage()]);
     }
@@ -688,8 +736,24 @@ function getProblems() {
     
     try {
         $did = $_GET['did'];
+        // 获取分页参数
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 5;
         
-        $stmt = $pdo->prepare("SELECT pid, reporter, report_time, description, urgency, status, create_time, update_time FROM problems WHERE did = :did AND status != -1 ORDER BY report_time DESC");
+        // 如果pageSize为0，表示查询所有记录
+        $limitClause = '';
+        if ($pageSize > 0) {
+            $offset = ($page - 1) * $pageSize;
+            $limitClause = "LIMIT $offset, $pageSize";
+        }
+        
+        // 查询总记录数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM problems WHERE did = :did AND status != -1");
+        $stmt->execute(['did' => $did]);
+        $total = $stmt->fetchColumn();
+        
+        // 查询当前页数据
+        $stmt = $pdo->prepare("SELECT pid, reporter, report_time, description, urgency, status, create_time, update_time FROM problems WHERE did = :did AND status != -1 ORDER BY report_time DESC $limitClause");
         $stmt->execute(['did' => $did]);
         $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
@@ -718,7 +782,13 @@ function getProblems() {
             $problem['create_time'] = $problem['report_time'];
         }
         
-        echo json_encode($problems);
+        // 返回分页结果
+        echo json_encode([
+            'data' => $problems,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize
+        ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取问题记录失败: ' . $e->getMessage()]);
     }
