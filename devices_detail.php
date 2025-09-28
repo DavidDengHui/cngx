@@ -49,8 +49,14 @@ include 'header.php';
             });
     }
     
+    // 全局设备数据变量
+    let globalDeviceData = null;
+
     // 显示设备详情
     function displayDeviceDetail(device) {
+        // 保存设备数据到全局变量
+        globalDeviceData = device;
+        
         // 设置页面标题
         document.title = device.device_name + ' - 个人设备信息管理平台';
         
@@ -248,7 +254,7 @@ include 'header.php';
         <div class="modal-body">
             <form id="add-problem-form">
                 <input type="hidden" id="problem-did" value="<?php echo $did; ?>">
-                <input type="hidden" id="problem-sid" value="<?php echo $device['sid']; ?>">
+                <input type="hidden" id="problem-sid">
 
                 <div class="form-group">
                     <label for="problem-description">问题描述：</label>
@@ -273,8 +279,8 @@ include 'header.php';
                 <div class="form-group">
                     <label for="problem-department">责任部门：</label>
                     <div class="select-container">
-                        <input type="text" id="problem-department" readonly placeholder="请选择部门" value="<?php echo $department_name; ?>">
-                        <input type="hidden" id="problem-department-id" value="<?php echo $device['cid']; ?>">
+                        <input type="text" id="problem-department" readonly placeholder="请选择部门">
+                        <input type="hidden" id="problem-department-id">
                     </div>
                 </div>
             </form>
@@ -333,8 +339,8 @@ include 'header.php';
 
     // 下载确认框
     function showDownloadConfirm(element) {
-        // 获取设备名称
-        const deviceName = '<?php echo addslashes($device['device_name']); ?>';
+        // 获取设备名称（从页面标题中提取）
+        const deviceName = document.title.split(' - ')[0];
 
         // 获取文件信息
         let url = element.getAttribute('data-url');
@@ -1389,8 +1395,8 @@ include 'header.php';
         `;
 
         // 添加记录详情字段
-        // 设备名称从PHP变量获取
-        const deviceName = '<?php echo $device['device_name']; ?>';
+        // 设备名称从页面标题获取
+        const deviceName = document.title.split(' - ')[0];
         
         const fields = [
             { label: '设备名称:', value: deviceName },
@@ -1717,6 +1723,13 @@ include 'header.php';
         // 设置当前日期为默认值
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('problem-date').value = today;
+
+        // 如果有全局设备数据，设置部门信息
+        if (globalDeviceData) {
+            document.getElementById('problem-sid').value = globalDeviceData.sid || '';
+            document.getElementById('problem-department').value = globalDeviceData.department_name || '';
+            document.getElementById('problem-department-id').value = globalDeviceData.cid || '';
+        }
 
         modal.style.display = 'flex';
         // 阻止背景页面滚动

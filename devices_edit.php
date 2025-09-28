@@ -150,71 +150,48 @@ include 'header.php';
 
         <div class="form-group">
             <label for="device-name">设备名称 <span class="required">*</span>：</label>
-            <input type="text" id="device-name" name="device_name" required value="<?php echo $device ? $device['device_name'] : ''; ?>">
+            <input type="text" id="device-name" name="device_name" required>
         </div>
 
         <div class="form-group">
             <label for="device-type">设备类型 <span class="required">*</span>：</label>
             <div class="select-container">
-                <input type="text" id="device-type" name="device_type" readonly required placeholder="请选择设备类型" value="<?php echo $typeName; ?>">
-                <input type="hidden" id="device-type-id" name="device_type_id" value="<?php echo $typeId; ?>">
+                <input type="text" id="device-type" name="device_type" readonly required placeholder="请选择设备类型">
+                <input type="hidden" id="device-type-id" name="device_type_id">
             </div>
         </div>
 
         <div class="form-group">
             <label for="device-station">所属站场 <span class="required">*</span>：</label>
             <div class="select-container">
-                <input type="text" id="device-station" name="device_station" readonly required placeholder="请选择所属站场" value="<?php echo $stationName; ?>">
-                <input type="hidden" id="device-station-id" name="device_station_id" value="<?php echo $stationId; ?>">
+                <input type="text" id="device-station" name="device_station" readonly required placeholder="请选择所属站场">
+                <input type="hidden" id="device-station-id" name="device_station_id">
             </div>
         </div>
 
         <div class="form-group">
             <label for="device-department">包保部门 <span class="required">*</span>：</label>
             <div class="select-container">
-                <input type="text" id="device-department" name="device_department" readonly required placeholder="请选择包保部门" value="<?php echo $departmentName; ?>">
-                <input type="hidden" id="device-department-id" name="device_department_id" value="<?php echo $departmentId; ?>">
+                <input type="text" id="device-department" name="device_department" readonly required placeholder="请选择包保部门">
+                <input type="hidden" id="device-department-id" name="device_department_id">
             </div>
         </div>
 
         <div class="form-group">
             <label for="device-keepers">包保人姓名 <span class="required">*</span>：</label>
-            <input type="text" id="device-keepers" name="device_keepers" required placeholder="多个人用||分隔" value="<?php echo $device ? $device['keepers'] : ''; ?>">
+            <input type="text" id="device-keepers" name="device_keepers" required placeholder="多个人用||分隔">
         </div>
 
         <div class="form-group">
             <label for="device-remark">备注：</label>
-            <textarea id="device-remark" name="device_remark" rows="4" placeholder="可以输入多行文本"><?php echo $device ? $device['remark'] : ''; ?></textarea>
+            <textarea id="device-remark" name="device_remark" rows="4" placeholder="可以输入多行文本"></textarea>
         </div>
 
         <div class="drawings-section">
             <h3>图纸管理</h3>
 
             <div class="drawings-list">
-                <?php if (count($drawings) > 0): ?>
-                    <table class="drawings-table">
-                        <thead>
-                            <tr>
-                                <th>序号</th>
-                                <th>图纸名称</th>
-                                <th>上传时间</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($drawings as $index => $drawing): ?>
-                                <tr>
-                                    <td><?php echo $index + 1; ?></td>
-                                    <td><a href="<?php echo $drawing['root_dir'] . $drawing['link_name']; ?>" target="_blank"><?php echo $drawing['original_name']; ?></a></td>
-                                    <td><?php echo $drawing['upload_time']; ?></td>
-                                    <td><button type="button" class="delete-btn" onclick="deleteDrawing(<?php echo $drawing['id']; ?>)">删除</button></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php else: ?>
-                    <p class="no-drawings">暂无图纸</p>
-                <?php endif; ?>
+                <div class="loading">加载中...</div>
             </div>
 
             <div class="upload-section">
@@ -225,7 +202,7 @@ include 'header.php';
         </div>
 
         <div class="form-buttons">
-            <button type="button" class="cancel-btn" onclick="window.location.href='/devices.php?did=<?php echo $did; ?>'">取消</button>
+            <button type="button" class="cancel-btn" onclick="window.location.href='/devices.php?did=' + deviceId">取消</button>
             <button type="submit" class="save-btn">保存</button>
         </div>
     </form>
