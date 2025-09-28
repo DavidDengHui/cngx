@@ -21,6 +21,20 @@ header('Content-Type: application/json');
 // 获取请求参数
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
+// 响应数据结构
+$response = array(
+    'success' => false,
+    'message' => '',
+    'data' => null
+);
+
+// 定义问题状态
+$problemStatus = [
+    0 => '未解决',
+    1 => '处理中',
+    2 => '已解决'
+];
+
 // 根据action分发请求
 switch ($action) {
     case 'getDepartments':
@@ -79,6 +93,24 @@ switch ($action) {
         break;
     case 'getProblemsCount':
         getProblemsCount();
+        break;
+    case 'getDeviceDetail':
+        getDeviceDetail();
+        break;
+    case 'getDrawings':
+        getDrawings();
+        break;
+    case 'getDashboardStats':
+        getDashboardStats();
+        break;
+    case 'getProblemDetail':
+        getProblemDetail();
+        break;
+    case 'getProblemList':
+        getProblemList();
+        break;
+    case 'getFilterOptions':
+        getFilterOptions();
         break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
@@ -850,5 +882,306 @@ function getProblemsCount() {
         ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取问题记录总数失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取设备详情信息
+function getDeviceDetail() {
+    global $pdo;
+    
+    try {
+        $did = $_GET['did'];
+        
+        // 查询设备信息
+        $stmt = $pdo->prepare("SELECT * FROM devices WHERE did = :did AND status = 1");
+        $stmt->execute(['did' => $did]);
+        $device = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$device) {
+            echo json_encode(['success' => false, 'message' => '设备不存在']);
+            return;
+        }
+        
+        // 获取设备类型名称
+        $stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
+        $stmt->execute(['tid' => $device['tid']]);
+        $type = $stmt->fetch(PDO::FETCH_ASSOC);
+        $device['type_name'] = $type ? $type['type_name'] : '其他类型';
+        
+        // 获取所属站场名称
+        $stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = :sid AND status = 1");
+        $stmt->execute(['sid' => $device['sid']]);
+        $station = $stmt->fetch(PDO::FETCH_ASSOC);
+        $device['station_name'] = $station ? $station['station_name'] : '其他站场';
+        
+        // 获取包保部门名称
+        $stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
+        $stmt->execute(['cid' => $device['cid']]);
+        $department = $stmt->fetch(PDO::FETCH_ASSOC);
+        $device['department_name'] = $department ? $department['full_name'] : '其他部门';
+        
+        // 获取设备图纸数量
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM drawings WHERE did = :did AND status = 1");
+        $stmt->execute(['did' => $device['did']]);
+        $drawing_count = $stmt->fetch(PDO::FETCH_ASSOC);
+        $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
+        
+        echo json_encode(['success' => true, 'data' => $device]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取设备详情失败: ' . $e->getMessage()]);
+    }
+}
+
+
+
+// 获取问题详情
+function getProblemDetail() {
+    global $pdo, $problemStatus;
+    
+    try {
+        $pid = $_GET['pid'];
+        
+        // 查询问题基本信息
+        $stmt = $pdo->prepare("SELECT * FROM problems WHERE pid = :pid AND status = 1");
+        $stmt->execute(['pid' => $pid]);
+        $problem = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$problem) {
+            echo json_encode(['success' => false, 'message' => '问题不存在']);
+            return;
+        }
+        
+        // 获取相关设备信息
+        $stmt = $pdo->prepare("SELECT device_name FROM devices WHERE did = :did AND status = 1");
+        $stmt->execute(['did' => $problem['did']]);
+        $device = $stmt->fetch(PDO::FETCH_ASSOC);
+        $problem['device_name'] = $device ? $device['device_name'] : '未知设备';
+        
+        // 获取设备类型信息
+        $stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
+        $stmt->execute(['tid' => $problem['tid']]);
+        $type = $stmt->fetch(PDO::FETCH_ASSOC);
+        $problem['type_name'] = $type ? $type['type_name'] : '未知类型';
+        
+        // 获取站场信息
+        $stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = :sid AND status = 1");
+        $stmt->execute(['sid' => $problem['sid']]);
+        $station = $stmt->fetch(PDO::FETCH_ASSOC);
+        $problem['station_name'] = $station ? $station['station_name'] : '未知站场';
+        
+        // 获取部门信息
+        $stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
+        $stmt->execute(['cid' => $problem['cid']]);
+        $department = $stmt->fetch(PDO::FETCH_ASSOC);
+        $problem['department_name'] = $department ? $department['full_name'] : '未知部门';
+        
+        // 格式化紧急程度
+        switch ($problem['urgency']) {
+            case 1:
+                $problem['urgency_text'] = '低';
+                break;
+            case 2:
+                $problem['urgency_text'] = '中';
+                break;
+            case 3:
+                $problem['urgency_text'] = '高';
+                break;
+            default:
+                $problem['urgency_text'] = '未知';
+                break;
+        }
+        
+        // 格式化问题状态
+        $problem['status_text'] = isset($problemStatus[$problem['status']]) ? $problemStatus[$problem['status']] : '未知状态';
+        
+        // 获取问题附件
+        $stmt = $pdo->prepare("SELECT * FROM problem_attachments WHERE pid = :pid AND status = 1");
+        $stmt->execute(['pid' => $pid]);
+        $attachments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $problem['attachments'] = $attachments;
+        
+        // 获取问题处理记录
+        $stmt = $pdo->prepare("SELECT * FROM problem_process WHERE pid = :pid ORDER BY process_time ASC");
+        $stmt->execute(['pid' => $pid]);
+        $process_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $problem['process_records'] = $process_records;
+        
+        echo json_encode(['success' => true, 'data' => $problem]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取问题详情失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取问题列表
+function getProblemList() {
+    global $pdo, $problemStatus;
+    
+    try {
+        // 获取筛选参数
+        $department = isset($_GET['department']) ? $_GET['department'] : '';
+        $station = isset($_GET['station']) ? $_GET['station'] : '';
+        $type = isset($_GET['type']) ? $_GET['type'] : '';
+        $status = isset($_GET['status']) ? $_GET['status'] : '';
+        $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : '';
+        
+        // 获取分页参数
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 10;
+        $offset = ($page - 1) * $pageSize;
+        
+        // 构建查询条件
+        $conditions = "1 = 1 AND problems.status = 1";
+        $params = [];
+        
+        if (!empty($department)) {
+            $conditions .= " AND devices.cid = :department";
+            $params[':department'] = $department;
+        }
+        
+        if (!empty($station)) {
+            $conditions .= " AND devices.sid = :station";
+            $params[':station'] = $station;
+        }
+        
+        if (!empty($type)) {
+            $conditions .= " AND devices.tid = :type";
+            $params[':type'] = $type;
+        }
+        
+        if (!empty($status)) {
+            $conditions .= " AND problems.status = :status";
+            $params[':status'] = $status;
+        }
+        
+        if (!empty($keyword)) {
+            $conditions .= " AND (devices.device_name LIKE CONCAT('%', :keyword, '%') OR problems.pid LIKE CONCAT('%', :keyword, '%') OR problems.description LIKE CONCAT('%', :keyword, '%'))";
+            $params[':keyword'] = $keyword;
+        }
+        
+        // 查询总记录数
+        $countSql = "SELECT COUNT(*) as total FROM problems INNER JOIN devices ON problems.did = devices.did WHERE $conditions";
+        $stmt = $pdo->prepare($countSql);
+        $stmt->execute($params);
+        $total = $stmt->fetchColumn();
+        
+        // 查询当前页数据
+        $sql = "SELECT problems.*, devices.device_name, devices.device_code, types.type_name, stations.station_name, departments.full_name as department_name 
+                FROM problems 
+                INNER JOIN devices ON problems.did = devices.did 
+                INNER JOIN types ON devices.tid = types.tid 
+                INNER JOIN stations ON devices.sid = stations.sid 
+                INNER JOIN departments ON devices.cid = departments.cid 
+                WHERE $conditions 
+                ORDER BY problems.report_time DESC 
+                LIMIT :offset, :pageSize";
+        $stmt = $pdo->prepare($sql);
+        
+        // 绑定参数
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->bindValue(':pageSize', $pageSize, PDO::PARAM_INT);
+        $stmt->execute();
+        $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 格式化紧急程度和状态
+        foreach ($problems as &$problem) {
+            // 紧急程度
+            switch ($problem['urgency']) {
+                case 1:
+                    $problem['urgency_text'] = '低';
+                    break;
+                case 2:
+                    $problem['urgency_text'] = '中';
+                    break;
+                case 3:
+                    $problem['urgency_text'] = '高';
+                    break;
+                default:
+                    $problem['urgency_text'] = '未知';
+                    break;
+            }
+            
+            // 问题状态
+            $problem['status_text'] = isset($problemStatus[$problem['status']]) ? $problemStatus[$problem['status']] : '未知状态';
+        }
+        
+        // 返回分页结果
+        echo json_encode([
+            'success' => true,
+            'data' => $problems,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取问题列表失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取筛选选项
+function getFilterOptions() {
+    global $pdo;
+    
+    try {
+        $options = [];
+        
+        // 获取部门列表
+        $stmt = $pdo->prepare("SELECT cid, full_name FROM departments WHERE status = 1 ORDER BY full_name");
+        $stmt->execute();
+        $options['departments'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 获取站场列表
+        $stmt = $pdo->prepare("SELECT sid, station_name FROM stations WHERE status = 1 ORDER BY station_name");
+        $stmt->execute();
+        $options['stations'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // 获取设备类型列表
+        $stmt = $pdo->prepare("SELECT tid, type_name FROM types WHERE status = 1 ORDER BY type_name");
+        $stmt->execute();
+        $options['types'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode(['success' => true, 'data' => $options]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取筛选选项失败: ' . $e->getMessage()]);
+    }
+}
+
+// 记录错误日志
+function logError($message, $data = null) {
+    $log = "[" . date('Y-m-d H:i:s') . "] " . $message;
+    if ($data) {
+        $log .= " " . json_encode($data);
+    }
+    $log .= "\n";
+    file_put_contents(__DIR__ . '/error.log', $log, FILE_APPEND);
+}
+
+// 获取首页统计数据
+function getDashboardStats() {
+    global $pdo;
+    
+    try {
+        // 查询设备总数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as device_count FROM devices WHERE status = 1");
+        $stmt->execute();
+        $device_count = $stmt->fetch()['device_count'];
+        
+        // 查询问题总数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as problem_count FROM problems WHERE status = 1");
+        $stmt->execute();
+        $problem_count = $stmt->fetch()['problem_count'];
+        
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'device_count' => $device_count,
+                'problem_count' => $problem_count
+            ]
+        ]);
+    } catch (Exception $e) {
+        logError('获取首页统计数据失败: ' . $e->getMessage(), 'getDashboardStats');
+        echo json_encode(['success' => false, 'message' => '获取首页统计数据失败: ' . $e->getMessage()]);
     }
 }

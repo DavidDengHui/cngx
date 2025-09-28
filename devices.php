@@ -6,9 +6,6 @@ $page_title = '设备信息查询 - 个人设备信息管理平台';
 // 引入配置文件和页眉
 include 'config.php';
 
-// 获取数据库连接
-$pdo = getDbConnection();
-
 // 判断是否为设备详情页面
 if (isset($_GET['did'])) {
     $did = $_GET['did'];

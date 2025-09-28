@@ -6,17 +6,6 @@ $page_title = '个人设备信息管理平台';
 // 引入配置文件和页眉
 include 'config.php';
 include 'header.php';
-
-// 获取数据库连接
-$pdo = getDbConnection();
-
-// 查询设备总数
-$stmt = $pdo->query("SELECT COUNT(*) as device_count FROM devices WHERE status = 1");
-$device_count = $stmt->fetch()['device_count'];
-
-// 查询问题库总数
-$stmt = $pdo->query("SELECT COUNT(*) as problem_count FROM problems WHERE status = 1");
-$problem_count = $stmt->fetch()['problem_count'];
 ?>
     <div class="dashboard">
         <h2 style="text-align: center; margin-bottom: 40px;">您好<?php if(isset($_SESSION['username'])) echo '，'.$_SESSION['username'].'！'; ?>！</h2>
@@ -32,7 +21,7 @@ $problem_count = $stmt->fetch()['problem_count'];
                 </div>
                 <div class="dashboard-card-content">
                     <h3>设备总数</h3>
-                    <p class="dashboard-card-count"><?php echo $device_count; ?></p>
+                    <p id="device-count" class="dashboard-card-count">--</p>
                 </div>
             </div>
             
@@ -46,11 +35,33 @@ $problem_count = $stmt->fetch()['problem_count'];
                 </div>
                 <div class="dashboard-card-content">
                     <h3>问题总数</h3>
-                    <p class="dashboard-card-count"><?php echo $problem_count; ?></p>
+                    <p id="problem-count" class="dashboard-card-count">--</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        // 页面加载完成后获取统计数据
+        window.addEventListener('DOMContentLoaded', function() {
+            // 获取设备和问题统计数据
+            fetch('api.php?action=getDashboardStats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新设备总数
+                        document.getElementById('device-count').textContent = data.data.device_count;
+                        // 更新问题总数
+                        document.getElementById('problem-count').textContent = data.data.problem_count;
+                    } else {
+                        console.error('获取统计数据失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取统计数据失败:', error);
+                });
+        });
+    </script>
     
     <!-- 功能介绍区域 -->
     <div class="features-section">

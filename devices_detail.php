@@ -11,164 +11,188 @@ if (!isset($did)) {
     exit();
 }
 
-// 查询设备信息
-$stmt = $pdo->prepare("SELECT * FROM devices WHERE did = :did AND status = 1");
-$stmt->execute(['did' => $did]);
-$device = $stmt->fetch();
-
-// 如果设备不存在，跳转到编辑页面
-if (!$device) {
-    header("Location: /devices.php?did=$did&mode=edit");
-    exit();
-}
-
-// 设置页面标题
-$page_title = $device['device_name'];
+// 设置默认页面标题
+$page_title = '设备详情';
 
 include 'header.php';
 
-// 获取设备类型名称
-$stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
-$stmt->execute(['tid' => $device['tid']]);
-$type = $stmt->fetch();
-$type_name = $type ? $type['type_name'] : '其他类型';
-
-// 获取所属站场名称
-$stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = :sid AND status = 1");
-$stmt->execute(['sid' => $device['sid']]);
-$station = $stmt->fetch();
-$station_name = $station ? $station['station_name'] : '其他站场';
-
-// 获取包保部门名称
-$stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
-$stmt->execute(['cid' => $device['cid']]);
-$department = $stmt->fetch();
-$department_name = $department ? $department['full_name'] : '其他部门';
-
-// 获取设备图纸数量
-$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM drawings WHERE did = :did AND status = 1");
-$stmt->execute(['did' => $device['did']]);
-$drawing_count = $stmt->fetch();
-$device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
+// 保存did到JS可以访问的变量
 ?>
+<script>
+    // 全局变量存储设备ID
+    const deviceId = '<?php echo $did; ?>';
+    
+    // 页面加载完成后获取设备详情
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDeviceDetail();
+    });
+    
+    // 通过API获取设备详情
+    function loadDeviceDetail() {
+        fetch(`api.php?action=getDeviceDetail&did=${deviceId}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    displayDeviceDetail(result.data);
+                } else if (!result.success && result.message) {
+                    // 如果设备不存在，跳转到编辑页面
+                    if (result.message === '设备不存在') {
+                        window.location.href = `/devices.php?did=${deviceId}&mode=edit`;
+                    } else {
+                        document.querySelector('.device-detail').innerHTML = `<p class="error">获取设备详情失败: ${result.message}</p>`;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('获取设备详情失败:', error);
+                document.querySelector('.device-detail').innerHTML = `<p class="error">获取设备详情失败</p>`;
+            });
+    }
+    
+    // 显示设备详情
+    function displayDeviceDetail(device) {
+        // 设置页面标题
+        document.title = device.device_name + ' - 个人设备信息管理平台';
+        
+        // 构建设备详情HTML
+        const deviceDetailHTML = `
+            <h2 style="text-align: center; margin-bottom: 30px;">${device.device_name}</h2>
+
+            <div class="detail-layout">
+                <!-- 左侧设备信息 -->
+                <div class="detail-sidebar">
+                    <div class="device-info">
+                        <div class="info-item">
+                            <label>设备类型：</label>
+                            <span>${device.type_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>所属站场：</label>
+                            <span>${device.station_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>包保部门：</label>
+                            <span>${device.department_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>包保人：</label>
+                            <span>
+                                ${formatKeepers(device.keepers)}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <label>备注：</label>
+                            <span>${device.remark ? device.remark : '无'}</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 右侧内容 -->
+                <div class="detail-content">
+                    <!-- 图纸折叠块 -->
+                    <div class="collapse-block">
+                        <div class="collapse-header" onclick="toggleCollapse('drawings')">
+                            <div class="header-title">
+                                <span>设备图纸</span>
+                                <span class="record-count"> (${device.drawing_count})</span>
+                            </div>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div id="drawings" class="collapse-content" style="display: none;">
+                            <div id="drawings-content">
+                                <div class="loading">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 巡视记录折叠块 -->
+                    <div class="collapse-block">
+                        <div class="collapse-header" onclick="toggleCollapse('inspection-records')">
+                            <div class="header-title">
+                                <span>巡视记录</span>
+                                <span id="inspection-count" class="record-count">(0)</span>
+                                <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
+                            </div>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div id="inspection-records" class="collapse-content" style="display: none;">
+                            <div id="inspection-content">
+                                <div class="loading">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 检修记录折叠块 -->
+                    <div class="collapse-block">
+                        <div class="collapse-header" onclick="toggleCollapse('maintenance-records')">
+                            <div class="header-title">
+                                <span>检修记录</span>
+                                <span id="maintenance-count" class="record-count">(0)</span>
+                                <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
+                            </div>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div id="maintenance-records" class="collapse-content" style="display: none;">
+                            <div id="maintenance-content">
+                                <div class="loading">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 问题库记录折叠块 -->
+                    <div class="collapse-block">
+                        <div class="collapse-header" onclick="toggleCollapse('problem-records')">
+                            <div class="header-title">
+                                <span>问题记录</span>
+                                <span id="problem-count" class="record-count">(0)</span>
+                                <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
+                            </div>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div id="problem-records" class="collapse-content" style="display: none;">
+                            <div id="problem-content">
+                                <div class="loading">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="edit-btn" onclick="window.location.href='/devices.php?did=${deviceId}&mode=edit'">修改</button>
+            </div>
+        `;
+        
+        // 更新设备详情内容
+        document.querySelector('.device-detail').innerHTML = deviceDetailHTML;
+        
+        // 更新新增记录模态框中的部门信息
+        const workDepartment = document.getElementById('work-department');
+        const workDepartmentId = document.getElementById('work-department-id');
+        if (workDepartment && workDepartmentId) {
+            workDepartment.value = device.department_name;
+            workDepartmentId.value = device.cid;
+        }
+    }
+    
+    // 格式化包保人显示
+    function formatKeepers(keepers) {
+        if (!keepers) {
+            return '无';
+        }
+        
+        const keeperArray = keepers.split('||');
+        const formattedKeepers = [];
+        
+        keeperArray.forEach(keeper => {
+            formattedKeepers.push('<span class="keeper-tag">' + keeper + '</span>');
+        });
+        
+        return formattedKeepers.join('');
+    }
+</script>
+
 <div class="device-detail">
-    <h2 style="text-align: center; margin-bottom: 30px;"><?php echo $device['device_name']; ?></h2>
-
-    <div class="detail-layout">
-        <!-- 左侧设备信息 -->
-        <div class="detail-sidebar">
-            <div class="device-info">
-                <div class="info-item">
-                    <label>设备类型：</label>
-                    <span><?php echo $type_name; ?></span>
-                </div>
-                <div class="info-item">
-                    <label>所属站场：</label>
-                    <span><?php echo $station_name; ?></span>
-                </div>
-                <div class="info-item">
-                    <label>包保部门：</label>
-                    <span><?php echo $department_name; ?></span>
-                </div>
-                <div class="info-item">
-                    <label>包保人：</label>
-                    <span>
-                        <?php
-                        $keepers = $device['keepers'];
-                        if (!empty($keepers)) {
-                            $keeperArray = explode('||', $keepers);
-                            $formattedKeepers = array();
-                            foreach ($keeperArray as $keeper) {
-                                $formattedKeepers[] = '<span class="keeper-tag">' . $keeper . '</span>';
-                            }
-                            echo implode('', $formattedKeepers);
-                        } else {
-                            echo '无';
-                        }
-                        ?>
-                    </span>
-                </div>
-                <div class="info-item">
-                    <label>备注：</label>
-                    <span><?php echo $device['remark'] ? $device['remark'] : '无'; ?></span>
-                </div>
-            </div>
-        </div>
-        <!-- 右侧内容 -->
-        <div class="detail-content">
-            <!-- 图纸折叠块 -->
-            <div class="collapse-block">
-                <div class="collapse-header" onclick="toggleCollapse('drawings')">
-                    <div class="header-title">
-                        <span>设备图纸</span>
-                        <span class="record-count"> (<?php echo $device['drawing_count']; ?>)</span>
-                    </div>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div id="drawings" class="collapse-content" style="display: none;">
-                    <div id="drawings-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 巡视记录折叠块 -->
-            <div class="collapse-block">
-                <div class="collapse-header" onclick="toggleCollapse('inspection-records')">
-                    <div class="header-title">
-                        <span>巡视记录</span>
-                        <span id="inspection-count" class="record-count">(0)</span>
-                        <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
-                    </div>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div id="inspection-records" class="collapse-content" style="display: none;">
-                    <div id="inspection-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 检修记录折叠块 -->
-            <div class="collapse-block">
-                <div class="collapse-header" onclick="toggleCollapse('maintenance-records')">
-                    <div class="header-title">
-                        <span>检修记录</span>
-                        <span id="maintenance-count" class="record-count">(0)</span>
-                        <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
-                    </div>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div id="maintenance-records" class="collapse-content" style="display: none;">
-                    <div id="maintenance-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 问题库记录折叠块 -->
-            <div class="collapse-block">
-                <div class="collapse-header" onclick="toggleCollapse('problem-records')">
-                    <div class="header-title">
-                        <span>问题记录</span>
-                        <span id="problem-count" class="record-count">(0)</span>
-                        <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
-                    </div>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div id="problem-records" class="collapse-content" style="display: none;">
-                    <div id="problem-content">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <div class="action-buttons">
-        <button class="edit-btn" onclick="window.location.href='/devices.php?did=<?php echo $did; ?>&mode=edit'">修改</button>
-    </div>
+    <div class="loading" style="text-align: center; padding: 50px 0;">加载设备详情中...</div>
 </div>
 
 <!-- 新增记录模态框 -->
@@ -196,8 +220,8 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 <div class="form-group">
                     <label for="work-department">作业部门：</label>
                     <div class="select-container">
-                        <input type="text" id="work-department" readonly placeholder="请选择部门" value="<?php echo $department_name; ?>">
-                        <input type="hidden" id="work-department-id" value="<?php echo $device['cid']; ?>">
+                        <input type="text" id="work-department" readonly placeholder="请选择部门">
+                        <input type="hidden" id="work-department-id">
                     </div>
                 </div>
 

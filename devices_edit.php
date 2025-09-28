@@ -18,7 +18,7 @@ if (!preg_match('/^[1-9]\d{7}$/', $did)) {
     include 'header.php';
 ?>
     <div class="error-message">
-        <p>该设备码[<? echo $did; ?>]无效</p>
+        <p>该设备码[<?php echo $did; ?>]无效</p>
         <p>请联系<a href="mailto:david.deng.hui@qq.com" target="_blank">管理员</a>核实</p>
     </div>
 <?php
@@ -26,52 +26,122 @@ if (!preg_match('/^[1-9]\d{7}$/', $did)) {
     exit();
 }
 
-// 查询设备信息
-$stmt = $pdo->prepare("SELECT * FROM devices WHERE did = :did AND status = 1");
-$stmt->execute(['did' => $did]);
-$device = $stmt->fetch();
-
-// 如果设备不存在，新增设备
-if (!$device) {
-    $nav_title = '新增设备';
-    $page_title = '新增设备';
-} else {
-    // 设置页面标题和导航标题
-    $nav_title = '设备信息编辑';
-    $page_title = '编辑[' . $device['device_name'] . ']';
-}
+// 设备是否存在未知，先设置默认标题
+$nav_title = '新增设备';
+$page_title = '新增设备';
 
 include 'header.php';
 
-// 获取设备类型名称和ID
-$typeId = $device ? $device['tid'] : '1000';
-$stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
-$stmt->execute(['tid' => $typeId]);
-$type = $stmt->fetch();
-$typeName = $type ? $type['type_name'] : '其他类型';
-
-// 获取所属站场名称和ID
-$stationId = $device ? $device['sid'] : '100000';
-$stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = :sid AND status = 1");
-$stmt->execute(['sid' => $stationId]);
-$station = $stmt->fetch();
-$stationName = $station ? $station['station_name'] : '其他站场';
-
-// 获取包保部门名称和ID
-$departmentId = $device ? $device['cid'] : '100000';
-$stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
-$stmt->execute(['cid' => $departmentId]);
-$department = $stmt->fetch();
-$departmentName = $department ? $department['full_name'] : '其他部门';
-
-// 获取图纸列表
-$drawings = [];
-if ($device) {
-    $stmt = $pdo->prepare("SELECT * FROM drawings WHERE did = :did AND status = 1 ORDER BY upload_time ASC");
-    $stmt->execute(['did' => $did]);
-    $drawings = $stmt->fetchAll();
-}
+// 保存did到JS可以访问的变量
 ?>
+<script>
+    // 全局变量存储设备ID和信息
+    const deviceId = '<?php echo $did; ?>';
+    let deviceInfo = null;
+    let drawings = [];
+    
+    // 页面加载完成后获取设备详情
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDeviceInfo();
+    });
+    
+    // 通过API获取设备信息
+    function loadDeviceInfo() {
+        fetch(`api.php?action=getDeviceDetail&did=${deviceId}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    // 设备存在，设置为编辑模式
+                    deviceInfo = result.data;
+                    document.title = '编辑[' + deviceInfo.device_name + '] - 个人设备信息管理平台';
+                    document.querySelector('h2').textContent = '编辑[' + deviceInfo.device_name + ']';
+                    
+                    // 填充表单
+                    document.getElementById('device-name').value = deviceInfo.device_name;
+                    document.getElementById('device-type').value = deviceInfo.type_name;
+                    document.getElementById('device-type-id').value = deviceInfo.tid;
+                    document.getElementById('device-station').value = deviceInfo.station_name;
+                    document.getElementById('device-station-id').value = deviceInfo.sid;
+                    document.getElementById('device-department').value = deviceInfo.department_name;
+                    document.getElementById('device-department-id').value = deviceInfo.cid;
+                    document.getElementById('device-keepers').value = deviceInfo.keepers;
+                    document.getElementById('device-remark').value = deviceInfo.remark || '';
+                    
+                    // 加载图纸列表
+                    loadDrawings();
+                } else {
+                    // 设备不存在，显示为新增模式
+                    document.getElementById('device-type').value = '其他类型';
+                    document.getElementById('device-type-id').value = '1000';
+                    document.getElementById('device-station').value = '其他站场';
+                    document.getElementById('device-station-id').value = '100000';
+                    document.getElementById('device-department').value = '其他部门';
+                    document.getElementById('device-department-id').value = '100000';
+                    
+                    // 显示暂无图纸
+                    const drawingsList = document.querySelector('.drawings-list');
+                    drawingsList.innerHTML = '<p class="no-drawings">暂无图纸</p>';
+                }
+            })
+            .catch(error => {
+                console.error('获取设备信息失败:', error);
+                alert('获取设备信息失败，请刷新页面重试');
+            });
+    }
+    
+    // 通过API获取图纸列表
+    function loadDrawings() {
+        fetch(`api.php?action=getDrawings&did=${deviceId}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    drawings = result.data;
+                    renderDrawings();
+                } else {
+                    // 显示暂无图纸
+                    const drawingsList = document.querySelector('.drawings-list');
+                    drawingsList.innerHTML = '<p class="no-drawings">暂无图纸</p>';
+                }
+            })
+            .catch(error => {
+                console.error('获取图纸列表失败:', error);
+                alert('获取图纸列表失败');
+            });
+    }
+    
+    // 渲染图纸列表
+    function renderDrawings() {
+        const drawingsList = document.querySelector('.drawings-list');
+        
+        if (drawings.length > 0) {
+            let html = '<table class="drawings-table">';
+            html += '<thead>';
+            html += '<tr>';
+            html += '<th>序号</th>';
+            html += '<th>图纸名称</th>';
+            html += '<th>上传时间</th>';
+            html += '<th>操作</th>';
+            html += '</tr>';
+            html += '</thead>';
+            html += '<tbody>';
+            
+            drawings.forEach((drawing, index) => {
+                html += '<tr>';
+                html += `<td>${index + 1}</td>`;
+                html += `<td><a href="${drawing.root_dir}${drawing.link_name}" target="_blank">${drawing.original_name}</a></td>`;
+                html += `<td>${drawing.upload_time}</td>`;
+                html += `<td><button type="button" class="delete-btn" onclick="deleteDrawing(${drawing.id})">删除</button></td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody>';
+            html += '</table>';
+            drawingsList.innerHTML = html;
+        } else {
+            drawingsList.innerHTML = '<p class="no-drawings">暂无图纸</p>';
+        }
+    }
+</script>
 <div class="device-edit">
     <h2 style="text-align: center; margin-bottom: 30px;">设备信息编辑</h2>
 

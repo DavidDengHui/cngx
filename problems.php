@@ -1,892 +1,523 @@
 <?php
-// 设置导航标题和页面标题
-$nav_title = '问题库管理';
-$page_title = '问题库管理 - 个人设备信息管理平台';
+// 检查登录状态
+include 'common/check_login.php';
+include 'common/connect_db.php';
 
-// 引入配置文件和页眉
-include 'config.php';
+// 页面标题
+$pageTitle = "问题管理";
 
-// 获取数据库连接
-$pdo = getDbConnection();
+// 获取当前页面类型
+$pid = isset($_GET['pid']) ? $_GET['pid'] : '';
+$view = isset($_GET['view']) ? $_GET['view'] : '';
 
-// 检查是否是查看问题详情
-$viewDetail = isset($_GET['pid']) && preg_match('/^[1-9]\d{9}$/', $_GET['pid']);
+// 获取部门、站场、设备类型等信息，用于筛选
+$filterOptions = [];
 
-// 获取当前页码
-$page = isset($_GET['page']) && is_numeric($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$pageSize = 10;
-$offset = ($page - 1) * $pageSize;
-
-// 获取所有部门（用于筛选）
-$departments = [];
-$stmt = $pdo->query("SELECT cid, full_name FROM departments WHERE status = 1 AND parent_id = 0 ORDER BY cid ASC");
-$departments = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-// 获取所有站场（用于筛选）
-$stations = [];
-$stmt = $pdo->query("SELECT sid, station_name FROM stations WHERE status = 1 AND parent_id = 0 ORDER BY sid ASC");
-$stations = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-// 获取所有设备类型（用于筛选）
-$types = [];
-$stmt = $pdo->query("SELECT tid, type_name FROM types WHERE status = 1 AND parent_id = 0 ORDER BY tid ASC");
-$types = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-// 定义问题状态
-$problemStatus = [
-    0 => '未解决',
-    1 => '处理中',
-    2 => '已解决'
+// 保存查询参数到JS变量
+$jsParams = [
+    'pid' => $pid,
+    'view' => $view,
+    'department' => isset($_GET['department']) ? $_GET['department'] : '',
+    'station' => isset($_GET['station']) ? $_GET['station'] : '',
+    'type' => isset($_GET['type']) ? $_GET['type'] : '',
+    'status' => isset($_GET['status']) ? $_GET['status'] : '',
+    'keyword' => isset($_GET['keyword']) ? $_GET['keyword'] : ''
 ];
 
-// 如果是查看问题详情
-if ($viewDetail) {
-    $pid = $_GET['pid'];
-    
-    // 查询问题详情
-    $stmt = $pdo->prepare("SELECT * FROM problems WHERE pid = :pid AND status != -1");
-    $stmt->execute(['pid' => $pid]);
-    $problem = $stmt->fetch();
-    
-    if (!$problem) {
-        ?>
-        <div class="error-message">
-            <p>该问题不存在或已被删除</p>
-            <p><a href="/problems.php">返回问题列表</a></p>
-        </div>
-        <?php
-        include 'footer.php';
-        exit();
-    }
-    
-    // 获取关联设备信息
-    $deviceInfo = '';
-    if ($problem['did']) {
-        $stmt = $pdo->prepare("SELECT device_name FROM devices WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $problem['did']]);
-        $device = $stmt->fetch();
-        if ($device) {
-            $deviceInfo = $device['device_name'];
-        }
-    }
-    
-    // 获取上报部门信息
-    $departmentInfo = '';
-    if ($problem['cid']) {
-        $stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
-        $stmt->execute(['cid' => $problem['cid']]);
-        $department = $stmt->fetch();
-        if ($department) {
-            $departmentInfo = $department['full_name'];
-        }
-    }
-    
-    // 获取处理记录
-    $processingRecords = [];
-    $stmt = $pdo->prepare("SELECT * FROM problem_process WHERE pid = :pid ORDER BY process_time ASC");
-    $stmt->execute(['pid' => $pid]);
-    $processingRecords = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    
-    // 获取附件列表
-    $attachments = [];
-    $stmt = $pdo->prepare("SELECT * FROM problem_attachments WHERE pid = :pid AND status = 1");
-    $stmt->execute(['pid' => $pid]);
-    $attachments = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 ?>
-    <div class="problem-detail">
-        <div class="detail-header">
-            <h2>问题详情</h2>
-            <button class="back-btn" onclick="window.location.href='/problems.php'">返回列表</button>
-        </div>
-        
-        <div class="detail-content">
-            <div class="detail-section">
-                <div class="detail-row">
-                    <div class="detail-label">问题ID：</div>
-                    <div class="detail-value"><?php echo $problem['pid']; ?></div>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $pageTitle; ?></title>
+    <link rel="stylesheet" href="assets/css/common.css">
+    <link rel="stylesheet" href="assets/css/problems.css">
+</head>
+<body>
+    <?php include 'common/header.php'; ?>
+    
+    <div class="container">
+        <div class="content">
+            <?php if ($pid && $view === 'detail'): ?>
+                <!-- 问题详情视图 -->
+                <div class="detail-header">
+                    <h2>问题详情</h2>
+                    <button class="btn btn-primary" onclick="window.history.back()">返回列表</button>
+                </div>
+                <div id="problem-detail-container" class="detail-container">
+                    <!-- 问题详情内容将由JavaScript动态加载 -->
+                    <div class="loading">加载中...</div>
+                </div>
+            <?php else: ?>
+                <!-- 问题列表视图 -->
+                <div class="header">
+                    <h2>问题列表</h2>
+                    <a href="problem_add.php" class="btn btn-primary">添加问题</a>
                 </div>
                 
-                <div class="detail-row">
-                    <div class="detail-label">问题描述：</div>
-                    <div class="detail-value"><?php echo $problem['description']; ?></div>
-                </div>
-                
-                <div class="detail-row">
-                    <div class="detail-label">关联设备：</div>
-                    <div class="detail-value"><?php echo $deviceInfo ? $deviceInfo : '无'; ?></div>
-                </div>
-                
-                <div class="detail-row">
-                    <div class="detail-label">上报部门：</div>
-                    <div class="detail-value"><?php echo $departmentInfo; ?></div>
-                </div>
-                
-                <div class="detail-row">
-                    <div class="detail-label">上报人员：</div>
-                    <div class="detail-value"><?php echo $problem['reporter']; ?></div>
-                </div>
-                
-                <div class="detail-row">
-                    <div class="detail-label">上报时间：</div>
-                    <div class="detail-value"><?php echo $problem['report_time']; ?></div>
-                </div>
-                
-                <div class="detail-row">
-                    <div class="detail-label">当前状态：</div>
-                    <div class="detail-value status-badge status-<?php echo $problem['status']; ?>">
-                        <?php echo $problemStatus[$problem['status']]; ?>
-                    </div>
-                </div>
-            </div>
-            
-            <?php if (!empty($attachments)): ?>
-            <div class="detail-section">
-                <h3>问题附件</h3>
-                <div class="attachments-list">
-                    <?php foreach ($attachments as $attachment): ?>
-                        <div class="attachment-item">
-                            <a href="<?php echo $attachment['root_dir'] . $attachment['link_name']; ?>" target="_blank">
-                                <span class="attachment-icon">📎</span>
-                                <span class="attachment-name"><?php echo $attachment['original_name']; ?></span>
-                            </a>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-            
-            <div class="detail-section">
-                <h3>处理记录</h3>
-                <div class="processing-records">
-                    <?php if (empty($processingRecords)): ?>
-                        <p class="no-records">暂无处理记录</p>
-                    <?php else: ?>
-                        <?php foreach ($processingRecords as $record): ?>
-                            <div class="processing-record">
-                                <div class="record-header">
-                                    <span class="record-person"><?php echo $record['operator']; ?></span>
-                                    <span class="record-time"><?php echo $record['process_time']; ?></span>
-                                </div>
-                                <div class="record-content"><?php echo $record['content']; ?></div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php
-} else {
-    // 构建查询条件
-    $conditions = "WHERE p.status != -1";
-    $params = [];
-    
-    // 部门筛选
-    if (isset($_GET['cid']) && !empty($_GET['cid'])) {
-        $cid = $_GET['cid'];
-        $conditions .= " AND p.cid = :cid";
-        $params['cid'] = $cid;
-    }
-    
-    // 站场筛选
-    if (isset($_GET['sid']) && !empty($_GET['sid'])) {
-        $sid = $_GET['sid'];
-        $conditions .= " AND d.sid = :sid";
-        $params['sid'] = $sid;
-    }
-    
-    // 设备类型筛选
-    if (isset($_GET['tid']) && !empty($_GET['tid'])) {
-        $tid = $_GET['tid'];
-        $conditions .= " AND d.tid = :tid";
-        $params['tid'] = $tid;
-    }
-    
-    // 状态筛选
-    if (isset($_GET['status']) && is_numeric($_GET['status']) && in_array($_GET['status'], array_keys($problemStatus))) {
-        $status = $_GET['status'];
-        $conditions .= " AND p.status = :status";
-        $params['status'] = $status;
-    }
-    
-    // 关键词搜索
-    if (isset($_GET['keyword']) && !empty(trim($_GET['keyword']))) {
-        $keyword = '%' . trim($_GET['keyword']) . '%';
-        $conditions .= " AND (p.description LIKE :keyword OR d.device_name LIKE :keyword OR p.pid LIKE :keyword)";
-        $params['keyword'] = $keyword;
-    }
-    
-    // 查询问题总数
-    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM problems p LEFT JOIN devices d ON p.did = d.did " . $conditions);
-    $stmt->execute($params);
-    $totalCount = $stmt->fetchColumn();
-    $totalPages = ceil($totalCount / $pageSize);
-    
-    // 查询问题列表
-    $problems = [];
-    $stmt = $pdo->prepare("SELECT p.*, d.device_name, dept.full_name as department_name 
-        FROM problems p 
-        LEFT JOIN devices d ON p.did = d.did 
-        LEFT JOIN departments dept ON p.cid = dept.cid 
-        " . $conditions . " 
-        ORDER BY p.report_time DESC 
-        LIMIT :offset, :pageSize");
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->bindValue(':pageSize', $pageSize, PDO::PARAM_INT);
-    // 绑定其他参数
-    foreach ($params as $key => $value) {
-        if ($key != ':offset' && $key != ':pageSize') {
-            $stmt->bindValue($key, $value);
-        }
-    }
-    $stmt->execute();
-    $problems = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-?>
-    <div class="problems-container">
-        <div class="problems-header">
-            <h2>问题库查询</h2>
-        </div>
-        
-        <div class="problems-content">
-            <div class="filter-panel">
-                <form id="filter-form" method="get" action="/problems.php">
-                    <div class="filter-section">
-                        <h3>筛选条件</h3>
-                        
-                        <div class="filter-group">
-                            <label for="department-filter">上报部门：</label>
-                            <select id="department-filter" name="cid">
-                                <option value="">全部部门</option>
-                                <?php foreach ($departments as $dept): ?>
-                                    <option value="<?php echo $dept['cid']; ?>" <?php echo (isset($_GET['cid']) && $_GET['cid'] == $dept['cid']) ? 'selected' : ''; ?>>
-                                        <?php echo $dept['full_name']; ?>
-                                    </option>
-                                <?php endforeach; ?>
+                <!-- 筛选面板 -->
+                <div class="filter-panel">
+                    <div class="filter-row">
+                        <div class="filter-item">
+                            <label for="department">所属部门:</label>
+                            <select id="department" class="form-control">
+                                <option value="">全部</option>
+                                <!-- 部门选项将由JavaScript动态加载 -->
                             </select>
                         </div>
-                        
-                        <div class="filter-group">
-                            <label for="station-filter">所属站场：</label>
-                            <select id="station-filter" name="sid">
-                                <option value="">全部站场</option>
-                                <?php foreach ($stations as $station): ?>
-                                    <option value="<?php echo $station['sid']; ?>" <?php echo (isset($_GET['sid']) && $_GET['sid'] == $station['sid']) ? 'selected' : ''; ?>>
-                                        <?php echo $station['station_name']; ?>
-                                    </option>
-                                <?php endforeach; ?>
+                        <div class="filter-item">
+                            <label for="station">所属站场:</label>
+                            <select id="station" class="form-control">
+                                <option value="">全部</option>
+                                <!-- 站场选项将由JavaScript动态加载 -->
                             </select>
                         </div>
-                        
-                        <div class="filter-group">
-                            <label for="type-filter">设备类型：</label>
-                            <select id="type-filter" name="tid">
-                                <option value="">全部类型</option>
-                                <?php foreach ($types as $type): ?>
-                                    <option value="<?php echo $type['tid']; ?>" <?php echo (isset($_GET['tid']) && $_GET['tid'] == $type['tid']) ? 'selected' : ''; ?>>
-                                        <?php echo $type['type_name']; ?>
-                                    </option>
-                                <?php endforeach; ?>
+                        <div class="filter-item">
+                            <label for="type">设备类型:</label>
+                            <select id="type" class="form-control">
+                                <option value="">全部</option>
+                                <!-- 设备类型选项将由JavaScript动态加载 -->
                             </select>
                         </div>
-                        
-                        <div class="filter-group">
-                            <label for="status-filter">问题状态：</label>
-                            <select id="status-filter" name="status">
-                                <option value="">全部状态</option>
-                                <?php foreach ($problemStatus as $statusCode => $statusName): ?>
-                                    <option value="<?php echo $statusCode; ?>" <?php echo (isset($_GET['status']) && $_GET['status'] == $statusCode) ? 'selected' : ''; ?>>
-                                        <?php echo $statusName; ?>
-                                    </option>
-                                <?php endforeach; ?>
+                        <div class="filter-item">
+                            <label for="status">问题状态:</label>
+                            <select id="status" class="form-control">
+                                <option value="">全部</option>
+                                <option value="0">未解决</option>
+                                <option value="1">处理中</option>
+                                <option value="2">已解决</option>
                             </select>
-                        </div>
-                        
-                        <div class="filter-group">
-                            <label for="keyword-filter">关键词搜索：</label>
-                            <input type="text" id="keyword-filter" name="keyword" placeholder="问题描述、设备名称或问题ID" value="<?php echo isset($_GET['keyword']) ? $_GET['keyword'] : ''; ?>">
                         </div>
                     </div>
-                    
-                    <div class="filter-actions">
-                        <button type="submit" class="search-btn">查询</button>
-                        <button type="button" class="reset-btn" onclick="resetFilter()">重置</button>
+                    <div class="filter-row">
+                        <div class="filter-item search-box">
+                            <input type="text" id="keyword" placeholder="搜索设备名称/问题编号/问题描述" class="form-control">
+                            <button id="search-btn" class="btn btn-primary">搜索</button>
+                            <button id="reset-btn" class="btn btn-default">重置</button>
+                        </div>
                     </div>
-                </form>
-            </div>
-            
-            <div class="problems-list">
-                <div class="list-header">
-                    <div class="total-count">共找到 <span><?php echo $totalCount; ?></span> 个问题</div>
                 </div>
                 
-                <div class="list-table">
-                    <table>
+                <!-- 问题列表 -->
+                <div class="table-container">
+                    <table class="data-table">
                         <thead>
                             <tr>
-                                <th>问题ID</th>
+                                <th>问题编号</th>
+                                <th>所属部门</th>
+                                <th>所属站场</th>
+                                <th>设备名称</th>
+                                <th>设备类型</th>
                                 <th>问题描述</th>
-                                <th>关联设备</th>
-                                <th>上报部门</th>
-                                <th>上报时间</th>
-                                <th>状态</th>
+                                <th>报告时间</th>
+                                <th>紧急程度</th>
+                                <th>问题状态</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php if (empty($problems)): ?>
-                                <tr class="no-data">
-                                    <td colspan="6">暂无数据</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($problems as $problem): ?>
-                                    <tr>
-                                        <td><a href="/problems.php?pid=<?php echo $problem['pid']; ?>" class="problem-link"><?php echo $problem['pid']; ?></a></td>
-                                        <td class="description-col" title="<?php echo $problem['description']; ?>"><?php echo substr($problem['description'], 0, 50); ?><?php echo strlen($problem['description']) > 50 ? '...' : ''; ?></td>
-                                        <td><?php echo $problem['device_name'] ? $problem['device_name'] : '无'; ?></td>
-                                        <td><?php echo $problem['department_name']; ?></td>
-                                        <td><?php echo $problem['report_time']; ?></td>
-                                        <td><span class="status-badge status-<?php echo $problem['status']; ?>"><?php echo $problemStatus[$problem['status']]; ?></span></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                        <tbody id="problem-list-body">
+                            <!-- 问题列表将由JavaScript动态加载 -->
+                            <tr>
+                                <td colspan="10" class="loading">加载中...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
                 
-                <?php if ($totalPages > 1): ?>
-                <div class="pagination">
-                    <a href="/problems.php?<?php echo buildPaginationParams(1); ?>" class="page-btn <?php echo $page == 1 ? 'disabled' : ''; ?>">首页</a>
-                    <a href="/problems.php?<?php echo buildPaginationParams(max(1, $page - 1)); ?>" class="page-btn <?php echo $page == 1 ? 'disabled' : ''; ?>">上一页</a>
-                    
-                    <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
-                        <a href="/problems.php?<?php echo buildPaginationParams($i); ?>" class="page-btn <?php echo $page == $i ? 'active' : ''; ?>">
-                            <?php echo $i; ?>
-                        </a>
-                    <?php endfor; ?>
-                    
-                    <a href="/problems.php?<?php echo buildPaginationParams(min($totalPages, $page + 1)); ?>" class="page-btn <?php echo $page == $totalPages ? 'disabled' : ''; ?>">下一页</a>
-                    <a href="/problems.php?<?php echo buildPaginationParams($totalPages); ?>" class="page-btn <?php echo $page == $totalPages ? 'disabled' : ''; ?>">末页</a>
-                    
-                    <span class="page-info">
-                        第 <input type="text" id="goto-page" value="<?php echo $page; ?>" min="1" max="<?php echo $totalPages; ?>" size="3"> 页
-                        / 共 <?php echo $totalPages; ?> 页
-                        <button onclick="gotoPage()">跳转</button>
-                    </span>
+                <!-- 分页控件 -->
+                <div class="pagination" id="pagination">
+                    <!-- 分页控件将由JavaScript动态加载 -->
                 </div>
-                <?php endif; ?>
-            </div>
+            <?php endif; ?>
         </div>
     </div>
     
+    <?php include 'common/footer.php'; ?>
+    
     <script>
-        // 重置筛选条件
-        function resetFilter() {
-            document.getElementById('department-filter').value = '';
-            document.getElementById('station-filter').value = '';
-            document.getElementById('type-filter').value = '';
-            document.getElementById('status-filter').value = '';
-            document.getElementById('keyword-filter').value = '';
+        // 保存PHP传递的参数
+        const params = <?php echo json_encode($jsParams); ?>;
+        
+        // 初始化时设置筛选条件的值
+        document.addEventListener('DOMContentLoaded', function() {
+            // 根据当前页面类型执行不同的初始化操作
+            if (params.pid && params.view === 'detail') {
+                loadProblemDetail(params.pid);
+            } else {
+                // 加载筛选选项
+                loadFilterOptions();
+                
+                // 设置筛选条件的默认值
+                if (params.department) document.getElementById('department').value = params.department;
+                if (params.station) document.getElementById('station').value = params.station;
+                if (params.type) document.getElementById('type').value = params.type;
+                if (params.status) document.getElementById('status').value = params.status;
+                if (params.keyword) document.getElementById('keyword').value = params.keyword;
+                
+                // 加载问题列表
+                loadProblemList(1);
+                
+                // 绑定搜索和重置按钮事件
+                document.getElementById('search-btn').addEventListener('click', function() {
+                    loadProblemList(1);
+                });
+                
+                document.getElementById('reset-btn').addEventListener('click', function() {
+                    document.getElementById('department').value = '';
+                    document.getElementById('station').value = '';
+                    document.getElementById('type').value = '';
+                    document.getElementById('status').value = '';
+                    document.getElementById('keyword').value = '';
+                    loadProblemList(1);
+                });
+                
+                // 绑定回车键搜索
+                document.getElementById('keyword').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        loadProblemList(1);
+                    }
+                });
+            }
+        });
+        
+        // 加载问题详情
+        function loadProblemDetail(pid) {
+            fetch('api.php?action=getProblemDetail&pid=' + pid)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayProblemDetail(data.data);
+                    } else {
+                        document.getElementById('problem-detail-container').innerHTML = '<div class="error">' + data.message + '</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取问题详情失败:', error);
+                    document.getElementById('problem-detail-container').innerHTML = '<div class="error">获取问题详情失败，请刷新页面重试</div>';
+                });
         }
         
-        // 构建分页参数
-        function buildPaginationParams(page) {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set('page', page);
-            return urlParams.toString();
+        // 显示问题详情
+        function displayProblemDetail(problem) {
+            const container = document.getElementById('problem-detail-container');
+            
+            // 格式化日期
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '';
+                return new Date(dateStr).toLocaleString('zh-CN');
+            };
+            
+            // 构建附件列表HTML
+            let attachmentsHtml = '';
+            if (problem.attachments && problem.attachments.length > 0) {
+                attachmentsHtml = '<div class="attachment-list">';
+                problem.attachments.forEach(attachment => {
+                    const fileUrl = attachment.root_dir + attachment.link_name;
+                    attachmentsHtml += `
+                        <div class="attachment-item">
+                            <a href="${fileUrl}" target="_blank" class="attachment-link">
+                                <span class="attachment-name">${attachment.original_name}</span>
+                                <span class="attachment-size">(${(attachment.file_size / 1024).toFixed(2)}KB)</span>
+                            </a>
+                        </div>
+                    `;
+                });
+                attachmentsHtml += '</div>';
+            } else {
+                attachmentsHtml = '<p>无附件</p>';
+            }
+            
+            // 构建处理记录HTML
+            let processRecordsHtml = '';
+            if (problem.process_records && problem.process_records.length > 0) {
+                processRecordsHtml = '<div class="process-records">';
+                problem.process_records.forEach(record => {
+                    processRecordsHtml += `
+                        <div class="process-record">
+                            <div class="process-header">
+                                <span class="process-operator">${record.operator}</span>
+                                <span class="process-time">${formatDate(record.process_time)}</span>
+                            </div>
+                            <div class="process-content">${record.content}</div>
+                        </div>
+                    `;
+                });
+                processRecordsHtml += '</div>';
+            } else {
+                processRecordsHtml = '<p>暂无处理记录</p>';
+            }
+            
+            // 构建问题详情HTML
+            const html = `
+                <div class="detail-content">
+                    <div class="detail-info">
+                        <div class="info-row">
+                            <div class="info-item">
+                                <label>问题编号:</label>
+                                <span>${problem.pid}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>所属部门:</label>
+                                <span>${problem.department_name}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>所属站场:</label>
+                                <span>${problem.station_name}</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-item">
+                                <label>设备名称:</label>
+                                <span>${problem.device_name}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>设备类型:</label>
+                                <span>${problem.type_name}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>问题状态:</label>
+                                <span class="status-tag status-${problem.status}">${problem.status_text}</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-item">
+                                <label>报告人:</label>
+                                <span>${problem.reporter}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>报告时间:</label>
+                                <span>${formatDate(problem.report_time)}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>紧急程度:</label>
+                                <span class="urgency-tag urgency-${problem.urgency}">${problem.urgency_text}</span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-item full-width">
+                                <label>问题描述:</label>
+                                <p>${problem.description}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 问题附件 -->
+                    <div class="section">
+                        <h3>问题附件</h3>
+                        ${attachmentsHtml}
+                    </div>
+                    
+                    <!-- 处理记录 -->
+                    <div class="section">
+                        <h3>处理记录</h3>
+                        ${processRecordsHtml}
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // 加载筛选选项
+        function loadFilterOptions() {
+            fetch('api.php?action=getFilterOptions')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const filterOptions = data.data;
+                        
+                        // 填充部门下拉框
+                        const departmentSelect = document.getElementById('department');
+                        filterOptions.departments.forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.cid;
+                            option.textContent = dept.full_name;
+                            departmentSelect.appendChild(option);
+                        });
+                        
+                        // 填充站场下拉框
+                        const stationSelect = document.getElementById('station');
+                        filterOptions.stations.forEach(station => {
+                            const option = document.createElement('option');
+                            option.value = station.sid;
+                            option.textContent = station.station_name;
+                            stationSelect.appendChild(option);
+                        });
+                        
+                        // 填充设备类型下拉框
+                        const typeSelect = document.getElementById('type');
+                        filterOptions.types.forEach(type => {
+                            const option = document.createElement('option');
+                            option.value = type.tid;
+                            option.textContent = type.type_name;
+                            typeSelect.appendChild(option);
+                        });
+                        
+                        // 如果预设的筛选值，重新应用它们
+                        if (params.department) document.getElementById('department').value = params.department;
+                        if (params.station) document.getElementById('station').value = params.station;
+                        if (params.type) document.getElementById('type').value = params.type;
+                    } else {
+                        console.error('获取筛选选项失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取筛选选项失败:', error);
+                });
+        }
+        
+        // 加载问题列表
+        function loadProblemList(page) {
+            // 获取筛选条件
+            const department = document.getElementById('department').value;
+            const station = document.getElementById('station').value;
+            const type = document.getElementById('type').value;
+            const status = document.getElementById('status').value;
+            const keyword = document.getElementById('keyword').value;
+            
+            // 构建查询参数
+            const queryParams = new URLSearchParams({
+                action: 'getProblemList',
+                page: page,
+                pageSize: 10,
+                department: department,
+                station: station,
+                type: type,
+                status: status,
+                keyword: keyword
+            });
+            
+            fetch('api.php?' + queryParams)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayProblemList(data.data, data.total, data.page, data.pageSize);
+                    } else {
+                        document.getElementById('problem-list-body').innerHTML = '<tr><td colspan="10" class="error">' + data.message + '</td></tr>';
+                        document.getElementById('pagination').innerHTML = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取问题列表失败:', error);
+                    document.getElementById('problem-list-body').innerHTML = '<tr><td colspan="10" class="error">获取问题列表失败，请刷新页面重试</td></tr>';
+                    document.getElementById('pagination').innerHTML = '';
+                });
+        }
+        
+        // 显示问题列表
+        function displayProblemList(problems, total, currentPage, pageSize) {
+            const tbody = document.getElementById('problem-list-body');
+            
+            if (problems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无问题记录</td></tr>';
+                document.getElementById('pagination').innerHTML = '';
+                return;
+            }
+            
+            // 格式化日期
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '';
+                return new Date(dateStr).toLocaleDateString('zh-CN');
+            };
+            
+            let html = '';
+            problems.forEach(problem => {
+                html += `
+                    <tr>
+                        <td>${problem.pid}</td>
+                        <td>${problem.department_name}</td>
+                        <td>${problem.station_name}</td>
+                        <td>${problem.device_name}</td>
+                        <td>${problem.type_name}</td>
+                        <td class="description-cell">${problem.description}</td>
+                        <td>${formatDate(problem.report_time)}</td>
+                        <td><span class="urgency-tag urgency-${problem.urgency}">${problem.urgency_text}</span></td>
+                        <td><span class="status-tag status-${problem.status}">${problem.status_text}</span></td>
+                        <td>
+                            <a href="problems.php?pid=${problem.pid}&view=detail" class="btn btn-sm btn-primary">查看</a>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+            
+            // 更新分页控件
+            buildPagination(total, currentPage, pageSize);
+        }
+        
+        // 构建分页控件
+        function buildPagination(total, currentPage, pageSize) {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(total / pageSize);
+            
+            // 构建分页参数（包含筛选条件）
+            const buildPaginationParams = () => {
+                const department = document.getElementById('department').value;
+                const station = document.getElementById('station').value;
+                const type = document.getElementById('type').value;
+                const status = document.getElementById('status').value;
+                const keyword = document.getElementById('keyword').value;
+                
+                let params = '';
+                if (department) params += '&department=' + department;
+                if (station) params += '&station=' + station;
+                if (type) params += '&type=' + type;
+                if (status) params += '&status=' + status;
+                if (keyword) params += '&keyword=' + encodeURIComponent(keyword);
+                
+                return params;
+            };
+            
+            let html = '';
+            
+            // 上一页
+            const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+            const prevPage = currentPage - 1;
+            html += `<a href="javascript:void(0)" class="page-btn prev ${prevDisabled}" onclick="loadProblemList(${prevPage})">上一页</a>`;
+            
+            // 页码
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const active = currentPage === i ? 'active' : '';
+                html += `<a href="javascript:void(0)" class="page-btn ${active}" onclick="loadProblemList(${i})">${i}</a>`;
+            }
+            
+            // 下一页
+            const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+            const nextPage = currentPage + 1;
+            html += `<a href="javascript:void(0)" class="page-btn next ${nextDisabled}" onclick="loadProblemList(${nextPage})">下一页</a>`;
+            
+            // 页码跳转
+            html += `
+                <div class="page-jump">
+                    <span>共 ${totalPages} 页</span>
+                    <input type="number" id="page-input" min="1" max="${totalPages}" value="${currentPage}">
+                    <button onclick="jumpToPage(${totalPages})">GO</button>
+                </div>
+            `;
+            
+            pagination.innerHTML = html;
         }
         
         // 跳转到指定页码
-        function gotoPage() {
-            const input = document.getElementById('goto-page');
-            let page = parseInt(input.value);
-            const totalPages = <?php echo $totalPages; ?>;
+        function jumpToPage(totalPages) {
+            const pageInput = document.getElementById('page-input');
+            let page = parseInt(pageInput.value);
             
+            // 验证页码范围
             if (isNaN(page) || page < 1) {
                 page = 1;
             } else if (page > totalPages) {
                 page = totalPages;
             }
             
-            input.value = page;
-            window.location.href = '/problems.php?' + buildPaginationParams(page);
+            pageInput.value = page;
+            loadProblemList(page);
         }
-        
-        // 监听页码输入框的回车事件
-        document.getElementById('goto-page').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                gotoPage();
-            }
-        });
     </script>
-    
-    <style>
-        .problems-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        
-        .problems-header {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .problems-header h2 {
-            margin: 0;
-            color: #333;
-        }
-        
-        .problems-content {
-            display: flex;
-            min-height: 500px;
-        }
-        
-        .filter-panel {
-            width: 280px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-right: 1px solid #dee2e6;
-        }
-        
-        .filter-section h3 {
-            margin: 0 0 20px 0;
-            color: #333;
-            font-size: 16px;
-        }
-        
-        .filter-group {
-            margin-bottom: 15px;
-        }
-        
-        .filter-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #555;
-            font-size: 14px;
-        }
-        
-        .filter-group select,
-        .filter-group input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
-        .filter-actions {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .search-btn,
-        .reset-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s;
-        }
-        
-        .search-btn {
-            background-color: #3498db;
-            color: white;
-        }
-        
-        .reset-btn {
-            background-color: #95a5a6;
-            color: white;
-        }
-        
-        .search-btn:hover {
-            background-color: #2980b9;
-        }
-        
-        .reset-btn:hover {
-            background-color: #7f8c8d;
-        }
-        
-        .problems-list {
-            flex: 1;
-            padding: 20px;
-        }
-        
-        .list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .total-count {
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .total-count span {
-            color: #3498db;
-            font-weight: bold;
-        }
-        
-        .list-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .list-table th,
-        .list-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .list-table th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            color: #555;
-            font-size: 14px;
-        }
-        
-        .list-table tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .list-table tr.no-data td {
-            text-align: center;
-            padding: 50px 0;
-            color: #999;
-        }
-        
-        .problem-link {
-            color: #3498db;
-            text-decoration: none;
-        }
-        
-        .problem-link:hover {
-            text-decoration: underline;
-        }
-        
-        .description-col {
-            max-width: 250px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        
-        .status-0 {
-            background-color: #ffcccc;
-            color: #cc0000;
-        }
-        
-        .status-1 {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        
-        .status-2 {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 20px;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        
-        .page-btn {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #3498db;
-            background-color: white;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        
-        .page-btn:hover:not(.disabled) {
-            background-color: #3498db;
-            color: white;
-            border-color: #3498db;
-        }
-        
-        .page-btn.active {
-            background-color: #3498db;
-            color: white;
-            border-color: #3498db;
-        }
-        
-        .page-btn.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .page-info {
-            margin-left: 10px;
-            font-size: 14px;
-        }
-        
-        .page-info input {
-            width: 50px;
-            text-align: center;
-        }
-        
-        /* 问题详情页样式 */
-        .problem-detail {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        
-        .detail-header {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-bottom: 1px solid #dee2e6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .detail-header h2 {
-            margin: 0;
-            color: #333;
-        }
-        
-        .back-btn {
-            padding: 8px 16px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .back-btn:hover {
-            background-color: #2980b9;
-        }
-        
-        .detail-content {
-            padding: 30px;
-        }
-        
-        .detail-section {
-            margin-bottom: 30px;
-        }
-        
-        .detail-section h3 {
-            margin: 0 0 15px 0;
-            color: #333;
-            font-size: 18px;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 10px;
-        }
-        
-        .detail-row {
-            margin-bottom: 15px;
-            display: flex;
-            flex-wrap: wrap;
-        }
-        
-        .detail-label {
-            width: 120px;
-            font-weight: bold;
-            color: #555;
-        }
-        
-        .detail-value {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        .attachments-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .attachment-item a {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #3498db;
-            transition: background-color 0.3s;
-        }
-        
-        .attachment-item a:hover {
-            background-color: #e9ecef;
-        }
-        
-        .attachment-icon {
-            font-size: 18px;
-        }
-        
-        .processing-records {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .processing-record {
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .record-header {
-            background-color: #f8f9fa;
-            padding: 10px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .record-person {
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .record-time {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .record-content {
-            padding: 15px;
-            line-height: 1.6;
-        }
-        
-        .no-records {
-            text-align: center;
-            color: #999;
-            padding: 20px;
-        }
-        
-        .error-message {
-            text-align: center;
-            padding: 50px 0;
-            color: #e74c3c;
-        }
-        
-        .error-message a {
-            color: #3498db;
-            text-decoration: none;
-        }
-        
-        .error-message a:hover {
-            text-decoration: underline;
-        }
-        
-        @media (max-width: 1024px) {
-            .problems-content {
-                flex-direction: column;
-            }
-            
-            .filter-panel {
-                width: 100%;
-                border-right: none;
-                border-bottom: 1px solid #dee2e6;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .filter-actions {
-                flex-direction: column;
-            }
-            
-            .list-table th,
-            .list-table td {
-                padding: 8px;
-                font-size: 14px;
-            }
-            
-            .description-col {
-                max-width: 150px;
-            }
-            
-            .pagination {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .page-info {
-                margin-left: 0;
-            }
-            
-            .detail-content {
-                padding: 20px;
-            }
-            
-            .detail-row {
-                flex-direction: column;
-            }
-            
-            .detail-label {
-                width: 100%;
-                margin-bottom: 5px;
-            }
-        }
-    </style>
-<?php
-}
-
-// 构建分页参数函数
-function buildPaginationParams($page) {
-    $params = [];
-    
-    // 保留部门筛选参数
-    if (isset($_GET['cid']) && !empty($_GET['cid'])) {
-        $params['cid'] = $_GET['cid'];
-    }
-    
-    // 保留站场筛选参数
-    if (isset($_GET['sid']) && !empty($_GET['sid'])) {
-        $params['sid'] = $_GET['sid'];
-    }
-    
-    // 保留设备类型筛选参数
-    if (isset($_GET['tid']) && !empty($_GET['tid'])) {
-        $params['tid'] = $_GET['tid'];
-    }
-    
-    // 保留状态筛选参数
-    if (isset($_GET['status']) && is_numeric($_GET['status'])) {
-        $params['status'] = $_GET['status'];
-    }
-    
-    // 保留关键词搜索参数
-    if (isset($_GET['keyword']) && !empty(trim($_GET['keyword']))) {
-        $params['keyword'] = trim($_GET['keyword']);
-    }
-    
-    // 添加页码参数
-    $params['page'] = $page;
-    
-    // 构建URL参数字符串
-    $queryString = http_build_query($params);
-    return $queryString;
-}
+</body>
+</html>
