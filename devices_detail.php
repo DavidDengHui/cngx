@@ -394,63 +394,10 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         copyLinkBtn.style.touchAction = 'manipulation';
         copyLinkBtn.style.webkitTapHighlightColor = 'rgba(0, 0, 0, 0.1)';
 
+        // 直接调用全局复制函数
         copyLinkBtn.onclick = function() {
-            // 优先使用现代的Clipboard API
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(url).then(function() {
-                    showCopySuccess();
-                }).catch(function() {
-                    // 降级方案
-                    fallbackCopyTextToClipboard(url);
-                });
-            } else {
-                // 降级方案
-                fallbackCopyTextToClipboard(url);
-            }
+            copyDownloadLink(url, copyLinkBtn);
         };
-
-        // 复制成功提示
-        function showCopySuccess() {
-            const originalText = copyLinkBtn.textContent;
-            const originalBg = copyLinkBtn.style.backgroundColor;
-
-            copyLinkBtn.textContent = '已复制！';
-            copyLinkBtn.style.backgroundColor = '#27ae60';
-
-            setTimeout(function() {
-                copyLinkBtn.textContent = originalText;
-                copyLinkBtn.style.backgroundColor = originalBg;
-            }, 2000);
-        }
-
-        // 降级复制方案，兼容不支持Clipboard API的设备
-        function fallbackCopyTextToClipboard(text) {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-
-            // 避免界面闪烁
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            textArea.style.opacity = '0';
-
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    showCopySuccess();
-                } else {
-                    alert('复制失败，请手动复制');
-                }
-            } catch (err) {
-                alert('复制失败，请手动复制');
-            }
-
-            document.body.removeChild(textArea);
-        }
 
         // 取消按钮
         const cancelBtn = document.createElement('button');
@@ -509,7 +456,7 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
         // 添加复制链接和确认下载的点击事件
         copyLinkBtn.onclick = function() {
-            copyDownloadLink(url);
+            copyDownloadLink(url, copyLinkBtn);
         };
 
         cancelBtn.onclick = function() {
@@ -2974,4 +2921,63 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
     // 修复原有代码中的问题 - 确保原有函数调用兼容新的分页功能
     // 注意：这部分应该被添加到原有的<script>标签内，替换原有的函数定义
+
+    // 全局复制下载链接函数
+    function copyDownloadLink(url, button) {
+        // 优先使用现代的Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(url).then(function() {
+                showCopySuccess(button);
+            }).catch(function() {
+                // 降级方案
+                fallbackCopyTextToClipboard(url, button);
+            });
+        } else {
+            // 降级方案
+            fallbackCopyTextToClipboard(url, button);
+        }
+    }
+
+    // 复制成功提示 - 在按钮上显示
+    function showCopySuccess(button) {
+        const originalText = button.textContent;
+        const originalBg = button.style.backgroundColor;
+
+        button.textContent = '已复制！';
+        button.style.backgroundColor = '#27ae60';
+
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.style.backgroundColor = originalBg;
+        }, 2000);
+    }
+
+    // 降级复制方案，兼容不支持Clipboard API的设备
+    function fallbackCopyTextToClipboard(text, button) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+
+        // 避免界面闪烁
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        textArea.style.opacity = '0';
+
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showCopySuccess(button);
+            } else {
+                alert('复制失败，请手动复制');
+            }
+        } catch (err) {
+            alert('复制失败，请手动复制');
+        }
+
+        document.body.removeChild(textArea);
+    }
 </script>
