@@ -1411,15 +1411,36 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
                 if (data.length > 0) {
                     let html = '<table class="records-table">';
-                    html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th><th>操作</th></tr></thead>';
+                    html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th></tr></thead>';
                     html += '<tbody>';
 
                     data.forEach((record, index) => {
-                        html += `<tr data-id="${record.wid}"><td>${index + 1}</td><td>${record.work_date}</td><td>${record.workers}</td><td><button class="delete-btn" onclick="deleteRecord(${record.wid}, 'inspection')">删除</button></td></tr>`;
+                        // 处理作业人员姓名，所有人员都添加keeper-tag样式
+                        let formattedWorkers = record.workers;
+                        if (formattedWorkers) {
+                            // 无论是否包含||分隔符，都为每个作业人员添加keeper-tag样式
+                            const workerArray = formattedWorkers.split('||');
+                            const formattedArray = [];
+                            workerArray.forEach(worker => {
+                                formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
+                            });
+                            // 使用换行符分隔多个作业人员
+                            formattedWorkers = formattedArray.join('<br>');
+                        }
+                       
+                        html += `<tr class="record-row" data-id="${record.wid}" data-type="inspection" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${index + 1}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
                     });
 
                     html += '</tbody></table>';
                     content.innerHTML = html;
+
+                    // 添加行点击事件
+                    document.querySelectorAll('.record-row[data-type="inspection"]').forEach(row => {
+                        row.addEventListener('click', function() {
+                            const recordData = JSON.parse(this.getAttribute('data-record'));
+                            showRecordDetailModal(recordData, 'inspection');
+                        });
+                    });
                 } else {
                     content.innerHTML = '<p class="no-result">没有查询到巡视记录</p>';
                 }
@@ -1441,15 +1462,36 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
                 if (data.length > 0) {
                     let html = '<table class="records-table">';
-                    html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th><th>操作</th></tr></thead>';
+                    html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th></tr></thead>';
                     html += '<tbody>';
 
                     data.forEach((record, index) => {
-                        html += `<tr data-id="${record.wid}"><td>${index + 1}</td><td>${record.work_date}</td><td>${record.workers}</td><td><button class="delete-btn" onclick="deleteRecord(${record.wid}, 'maintenance')">删除</button></td></tr>`;
+                        // 处理作业人员姓名，所有人员都添加keeper-tag样式
+                        let formattedWorkers = record.workers;
+                        if (formattedWorkers) {
+                            // 无论是否包含||分隔符，都为每个作业人员添加keeper-tag样式
+                            const workerArray = formattedWorkers.split('||');
+                            const formattedArray = [];
+                            workerArray.forEach(worker => {
+                                formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
+                            });
+                            // 使用换行符分隔多个作业人员
+                            formattedWorkers = formattedArray.join('<br>');
+                        }
+                        
+                        html += `<tr class="record-row" data-id="${record.wid}" data-type="maintenance" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${index + 1}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
                     });
 
                     html += '</tbody></table>';
                     content.innerHTML = html;
+
+                    // 添加行点击事件
+                    document.querySelectorAll('.record-row[data-type="maintenance"]').forEach(row => {
+                        row.addEventListener('click', function() {
+                            const recordData = JSON.parse(this.getAttribute('data-record'));
+                            showRecordDetailModal(recordData, 'maintenance');
+                        });
+                    });
                 } else {
                     content.innerHTML = '<p class="no-result">没有查询到检修记录</p>';
                 }
@@ -1458,6 +1500,317 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 const content = document.getElementById('maintenance-content');
                 content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
             });
+    }
+
+    // 显示记录详情模态框
+    function showRecordDetailModal(record, type) {
+        // 创建模态框容器
+        const modal = document.createElement('div');
+        modal.className = 'detail-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        // 模态框内容
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        `;
+
+        // 关闭按钮
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+        `;
+        closeBtn.onclick = () => {
+            document.body.removeChild(modal);
+            document.body.style.overflow = '';
+        };
+
+        // 模态框标题
+        const title = document.createElement('h3');
+        title.textContent = type === 'inspection' ? '巡视记录详情' : '检修记录详情';
+        title.style.cssText = `
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+        `;
+
+        // 详情内容
+        const detailContent = document.createElement('div');
+        detailContent.className = 'record-detail';
+        detailContent.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        `;
+
+        // 添加记录详情字段
+        // 设备名称从PHP变量获取
+        const deviceName = '<?php echo $device['device_name']; ?>';
+        
+        const fields = [
+            { label: '设备名称:', value: deviceName },
+            { label: '作业时间:', value: type === 'inspection' ? (record.inspection_time || record.work_date) : (record.maintenance_time || record.work_date) },
+            { label: '作业人员:', value: type === 'inspection' ? (record.inspector || record.workers) : (record.maintainer || record.workers) },
+            { label: '作业说明:', value: record.content || '无' }
+        ];
+        
+        // 处理作业人员姓名，无论是单人还是多人都添加keeper-tag样式
+        const workerField = fields.find(field => field.label === '作业人员:');
+        if (workerField && workerField.value) {
+            // 无论是否包含||分隔符，都进行格式化处理
+            const workerArray = workerField.value.split('||');
+            const formattedArray = [];
+            workerArray.forEach(worker => {
+                formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
+            });
+            workerField.value = formattedArray.join('');
+        }
+
+        fields.forEach(field => {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.style.cssText = 'display: flex;';
+            
+            const label = document.createElement('span');
+            label.textContent = field.label;
+            label.style.cssText = 'font-weight: bold; width: 100px; flex-shrink: 0;';
+            
+            const value = document.createElement('span');
+            // 对于包含HTML的字段（如作业人员）使用innerHTML
+            if (field.label === '作业人员:' && field.value.includes('<span')) {
+                value.innerHTML = field.value;
+            } else {
+                value.textContent = field.value;
+            }
+            value.style.cssText = 'flex: 1; word-break: break-word;';
+            
+            fieldDiv.appendChild(label);
+            fieldDiv.appendChild(value);
+            detailContent.appendChild(fieldDiv);
+        });
+
+        // 按钮容器
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.cssText = `
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        `;
+
+        // 删除按钮
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '删除';
+        deleteBtn.style.cssText = `
+            padding: 8px 20px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        deleteBtn.onclick = () => {
+            // 不再移除记录详情模态框，直接显示删除确认对话框
+            showDeleteConfirmDialog(record.wid, type);
+        };
+
+        // 关闭按钮
+        const closeModalBtn = document.createElement('button');
+        closeModalBtn.textContent = '关闭';
+        closeModalBtn.style.cssText = `
+            padding: 8px 20px;
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        closeModalBtn.onclick = () => {
+            document.body.removeChild(modal);
+            document.body.style.overflow = '';
+        };
+
+        // 组装模态框
+        buttonsContainer.appendChild(closeModalBtn);
+        buttonsContainer.appendChild(deleteBtn);
+        modalContent.appendChild(closeBtn);
+        modalContent.appendChild(title);
+        modalContent.appendChild(detailContent);
+        modalContent.appendChild(buttonsContainer);
+        modal.appendChild(modalContent);
+
+        // 阻止背景滚动
+        document.body.style.overflow = 'hidden';
+
+        // 添加到文档
+        document.body.appendChild(modal);
+
+        // 点击模态框外部关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                document.body.style.overflow = '';
+            }
+        });
+
+        // ESC键关闭
+        document.addEventListener('keydown', function escListener(e) {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', escListener);
+                document.body.style.overflow = '';
+            }
+        });
+    }
+
+    // 显示删除确认对话框
+    function showDeleteConfirmDialog(wid, type) {
+        // 创建确认对话框
+        const confirmModal = document.createElement('div');
+        confirmModal.className = 'confirm-modal';
+        confirmModal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        // 对话框内容
+        const confirmContent = document.createElement('div');
+        confirmContent.style.cssText = `
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        `;
+
+        // 标题
+        const confirmTitle = document.createElement('h4');
+        confirmTitle.textContent = '确认删除';
+        confirmTitle.style.cssText = 'margin-top: 0; margin-bottom: 15px; color: #333;';
+
+        // 消息
+        const confirmMessage = document.createElement('p');
+        confirmMessage.textContent = '确定要删除这条记录吗？此操作不可撤销。';
+        confirmMessage.style.cssText = 'margin-bottom: 20px; color: #666;';
+
+        // 按钮容器
+        const confirmButtons = document.createElement('div');
+        confirmButtons.style.cssText = `
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        `;
+
+        // 取消按钮
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.cssText = `
+            padding: 8px 20px;
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        cancelBtn.onclick = () => {
+            document.body.removeChild(confirmModal);
+            // 取消删除时不移除body的overflow样式，保持记录详情模态框的显示
+        };
+
+        // 确认删除按钮
+        const confirmDeleteBtn = document.createElement('button');
+        confirmDeleteBtn.textContent = '确认删除';
+        confirmDeleteBtn.style.cssText = `
+            padding: 8px 20px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        confirmDeleteBtn.onclick = () => {
+            // 执行删除操作
+            deleteRecord(wid, type);
+            document.body.removeChild(confirmModal);
+            // 同时移除记录详情模态框
+            const detailModal = document.querySelector('.detail-modal');
+            if (detailModal) {
+                document.body.removeChild(detailModal);
+            }
+            document.body.style.overflow = '';
+        };
+
+        // 组装对话框
+        confirmButtons.appendChild(cancelBtn);
+        confirmButtons.appendChild(confirmDeleteBtn);
+        confirmContent.appendChild(confirmTitle);
+        confirmContent.appendChild(confirmMessage);
+        confirmContent.appendChild(confirmButtons);
+        confirmModal.appendChild(confirmContent);
+
+        // 阻止背景滚动
+        document.body.style.overflow = 'hidden';
+
+        // 添加到文档
+        document.body.appendChild(confirmModal);
+
+        // 点击对话框外部关闭
+        confirmModal.addEventListener('click', (e) => {
+            if (e.target === confirmModal) {
+                document.body.removeChild(confirmModal);
+                // 点击外部取消时不移除body的overflow样式，保持记录详情模态框的显示
+            }
+        });
+
+        // ESC键关闭
+        document.addEventListener('keydown', function escListener(e) {
+            if (e.key === 'Escape') {
+                document.body.removeChild(confirmModal);
+                document.removeEventListener('keydown', escListener);
+                // ESC键取消时不移除body的overflow样式，保持记录详情模态框的显示
+            }
+        });
     }
 
     // 加载问题库记录
@@ -1693,12 +2046,23 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
         flex: 1;
     }
 
+    /* 作业时间单元格 - 确保在一行显示 */
+    .records-table td:nth-child(2) {
+        white-space: nowrap;
+    }
+    
+    /* 作业人员单元格 - 允许换行并设置间距 */
+    .records-table td:nth-child(3) {
+        line-height: 1.6;
+    }
+    
     .keeper-tag {
         background-color: rgba(52, 152, 219, 0.2);
         /* 半透明蓝色 */
         color: #2c3e50;
-        padding: 2px 8px;
+        padding: 4px 10px;
         margin-right: 8px;
+        margin-bottom: 4px;
         border-radius: 4px;
         display: inline-block;
     }
