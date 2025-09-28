@@ -74,6 +74,12 @@ switch ($action) {
     case 'getProblems':
         getProblems();
         break;
+    case 'getWorkLogsCount':
+        getWorkLogsCount();
+        break;
+    case 'getProblemsCount':
+        getProblemsCount();
+        break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
         break;
@@ -535,14 +541,14 @@ function processProblemAttachments($pid) {
     return $result;
 }
 
-// 删除巡视记录
+// 删除巡视记录 - 将status设置为0
 function deleteInspection() {
     global $pdo;
     
     try {
         $id = $_GET['id'];
         
-        $stmt = $pdo->prepare("UPDATE inspections SET status = -1 WHERE id = :id");
+        $stmt = $pdo->prepare("UPDATE inspections SET status = 0 WHERE id = :id");
         $stmt->execute(['id' => $id]);
         
         echo json_encode(['success' => true]);
@@ -551,14 +557,14 @@ function deleteInspection() {
     }
 }
 
-// 删除检修记录
+// 删除检修记录 - 将status设置为0
 function deleteMaintenance() {
     global $pdo;
     
     try {
         $id = $_GET['id'];
         
-        $stmt = $pdo->prepare("UPDATE maintenances SET status = -1 WHERE id = :id");
+        $stmt = $pdo->prepare("UPDATE maintenances SET status = 0 WHERE id = :id");
         $stmt->execute(['id' => $id]);
         
         echo json_encode(['success' => true]);
@@ -567,14 +573,14 @@ function deleteMaintenance() {
     }
 }
 
-// 删除问题记录（设备详情页中的问题记录）
+// 删除问题记录（设备详情页中的问题记录） - 将status设置为0
 function deleteProblemRecord() {
     global $pdo;
     
     try {
         $id = $_GET['id'];
         
-        $stmt = $pdo->prepare("UPDATE problems SET status = -1 WHERE pid = :id");
+        $stmt = $pdo->prepare("UPDATE problems SET status = 0 WHERE pid = :id");
         $stmt->execute(['id' => $id]);
         
         echo json_encode(['success' => true]);
@@ -748,12 +754,12 @@ function getProblems() {
         }
         
         // 查询总记录数
-        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM problems WHERE did = :did AND status != -1");
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM problems WHERE did = :did AND status = 1");
         $stmt->execute(['did' => $did]);
         $total = $stmt->fetchColumn();
         
         // 查询当前页数据
-        $stmt = $pdo->prepare("SELECT pid, reporter, report_time, description, urgency, status, create_time, update_time FROM problems WHERE did = :did AND status != -1 ORDER BY report_time DESC $limitClause");
+        $stmt = $pdo->prepare("SELECT pid, reporter, report_time, description, urgency, status, create_time, update_time FROM problems WHERE did = :did AND status = 1 ORDER BY report_time DESC $limitClause");
         $stmt->execute(['did' => $did]);
         $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
@@ -791,5 +797,58 @@ function getProblems() {
         ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取问题记录失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取巡视记录和检修记录总数
+function getWorkLogsCount() {
+    global $pdo;
+    
+    try {
+        $did = $_GET['did'];
+        $type = $_GET['type'];
+        
+        // 根据类型查询记录总数
+        if ($type == 1 || $type === 'inspection') {
+            // 查询巡视记录总数
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM inspections WHERE did = :did AND status = 1");
+        } else if ($type == 2 || $type === 'maintenance') {
+            // 查询检修记录总数
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM maintenances WHERE did = :did AND status = 1");
+        } else {
+            echo json_encode(['success' => false, 'message' => '无效的记录类型']);
+            return;
+        }
+        
+        $stmt->execute(['did' => $did]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'count' => $result['count']
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取记录总数失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取问题记录总数
+function getProblemsCount() {
+    global $pdo;
+    
+    try {
+        $did = $_GET['did'];
+        
+        // 查询问题记录总数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM problems WHERE did = :did AND status = 1");
+        $stmt->execute(['did' => $did]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'count' => $result['count']
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取问题记录总数失败: ' . $e->getMessage()]);
     }
 }

@@ -1750,34 +1750,109 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
             });
     }
 
-    // 删除记录
+    // 删除记录 - 将记录的status设置为0
     function deleteRecord(wid, type) {
-        if (confirm('确定要删除这条记录吗？')) {
-            fetch(`api.php?action=deleteWorkLog&wid=${wid}`, {
-                    method: 'POST'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-
-                        // 重新加载对应记录
-                        if (type === 'inspection') {
-                            document.getElementById('inspection-content').innerHTML = '<div class="loading">加载中...</div>';
-                            loadDataWithPagination('inspection');
-                        } else if (type === 'maintenance') {
-                            document.getElementById('maintenance-content').innerHTML = '<div class="loading">加载中...</div>';
-                            loadDataWithPagination('maintenance');
-                        }
-
-                        alert('删除成功');
-                    } else {
-                        alert('删除失败: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('删除失败: ' + error.message);
-                });
+        // 根据记录类型选择正确的API端点
+        let apiAction = '';
+        
+        switch(type) {
+            case 'inspection':
+                apiAction = 'deleteInspection';
+                break;
+            case 'maintenance':
+                apiAction = 'deleteMaintenance';
+                break;
+            case 'problem':
+                apiAction = 'deleteProblemRecord';
+                break;
+            default:
+                showNotification('不支持的记录类型', 'error');
+                return;
         }
+        
+        fetch(`api.php?action=${apiAction}&id=${wid}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 显示删除成功提示
+                    showNotification('已删除1条记录！', 'success');
+                    
+                    // 重新加载对应记录
+                    if (type === 'inspection') {
+                        document.getElementById('inspection-content').innerHTML = '<div class="loading">加载中...</div>';
+                        loadInspectionRecords(1);
+                    } else if (type === 'maintenance') {
+                        document.getElementById('maintenance-content').innerHTML = '<div class="loading">加载中...</div>';
+                        loadMaintenanceRecords(1);
+                    } else if (type === 'problem') {
+                        document.getElementById('problem-content').innerHTML = '<div class="loading">加载中...</div>';
+                        loadProblemRecords(1);
+                    }
+                } else {
+                    showNotification('删除失败: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('删除失败: ' + error.message, 'error');
+            });
+    }
+    
+    // 显示通知提示
+    function showNotification(message, type = 'info') {
+        // 移除已存在的通知
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            document.body.removeChild(existingNotification);
+        }
+        
+        // 创建通知元素
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        // 设置样式 - 从右侧滑入且低于header导航栏
+        // 使用内联样式确保背景色和文本可见
+        notification.style.position = 'fixed';
+        notification.style.top = '80px';  // 确保低于header导航栏的高度
+        notification.style.right = '-400px';  // 初始位置在右侧屏幕外
+        notification.style.backgroundColor = '#e74c3c';
+        notification.style.color = 'white';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '4px';
+        notification.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+        notification.style.zIndex = '10000';
+        notification.style.opacity = '0';
+        notification.style.fontSize = '14px';
+        notification.style.fontWeight = 'bold';
+        notification.style.minWidth = '200px';
+        notification.style.textAlign = 'center';
+        notification.style.transition = 'opacity 0.3s ease, right 0.5s ease';
+        
+        // 设置消息内容
+        notification.textContent = message;
+        
+        // 添加到页面
+        document.body.appendChild(notification);
+        
+        // 显示通知 - 从右侧滑入
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.right = '20px';  // 最终位置
+        }, 10);
+        
+        // 3秒后隐藏通知 - 滑回右侧
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.right = '-400px';  // 回到初始位置
+            
+            // 动画结束后移除元素
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 500);
+        }, 3000);
     }
 </script>
 
@@ -2731,6 +2806,12 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 const hasPagination = data.total !== undefined && data.data !== undefined;
                 const records = hasPagination ? data.data : data;
                 const total = hasPagination ? data.total : data.length;
+                
+                // 更新标题计数
+                const countElement = document.getElementById('inspection-count');
+                if (countElement) {
+                    countElement.textContent = `(${total})`;
+                }
 
                 if (records.length > 0) {
                     let html = '<table class="records-table">';
@@ -2807,6 +2888,12 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 const hasPagination = data.total !== undefined && data.data !== undefined;
                 const records = hasPagination ? data.data : data;
                 const total = hasPagination ? data.total : data.length;
+                
+                // 更新标题计数
+                const countElement = document.getElementById('maintenance-count');
+                if (countElement) {
+                    countElement.textContent = `(${total})`;
+                }
 
                 if (records.length > 0) {
                     let html = '<table class="records-table">';
@@ -2883,6 +2970,12 @@ $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
                 const hasPagination = data.total !== undefined && data.data !== undefined;
                 const problems = hasPagination ? data.data : data;
                 const total = hasPagination ? data.total : data.length;
+                
+                // 更新标题计数
+                const countElement = document.getElementById('problem-count');
+                if (countElement) {
+                    countElement.textContent = `(${total})`;
+                }
 
                 if (problems.length > 0) {
                     let html = '<table class="problems-table">';
