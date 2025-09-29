@@ -22,9 +22,10 @@ include 'header.php';
     // 全局变量存储设备ID
     const deviceId = '<?php echo $did; ?>';
 
-    // 页面加载完成后获取设备详情
+    // 页面加载完成后获取设备详情和记录数量
     document.addEventListener('DOMContentLoaded', function() {
         loadDeviceDetail();
+        loadRecordCounts(); // 加载所有记录的数量
     });
 
     // 通过API获取设备详情
@@ -99,8 +100,8 @@ include 'header.php';
                         <div class="collapse-header" onclick="toggleCollapse('drawings')">
                             <div class="header-title">
                                 <span>设备图纸</span>
-                                <span class="record-count">
-                                    <span class="record-count-number">${device.drawing_count}</span>
+                                <span id="drawing-count" class="record-count">
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'drawing')">${device.drawing_count}</span>
                                 </span>
                             </div>
                             <span class="collapse-icon">▼</span>
@@ -118,7 +119,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>巡视记录</span>
                                 <span id="inspection-count" class="record-count">
-                                    <span class="record-count-number">?</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'inspection')">?</span>
                                 </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
                             </div>
@@ -137,7 +138,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>检修记录</span>
                                 <span id="maintenance-count" class="record-count">
-                                    <span class="record-count-number">?</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'maintenance')">?</span>
                                 </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
                             </div>
@@ -156,7 +157,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>问题记录</span>
                                 <span id="problem-count" class="record-count">
-                                    <span class="record-count-number">?</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'problem')">?</span>
                                 </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
                             </div>
@@ -1277,8 +1278,206 @@ include 'header.php';
         }, 10); // 短暂延迟确保元素已渲染到DOM中
     }
 
+    // 数据缓存对象，用于跟踪每个类型的加载状态
+    const dataCache = {
+        drawings: {
+            loaded: false
+        },
+        inspection: {
+            loaded: false
+        },
+        maintenance: {
+            loaded: false
+        },
+        problems: {
+            loaded: false
+        }
+    };
+
     // 加载记录数量（页面加载时自动执行）
     function loadRecordCounts() {
+        refreshCount('drawing');
+        refreshCount('inspection');
+        refreshCount('maintenance');
+        refreshCount('problem');
+    }
+
+    // 刷新指定类型的记录数量
+    function refreshCount(type) {
+        // 确保使用全局deviceId而不是PHP变量
+        const did = deviceId;
+        
+        // 清空对应类型的缓存状态
+        if (dataCache[type]) {
+            dataCache[type].loaded = false;
+        }
+
+        // 获取对应折叠块的ID
+        const getContentId = (dataType) => {
+            const idMap = {
+                'drawing': 'drawings',
+                'inspection': 'inspection-records',
+                'maintenance': 'maintenance-records',
+                'problem': 'problem-records'
+            };
+            return idMap[dataType] || '';
+        };
+
+        // 获取对应的数据类型（转换为loadDataWithPagination使用的类型）
+        const getDataType = (type) => {
+            const typeMap = {
+                'drawing': 'drawings',
+                'inspection': 'inspection',
+                'maintenance': 'maintenance',
+                'problem': 'problems'
+            };
+            return typeMap[type] || type;
+        };
+
+        // 检查折叠块是否处于展开状态
+        const contentId = getContentId(type);
+        const contentElement = document.getElementById(contentId);
+        const isExpanded = contentElement && contentElement.style.display !== 'none';
+
+        // 如果折叠块是展开状态，清空其内容并显示加载状态
+        if (isExpanded && contentElement) {
+            const contentContainerId = getDataType(type) + '-content';
+            const contentContainer = document.getElementById(contentContainerId);
+            if (contentContainer) {
+                // 保存加载指示器
+                const loadingElement = contentContainer.querySelector('.loading');
+                if (loadingElement) {
+                    // 清空内容，只保留加载指示器
+                    contentContainer.innerHTML = '';
+                    contentContainer.appendChild(loadingElement);
+                    loadingElement.style.display = 'block';
+                }
+            }
+        }
+
+        // 添加加载状态指示器
+        const getCountElement = (id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                const numberElement = element.querySelector('.record-count-number');
+                if (numberElement) {
+                    // 显示加载中状态
+                    const originalContent = numberElement.textContent;
+                    numberElement.textContent = '...';
+                    return {
+                        element,
+                        numberElement,
+                        originalContent
+                    };
+                }
+            }
+            return null;
+        };
+
+        let countInfo;
+        let url;
+
+        switch (type) {
+            case 'drawing':
+                countInfo = getCountElement('drawing-count');
+                url = `api.php?action=getDeviceDetail&did=${did}`;
+                break;
+            case 'inspection':
+                countInfo = getCountElement('inspection-count');
+                url = `api.php?action=getWorkLogs&did=${did}&type=1`;
+                break;
+            case 'maintenance':
+                countInfo = getCountElement('maintenance-count');
+                url = `api.php?action=getWorkLogs&did=${did}&type=2`;
+                break;
+            case 'problem':
+                countInfo = getCountElement('problem-count');
+                url = `api.php?action=getProblems&did=${did}`;
+                break;
+        }
+
+        // 即使没有找到元素，也要继续获取数据，稍后再更新UI
+        if (!url) return;
+        
+        const updateCountElement = () => {
+            // 尝试重新获取元素
+            const elementId = type === 'drawing' ? 'drawing-count' : 
+                           type === 'inspection' ? 'inspection-count' :
+                           type === 'maintenance' ? 'maintenance-count' : 'problem-count';
+            
+            const element = document.getElementById(elementId);
+            if (element) {
+                const numberElement = element.querySelector('.record-count-number');
+                if (numberElement) {
+                    return numberElement;
+                }
+            }
+            return null;
+        };
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                let count = 0;
+
+                if (type === 'drawing') {
+                    // 处理设备详情数据
+                    count = data.success && data.data && data.data.drawing_count !== undefined ? data.data.drawing_count : 0;
+                } else {
+                    // 处理其他记录类型
+                    count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
+                }
+
+                // 更新数量显示
+                let numberElement = countInfo ? countInfo.numberElement : null;
+                if (!numberElement) {
+                    // 如果初始时没有找到元素，尝试再次获取
+                    numberElement = updateCountElement();
+                }
+                if (numberElement) {
+                    numberElement.textContent = count;
+                }
+
+                // 如果折叠块是展开状态，重新加载数据
+                if (isExpanded) {
+                    const dataType = getDataType(type);
+                    // 重置分页状态为第一页
+                    if (paginationStates[dataType]) {
+                        paginationStates[dataType].currentPage = 1;
+                    }
+                    // 重新加载数据
+                    setTimeout(() => {
+                        loadDataWithPagination(dataType);
+                    }, 100); // 短暂延迟确保UI更新
+                }
+            })
+            .catch(error => {
+                // 出错时恢复原始内容或显示0
+                let numberElement = countInfo ? countInfo.numberElement : null;
+                if (!numberElement) {
+                    // 如果初始时没有找到元素，尝试再次获取
+                    numberElement = updateCountElement();
+                }
+                if (numberElement) {
+                    numberElement.textContent = '0';
+                }
+                console.error(`刷新${type}记录数量失败:`, error);
+            });
+    }
+
+    // 处理数量标签点击事件的内联函数
+    function handleCountClickInline(e, type) {
+        e.stopPropagation(); // 阻止事件冒泡到父元素
+        refreshCount(type);
+    }
+
+    // 在DOM加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRecordCounts();
+    });
+
+    // 原始的loadRecordCounts函数实现
+    function originalLoadRecordCounts() {
         // 加载巡视记录数量
         fetch(`api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=1`)
             .then(response => response.json())
@@ -1344,8 +1543,8 @@ include 'header.php';
             });
     }
 
-    // 在页面加载完成后自动加载记录数量
-    document.addEventListener('DOMContentLoaded', loadRecordCounts);
+    // 保留原始函数调用以确保兼容性
+    // document.addEventListener('DOMContentLoaded', originalLoadRecordCounts);
 
     // 原始的loadInspectionRecords函数已被删除，替换为支持分页的版本
 
@@ -3389,338 +3588,402 @@ include 'header.php';
 
         switch (type) {
             case 'drawings':
-                loadDrawings(page, pageSize);
+                // 更新加载状态
+                dataCache.drawings.loaded = false;
+                loadDrawings(page, pageSize).then(() => {
+                    // 加载完成后的处理可以在这里添加
+                }).catch(error => {
+                    console.error('加载图纸失败:', error);
+                });
                 break;
             case 'inspection':
-                loadInspectionRecords(page, pageSize);
+                // 更新加载状态
+                dataCache.inspection.loaded = false;
+                loadInspectionRecords(page, pageSize).then(() => {
+                    // 加载完成后的处理可以在这里添加
+                }).catch(error => {
+                    console.error('加载巡视记录失败:', error);
+                });
                 break;
             case 'maintenance':
-                loadMaintenanceRecords(page, pageSize);
+                // 更新加载状态
+                dataCache.maintenance.loaded = false;
+                loadMaintenanceRecords(page, pageSize).then(() => {
+                    // 加载完成后的处理可以在这里添加
+                }).catch(error => {
+                    console.error('加载检修记录失败:', error);
+                });
                 break;
             case 'problems':
-                loadProblemRecords(page, pageSize);
+                // 更新加载状态
+                dataCache.problems.loaded = false;
+                loadProblemRecords(page, pageSize).then(() => {
+                    // 加载完成后的处理可以在这里添加
+                }).catch(error => {
+                    console.error('加载问题记录失败:', error);
+                });
                 break;
         }
     }
 
     // 加载图纸（支持分页） - 平滑加载版本
     function loadDrawings(page = 1, pageSize = 5) {
-        const content = document.getElementById('drawings-content');
+        return new Promise((resolve, reject) => {
+            const content = document.getElementById('drawings-content');
 
-        let url = `api.php?action=getDrawings&did=<?php echo $did; ?>`;
-        // 总是添加分页参数
-        if (pageSize === 'all') {
-            // 当选择全部时，传递pageSize=0表示查询所有记录
-            url += `&page=1&pageSize=0`;
-        } else {
-            // 确保pageSize是有效的数字
-            const numericPageSize = parseInt(pageSize) || 5;
-            url += `&page=${page}&pageSize=${numericPageSize}`;
-        }
+            let url = `api.php?action=getDrawings&did=<?php echo $did; ?>`;
+            // 总是添加分页参数
+            if (pageSize === 'all') {
+                // 当选择全部时，传递pageSize=0表示查询所有记录
+                url += `&page=1&pageSize=0`;
+            } else {
+                // 确保pageSize是有效的数字
+                const numericPageSize = parseInt(pageSize) || 5;
+                url += `&page=${page}&pageSize=${numericPageSize}`;
+            }
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                // 检查数据是否包含total字段（分页模式）
-                const hasPagination = data.total !== undefined && data.data !== undefined;
-                const drawings = hasPagination ? data.data : data;
-                const total = hasPagination ? data.total : data.length;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // 检查数据是否包含total字段（分页模式）
+                    const hasPagination = data.total !== undefined && data.data !== undefined;
+                    const drawings = hasPagination ? data.data : data;
+                    const total = hasPagination ? data.total : data.length;
 
-                if (drawings.length > 0) {
-                    let html = '<table class="drawings-table">';
-                    html += '<thead><tr><th>序号</th><th>图纸名称</th><th>文件大小</th><th>操作</th></tr></thead>';
-                    html += '<tbody>';
+                    if (drawings.length > 0) {
+                        let html = '<table class="drawings-table">';
+                        html += '<thead><tr><th>序号</th><th>图纸名称</th><th>文件大小</th><th>操作</th></tr></thead>';
+                        html += '<tbody>';
 
-                    drawings.forEach((drawing, index) => {
-                        // 确保root_dir以斜杠结尾
-                        let rootDir = drawing.root_dir || '';
-                        if (rootDir && !rootDir.endsWith('/')) {
-                            rootDir += '/';
-                        }
+                        drawings.forEach((drawing, index) => {
+                            // 确保root_dir以斜杠结尾
+                            let rootDir = drawing.root_dir || '';
+                            if (rootDir && !rootDir.endsWith('/')) {
+                                rootDir += '/';
+                            }
 
-                        // 构建完整的URL
-                        const fullUrl = rootDir + drawing.link_name;
+                            // 构建完整的URL
+                            const fullUrl = rootDir + drawing.link_name;
 
-                        // 格式化文件大小
-                        const fileSize = formatFileSize(drawing.file_size);
+                            // 格式化文件大小
+                            const fileSize = formatFileSize(drawing.file_size);
 
-                        // 确定文件类型
-                        const fileExtension = drawing.original_name.split('.').pop()?.toLowerCase() || '';
-                        let fileType = '其他文件';
-                        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
-                            fileType = '图片';
-                        } else if (['dwg', 'dxf', 'dgn', 'rvt'].includes(fileExtension)) {
-                            fileType = 'CAD';
-                        } else if (['doc', 'docx', 'pdf', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(fileExtension)) {
-                            fileType = '文档';
-                        }
+                            // 确定文件类型
+                            const fileExtension = drawing.original_name.split('.').pop()?.toLowerCase() || '';
+                            let fileType = '其他文件';
+                            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
+                                fileType = '图片';
+                            } else if (['dwg', 'dxf', 'dgn', 'rvt'].includes(fileExtension)) {
+                                fileType = 'CAD';
+                            } else if (['doc', 'docx', 'pdf', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(fileExtension)) {
+                                fileType = '文档';
+                            }
 
-                        // 计算正确的序号（考虑分页）
-                        const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
+                            // 计算正确的序号（考虑分页）
+                            const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
-                        html += `<tr>`;
-                        html += `<td>${serialNumber}</td>`;
-                        html += `<td><a href="javascript:void(0)" onclick="previewDrawing('${fullUrl}', '${drawing.original_name}')">${drawing.original_name}</a></td>`;
-                        html += `<td>${fileSize}</td>`;
-                        html += `<td><a href="javascript:void(0)" class="download-btn" data-url="${fullUrl}" data-name="${drawing.original_name}" data-type="${fileType}" data-size="${fileSize}">下载</a></td>`;
-                        html += `</tr>`;
-                    });
+                            html += `<tr>`;
+                            html += `<td>${serialNumber}</td>`;
+                            html += `<td><a href="javascript:void(0)" onclick="previewDrawing('${fullUrl}', '${drawing.original_name}')">${drawing.original_name}</a></td>`;
+                            html += `<td>${fileSize}</td>`;
+                            html += `<td><a href="javascript:void(0)" class="download-btn" data-url="${fullUrl}" data-name="${drawing.original_name}" data-type="${fileType}" data-size="${fileSize}">下载</a></td>`;
+                            html += `</tr>`;
+                        });
 
-                    html += '</tbody></table>';
-                    // 只有在数据加载完成后才更新内容，避免闪烁
-                    content.innerHTML = html;
+                        html += '</tbody></table>';
+                        // 只有在数据加载完成后才更新内容，避免闪烁
+                        content.innerHTML = html;
 
-                    // 添加分页控件
-                    addPaginationControls(total, page, pageSize, 'drawings');
-                } else {
-                    content.innerHTML = '<p class="no-result">没有查询到图纸</p>';
+                        // 添加分页控件
+                        addPaginationControls(total, page, pageSize, 'drawings');
+                    } else {
+                        content.innerHTML = '<p class="no-result">没有查询到图纸</p>';
+                        // 移除分页控件
+                        removePaginationControls('drawings');
+                    }
+
+                    // 更新缓存状态
+                    dataCache.drawings.loaded = true;
+                    resolve(data);
+                })
+                .catch(error => {
+                    const content = document.getElementById('drawings-content');
+                    content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
                     // 移除分页控件
                     removePaginationControls('drawings');
-                }
-            })
-            .catch(error => {
-                const content = document.getElementById('drawings-content');
-                content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
-                // 移除分页控件
-                removePaginationControls('drawings');
-            });
+
+                    // 更新缓存状态
+                    dataCache.drawings.loaded = false;
+                    reject(error);
+                });
+        });
     }
 
     // 加载巡视记录（支持分页） - 平滑加载版本
     function loadInspectionRecords(page = 1, pageSize = 5) {
-        const content = document.getElementById('inspection-content');
+        return new Promise((resolve, reject) => {
+            const content = document.getElementById('inspection-content');
 
-        let url = `api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=1`;
-        // 总是添加分页参数
-        if (pageSize === 'all') {
-            // 当选择全部时，传递pageSize=0表示查询所有记录
-            url += `&page=1&pageSize=0`;
-        } else {
-            // 确保pageSize是有效的数字
-            const numericPageSize = parseInt(pageSize) || 5;
-            url += `&page=${page}&pageSize=${numericPageSize}`;
-        }
+            let url = `api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=1`;
+            // 总是添加分页参数
+            if (pageSize === 'all') {
+                // 当选择全部时，传递pageSize=0表示查询所有记录
+                url += `&page=1&pageSize=0`;
+            } else {
+                // 确保pageSize是有效的数字
+                const numericPageSize = parseInt(pageSize) || 5;
+                url += `&page=${page}&pageSize=${numericPageSize}`;
+            }
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                // 检查数据是否包含total字段（分页模式）
-                const hasPagination = data.total !== undefined && data.data !== undefined;
-                const records = hasPagination ? data.data : data;
-                const total = hasPagination ? data.total : data.length;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // 检查数据是否包含total字段（分页模式）
+                    const hasPagination = data.total !== undefined && data.data !== undefined;
+                    const records = hasPagination ? data.data : data;
+                    const total = hasPagination ? data.total : data.length;
 
-                // 更新标题计数
-                const countElement = document.getElementById('inspection-count');
-                if (countElement) {
-                    const numberElement = countElement.querySelector('.record-count-number');
-                    if (numberElement) {
-                        numberElement.textContent = total;
-                    }
-                }
-
-                if (records.length > 0) {
-                    let html = '<table class="records-table">';
-                    html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th></tr></thead>';
-                    html += '<tbody>';
-
-                    records.forEach((record, index) => {
-                        // 处理作业人员姓名，所有人员都添加keeper-tag样式
-                        let formattedWorkers = record.workers;
-                        if (formattedWorkers) {
-                            // 无论是否包含||分隔符，都为每个作业人员添加keeper-tag样式
-                            const workerArray = formattedWorkers.split('||');
-                            const formattedArray = [];
-                            workerArray.forEach(worker => {
-                                formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
-                            });
-                            // 使用换行符分隔多个作业人员
-                            formattedWorkers = formattedArray.join('<br>');
+                    // 更新标题计数
+                    const countElement = document.getElementById('inspection-count');
+                    if (countElement) {
+                        const numberElement = countElement.querySelector('.record-count-number');
+                        if (numberElement) {
+                            numberElement.textContent = total;
                         }
+                    }
 
-                        // 计算正确的序号（考虑分页）
-                        const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
+                    if (records.length > 0) {
+                        let html = '<table class="records-table">';
+                        html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th></tr></thead>';
+                        html += '<tbody>';
 
-                        html += `<tr class="record-row" data-id="${record.wid}" data-type="inspection" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${serialNumber}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
-                    });
+                        records.forEach((record, index) => {
+                            // 处理作业人员姓名，所有人员都添加keeper-tag样式
+                            let formattedWorkers = record.workers;
+                            if (formattedWorkers) {
+                                // 无论是否包含||分隔符，都为每个作业人员添加keeper-tag样式
+                                const workerArray = formattedWorkers.split('||');
+                                const formattedArray = [];
+                                workerArray.forEach(worker => {
+                                    formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
+                                });
+                                // 使用换行符分隔多个作业人员
+                                formattedWorkers = formattedArray.join('<br>');
+                            }
 
-                    html += '</tbody></table>';
-                    // 只有在数据加载完成后才更新内容，避免闪烁
-                    content.innerHTML = html;
+                            // 计算正确的序号（考虑分页）
+                            const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
-                    // 添加行点击事件
-                    document.querySelectorAll('.record-row[data-type="inspection"]').forEach(row => {
-                        row.addEventListener('click', function() {
-                            const recordData = JSON.parse(this.getAttribute('data-record'));
-                            showRecordDetailModal(recordData, 'inspection');
+                            html += `<tr class="record-row" data-id="${record.wid}" data-type="inspection" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${serialNumber}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
                         });
-                    });
 
-                    // 添加分页控件
-                    addPaginationControls(total, page, pageSize, 'inspection');
-                } else {
-                    content.innerHTML = '<p class="no-result">没有查询到巡视记录</p>';
+                        html += '</tbody></table>';
+                        // 只有在数据加载完成后才更新内容，避免闪烁
+                        content.innerHTML = html;
+
+                        // 添加行点击事件
+                        document.querySelectorAll('.record-row[data-type="inspection"]').forEach(row => {
+                            row.addEventListener('click', function() {
+                                const recordData = JSON.parse(this.getAttribute('data-record'));
+                                showRecordDetailModal(recordData, 'inspection');
+                            });
+                        });
+
+                        // 添加分页控件
+                        addPaginationControls(total, page, pageSize, 'inspection');
+                    } else {
+                        content.innerHTML = '<p class="no-result">没有查询到巡视记录</p>';
+                        // 移除分页控件
+                        removePaginationControls('inspection');
+                    }
+
+                    // 更新缓存状态
+                    dataCache.inspection.loaded = true;
+                    resolve(data);
+                })
+                .catch(error => {
+                    const content = document.getElementById('inspection-content');
+                    content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
                     // 移除分页控件
                     removePaginationControls('inspection');
-                }
-            })
-            .catch(error => {
-                const content = document.getElementById('inspection-content');
-                content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
-                // 移除分页控件
-                removePaginationControls('inspection');
-            });
+
+                    // 更新缓存状态
+                    dataCache.inspection.loaded = false;
+                    reject(error);
+                });
+        });
     }
 
     // 加载检修记录（支持分页） - 平滑加载版本
     function loadMaintenanceRecords(page = 1, pageSize = 5) {
-        const content = document.getElementById('maintenance-content');
+        return new Promise((resolve, reject) => {
+            const content = document.getElementById('maintenance-content');
 
-        let url = `api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=2`;
-        // 总是添加分页参数
-        if (pageSize === 'all') {
-            // 当选择全部时，传递pageSize=0表示查询所有记录
-            url += `&page=1&pageSize=0`;
-        } else {
-            // 确保pageSize是有效的数字
-            const numericPageSize = parseInt(pageSize) || 5;
-            url += `&page=${page}&pageSize=${numericPageSize}`;
-        }
+            let url = `api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=2`;
+            // 总是添加分页参数
+            if (pageSize === 'all') {
+                // 当选择全部时，传递pageSize=0表示查询所有记录
+                url += `&page=1&pageSize=0`;
+            } else {
+                // 确保pageSize是有效的数字
+                const numericPageSize = parseInt(pageSize) || 5;
+                url += `&page=${page}&pageSize=${numericPageSize}`;
+            }
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                // 检查数据是否包含total字段（分页模式）
-                const hasPagination = data.total !== undefined && data.data !== undefined;
-                const records = hasPagination ? data.data : data;
-                const total = hasPagination ? data.total : data.length;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // 检查数据是否包含total字段（分页模式）
+                    const hasPagination = data.total !== undefined && data.data !== undefined;
+                    const records = hasPagination ? data.data : data;
+                    const total = hasPagination ? data.total : data.length;
 
-                // 更新标题计数
-                const countElement = document.getElementById('maintenance-count');
-                if (countElement) {
-                    const numberElement = countElement.querySelector('.record-count-number');
-                    if (numberElement) {
-                        numberElement.textContent = total;
-                    }
-                }
-
-                if (records.length > 0) {
-                    let html = '<table class="records-table">';
-                    html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th></tr></thead>';
-                    html += '<tbody>';
-
-                    records.forEach((record, index) => {
-                        // 处理作业人员姓名，所有人员都添加keeper-tag样式
-                        let formattedWorkers = record.workers;
-                        if (formattedWorkers) {
-                            // 无论是否包含||分隔符，都为每个作业人员添加keeper-tag样式
-                            const workerArray = formattedWorkers.split('||');
-                            const formattedArray = [];
-                            workerArray.forEach(worker => {
-                                formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
-                            });
-                            // 使用换行符分隔多个作业人员
-                            formattedWorkers = formattedArray.join('<br>');
+                    // 更新标题计数
+                    const countElement = document.getElementById('maintenance-count');
+                    if (countElement) {
+                        const numberElement = countElement.querySelector('.record-count-number');
+                        if (numberElement) {
+                            numberElement.textContent = total;
                         }
+                    }
 
-                        // 计算正确的序号（考虑分页）
-                        const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
+                    if (records.length > 0) {
+                        let html = '<table class="records-table">';
+                        html += '<thead><tr><th>序号</th><th>作业时间</th><th>作业人员</th></tr></thead>';
+                        html += '<tbody>';
 
-                        html += `<tr class="record-row" data-id="${record.wid}" data-type="maintenance" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${serialNumber}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
-                    });
+                        records.forEach((record, index) => {
+                            // 处理作业人员姓名，所有人员都添加keeper-tag样式
+                            let formattedWorkers = record.workers;
+                            if (formattedWorkers) {
+                                // 无论是否包含||分隔符，都为每个作业人员添加keeper-tag样式
+                                const workerArray = formattedWorkers.split('||');
+                                const formattedArray = [];
+                                workerArray.forEach(worker => {
+                                    formattedArray.push('<span class="keeper-tag">' + worker + '</span>');
+                                });
+                                // 使用换行符分隔多个作业人员
+                                formattedWorkers = formattedArray.join('<br>');
+                            }
 
-                    html += '</tbody></table>';
-                    // 只有在数据加载完成后才更新内容，避免闪烁
-                    content.innerHTML = html;
+                            // 计算正确的序号（考虑分页）
+                            const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
-                    // 添加行点击事件
-                    document.querySelectorAll('.record-row[data-type="maintenance"]').forEach(row => {
-                        row.addEventListener('click', function() {
-                            const recordData = JSON.parse(this.getAttribute('data-record'));
-                            showRecordDetailModal(recordData, 'maintenance');
+                            html += `<tr class="record-row" data-id="${record.wid}" data-type="maintenance" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${serialNumber}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
                         });
-                    });
 
-                    // 添加分页控件
-                    addPaginationControls(total, page, pageSize, 'maintenance');
-                } else {
-                    content.innerHTML = '<p class="no-result">没有查询到检修记录</p>';
+                        html += '</tbody></table>';
+                        // 只有在数据加载完成后才更新内容，避免闪烁
+                        content.innerHTML = html;
+
+                        // 添加行点击事件
+                        document.querySelectorAll('.record-row[data-type="maintenance"]').forEach(row => {
+                            row.addEventListener('click', function() {
+                                const recordData = JSON.parse(this.getAttribute('data-record'));
+                                showRecordDetailModal(recordData, 'maintenance');
+                            });
+                        });
+
+                        // 添加分页控件
+                        addPaginationControls(total, page, pageSize, 'maintenance');
+                    } else {
+                        content.innerHTML = '<p class="no-result">没有查询到检修记录</p>';
+                        // 移除分页控件
+                        removePaginationControls('maintenance');
+                    }
+
+                    // 更新缓存状态
+                    dataCache.maintenance.loaded = true;
+                    resolve(data);
+                })
+                .catch(error => {
+                    const content = document.getElementById('maintenance-content');
+                    content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
                     // 移除分页控件
                     removePaginationControls('maintenance');
-                }
-            })
-            .catch(error => {
-                const content = document.getElementById('maintenance-content');
-                content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
-                // 移除分页控件
-                removePaginationControls('maintenance');
-            });
+
+                    // 更新缓存状态
+                    dataCache.maintenance.loaded = false;
+                    reject(error);
+                });
+        });
     }
 
     // 加载问题记录（支持分页） - 平滑加载版本
     function loadProblemRecords(page = 1, pageSize = 5) {
-        const content = document.getElementById('problem-content');
+        return new Promise((resolve, reject) => {
+            const content = document.getElementById('problem-content');
 
-        let url = `api.php?action=getProblems&did=<?php echo $did; ?>`;
-        // 总是添加分页参数
-        if (pageSize === 'all') {
-            // 当选择全部时，传递pageSize=0表示查询所有记录
-            url += `&page=1&pageSize=0`;
-        } else {
-            // 确保pageSize是有效的数字
-            const numericPageSize = parseInt(pageSize) || 5;
-            url += `&page=${page}&pageSize=${numericPageSize}`;
-        }
+            let url = `api.php?action=getProblems&did=<?php echo $did; ?>`;
+            // 总是添加分页参数
+            if (pageSize === 'all') {
+                // 当选择全部时，传递pageSize=0表示查询所有记录
+                url += `&page=1&pageSize=0`;
+            } else {
+                // 确保pageSize是有效的数字
+                const numericPageSize = parseInt(pageSize) || 5;
+                url += `&page=${page}&pageSize=${numericPageSize}`;
+            }
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                // 检查数据是否包含total字段（分页模式）
-                const hasPagination = data.total !== undefined && data.data !== undefined;
-                const problems = hasPagination ? data.data : data;
-                const total = hasPagination ? data.total : data.length;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // 检查数据是否包含total字段（分页模式）
+                    const hasPagination = data.total !== undefined && data.data !== undefined;
+                    const problems = hasPagination ? data.data : data;
+                    const total = hasPagination ? data.total : data.length;
 
-                // 更新标题计数
-                const countElement = document.getElementById('problem-count');
-                if (countElement) {
-                    const numberElement = countElement.querySelector('.record-count-number');
-                    if (numberElement) {
-                        numberElement.textContent = total;
+                    // 更新标题计数
+                    const countElement = document.getElementById('problem-count');
+                    if (countElement) {
+                        const numberElement = countElement.querySelector('.record-count-number');
+                        if (numberElement) {
+                            numberElement.textContent = total;
+                        }
                     }
-                }
 
-                if (problems.length > 0) {
-                    let html = '<table class="problems-table">';
-                    html += '<thead><tr><th>序号</th><th>问题描述</th><th>发现时间</th><th>当前状态</th></tr></thead>';
-                    html += '<tbody>';
+                    if (problems.length > 0) {
+                        let html = '<table class="problems-table">';
+                        html += '<thead><tr><th>序号</th><th>问题描述</th><th>发现时间</th><th>当前状态</th></tr></thead>';
+                        html += '<tbody>';
 
-                    problems.forEach((problem, index) => {
-                        const statusClass = problem.flow === 0 ? 'status-red' : 'status-green';
-                        const statusText = problem.flow === 0 ? '已创建' : '已解决';
+                        problems.forEach((problem, index) => {
+                            const statusClass = problem.flow === 0 ? 'status-red' : 'status-green';
+                            const statusText = problem.flow === 0 ? '已创建' : '已解决';
 
-                        // 计算正确的序号（考虑分页）
-                        const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
+                            // 计算正确的序号（考虑分页）
+                            const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
-                        html += `<tr><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td>${problem.create_time}</td><td class="${statusClass}">${statusText}</td></tr>`;
-                    });
+                            html += `<tr><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td>${problem.create_time}</td><td class="${statusClass}">${statusText}</td></tr>`;
+                        });
 
-                    html += '</tbody></table>';
-                    // 只有在数据加载完成后才更新内容，避免闪烁
-                    content.innerHTML = html;
+                        html += '</tbody></table>';
+                        // 只有在数据加载完成后才更新内容，避免闪烁
+                        content.innerHTML = html;
 
-                    // 添加分页控件
-                    addPaginationControls(total, page, pageSize, 'problems');
-                } else {
-                    content.innerHTML = '<p class="no-result">没有查询到问题记录</p>';
+                        // 添加分页控件
+                        addPaginationControls(total, page, pageSize, 'problems');
+                    } else {
+                        content.innerHTML = '<p class="no-result">没有查询到问题记录</p>';
+                        // 移除分页控件
+                        removePaginationControls('problems');
+                    }
+
+                    // 更新缓存状态
+                    dataCache.problems.loaded = true;
+                    resolve(data);
+                })
+                .catch(error => {
+                    const content = document.getElementById('problem-content');
+                    content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
                     // 移除分页控件
                     removePaginationControls('problems');
-                }
-            })
-            .catch(error => {
-                const content = document.getElementById('problem-content');
-                content.innerHTML = `<p class="error">加载失败: ${error.message}</p>`;
-                // 移除分页控件
-                removePaginationControls('problems');
-            });
+
+                    // 更新缓存状态
+                    dataCache.problems.loaded = false;
+                    reject(error);
+                });
+        });
     }
 
     // 修复原有代码中的问题 - 确保原有函数调用兼容新的分页功能
