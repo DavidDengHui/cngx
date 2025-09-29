@@ -238,7 +238,7 @@ include 'header.php';
 
                 <div class="form-group">
                     <label for="work-remark">作业说明：</label>
-                    <textarea id="work-remark" rows="3" placeholder="可以为空"></textarea>
+                    <textarea id="work-remark" rows="3" placeholder="没啥要说的就跳过吧 :-)"></textarea>
                 </div>
             </form>
         </div>
@@ -1887,13 +1887,28 @@ include 'header.php';
         const hiddenInput = document.getElementById(hiddenInputId);
         let tags = [];
 
+        // 默认隐藏标签容器
+        tagsContainer.style.display = 'none';
+
         // 加载已保存的标签（如果有）
         if (hiddenInput.value) {
             tags = hiddenInput.value.split('||');
             renderTags();
         }
 
-        // 监听输入事件
+        // 为输入框添加input事件监听器，用于移除错误样式
+        input.addEventListener('input', function(e) {
+            const inputWrapper = tagsContainer.parentElement;
+            const inputLabel = document.querySelector('label[for="' + inputId + '"]');
+            inputWrapper.classList.remove('error');
+            if (inputLabel) {
+                inputLabel.classList.remove('error');
+            }
+        }, {
+            once: false
+        });
+
+        // 监听输入事件（用于标签功能）
         input.addEventListener('input', function(e) {
             const value = e.target.value;
             // 检查是否输入了分隔符（包括所有中文和英文的分隔符）
@@ -1961,6 +1976,13 @@ include 'header.php';
                 tagElement.addEventListener('click', () => removeTag(index));
                 tagsContainer.appendChild(tagElement);
             });
+
+            // 当没有标签时隐藏标签容器
+            if (tags.length === 0) {
+                tagsContainer.style.display = 'none';
+            } else {
+                tagsContainer.style.display = 'flex';
+            }
         }
 
         // 更新隐藏输入框
@@ -2221,6 +2243,12 @@ include 'header.php';
             recordType.value = '2';
         }
 
+        // 重置错误状态样式
+        const workersWrapper = document.querySelector('#workers-tags').parentElement;
+        const workersLabel = document.querySelector('label[for="workers-input"]');
+        if (workersWrapper) workersWrapper.classList.remove('error');
+        if (workersLabel) workersLabel.classList.remove('error');
+
         // 初始化作业人员标签功能
         initWorkerTags('workers-input', 'workers-tags', 'workers');
 
@@ -2237,6 +2265,19 @@ include 'header.php';
         document.getElementById('add-record-modal').style.display = 'none';
         // 恢复背景页面滚动
         document.body.style.overflow = '';
+
+        // 重置错误状态样式
+        const workersWrapper = document.querySelector('#workers-tags').parentElement;
+        const workersLabel = document.querySelector('label[for="workers-input"]');
+        const dateInput = document.getElementById('work-date-date');
+        const timeInput = document.getElementById('work-date-time');
+        const workDateLabel = document.querySelector('label[for="work-date"]');
+
+        if (workersWrapper) workersWrapper.classList.remove('error');
+        if (workersLabel) workersLabel.classList.remove('error');
+        if (dateInput) dateInput.classList.remove('error');
+        if (timeInput) timeInput.classList.remove('error');
+        if (workDateLabel) workDateLabel.classList.remove('error');
     }
 
     // 提交新增记录
@@ -2256,14 +2297,66 @@ include 'header.php';
             document.getElementById('workers').value = workers;
         }
 
+        // 重置所有错误状态
+        const workersWrapper = document.getElementById('workers-tags').parentElement;
+        const workersLabel = document.querySelector('label[for="workers-input"]');
+        const dateInput = document.getElementById('work-date-date');
+        const timeInput = document.getElementById('work-date-time');
+        const workDateLabel = document.querySelector('label[for="work-date"]');
+
+        if (workersWrapper) workersWrapper.classList.remove('error');
+        if (workersLabel) workersLabel.classList.remove('error');
+        if (dateInput) dateInput.classList.remove('error');
+        if (timeInput) timeInput.classList.remove('error');
+        if (workDateLabel) workDateLabel.classList.remove('error');
+
         // 验证必填字段
+        let hasError = false;
+        const errors = [];
+
         if (!workers) {
-            alert('请输入作业人员');
-            return;
+            errors.push({
+                elements: [workersWrapper, workersLabel]
+            });
+            hasError = true;
         }
 
-        if (!workDate) {
-            alert('请选择作业日期时间');
+        // 分别验证日期和时间
+        const dateValue = document.getElementById('work-date-date').value;
+        const timeValue = document.getElementById('work-date-time').value;
+        
+        if (!dateValue) {
+            errors.push({
+                elements: [dateInput]
+            });
+            hasError = true;
+        }
+        
+        if (!timeValue) {
+            errors.push({
+                elements: [timeInput]
+            });
+            hasError = true;
+        }
+        
+        // 如果日期或时间有一个为空，标签也显示错误
+        if (!dateValue || !timeValue) {
+            if (workDateLabel) {
+                errors.push({
+                    elements: [workDateLabel]
+                });
+            }
+        }
+
+        if (hasError) {
+            // 使用setTimeout确保每次点击都能重新触发动画
+            setTimeout(() => {
+                errors.forEach(error => {
+                    error.elements.forEach(element => {
+                        if (element) element.classList.add('error');
+                    });
+                });
+            }, 50);
             return;
         }
 
@@ -2313,6 +2406,12 @@ include 'header.php';
             document.getElementById('problem-sid').value = globalDeviceData.sid || '';
         }
 
+        // 重置错误状态样式
+        const creatorWrapper = document.querySelector('#creator-tags').parentElement;
+        const creatorLabel = document.querySelector('label[for="problem-creator-input"]');
+        if (creatorWrapper) creatorWrapper.classList.remove('error');
+        if (creatorLabel) creatorLabel.classList.remove('error');
+
         // 初始化发现人标签功能
         initWorkerTags('problem-creator-input', 'creator-tags', 'problem-creator');
 
@@ -2342,9 +2441,22 @@ include 'header.php';
         modal.style.display = 'none';
         // 恢复背景页面滚动
         document.body.style.overflow = '';
+
+        // 重置错误状态样式
+        const creatorWrapper = document.querySelector('#creator-tags').parentElement;
+        const creatorLabel = document.querySelector('label[for="problem-creator-input"]');
+        const dateInput = document.getElementById('problem-date-date');
+        const timeInput = document.getElementById('problem-date-time');
+        const createTimeLabel = document.querySelector('label[for="problem-date"]');
+
+        if (creatorWrapper) creatorWrapper.classList.remove('error');
+        if (creatorLabel) creatorLabel.classList.remove('error');
+        if (dateInput) dateInput.classList.remove('error');
+        if (timeInput) timeInput.classList.remove('error');
+        if (createTimeLabel) createTimeLabel.classList.remove('error');
     }
 
-    // 提交新增问题
+    // 提交新增问题 - 验证逻辑已修复
     async function submitAddProblem() {
         const did = document.getElementById('problem-did').value;
         const sid = document.getElementById('problem-sid').value;
@@ -2362,19 +2474,71 @@ include 'header.php';
             document.getElementById('problem-creator').value = creator;
         }
 
+        // 重置所有错误状态
+        const creatorWrapper = document.getElementById('creator-tags').parentElement;
+        const creatorLabel = document.querySelector('label[for="problem-creator-input"]');
+        const dateInput = document.getElementById('problem-date-date');
+        const timeInput = document.getElementById('problem-date-time');
+        const createTimeLabel = document.querySelector('label[for="problem-date"]');
+
+        if (creatorWrapper) creatorWrapper.classList.remove('error');
+        if (creatorLabel) creatorLabel.classList.remove('error');
+        if (dateInput) dateInput.classList.remove('error');
+        if (timeInput) timeInput.classList.remove('error');
+        if (createTimeLabel) createTimeLabel.classList.remove('error');
+
         // 验证必填字段
         if (!description) {
             alert('请输入问题描述');
             return;
         }
 
+        let hasError = false;
+        const errors = [];
+
         if (!creator) {
-            alert('请输入发现人');
-            return;
+            errors.push({
+                elements: [creatorWrapper, creatorLabel]
+            });
+            hasError = true;
         }
 
-        if (!createTime) {
-            alert('请选择发现时间');
+        // 分别验证日期和时间
+        const dateValue = document.getElementById('problem-date-date').value;
+        const timeValue = document.getElementById('problem-date-time').value;
+        
+        if (!dateValue) {
+            errors.push({
+                elements: [dateInput]
+            });
+            hasError = true;
+        }
+        
+        if (!timeValue) {
+            errors.push({
+                elements: [timeInput]
+            });
+            hasError = true;
+        }
+        
+        // 如果日期或时间有一个为空，标签也显示错误
+        if (!dateValue || !timeValue) {
+            if (createTimeLabel) {
+                errors.push({
+                    elements: [createTimeLabel]
+                });
+            }
+        }
+
+        if (hasError) {
+            // 使用setTimeout确保每次点击都能重新触发动画
+            setTimeout(() => {
+                errors.forEach(error => {
+                    error.elements.forEach(element => {
+                        if (element) element.classList.add('error');
+                    });
+                });
+            }, 50);
             return;
         }
 
@@ -2607,6 +2771,49 @@ include 'header.php';
         border: 1px solid #ddd;
         border-radius: 4px;
         min-height: 38px;
+        transition: border-color 0.3s ease;
+    }
+
+    /* 错误状态样式 */
+    .workers-input-wrapper.error {
+        border-color: #f44336;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* 摇摆动画 */
+    @keyframes shake {
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+            transform: translateX(-5px);
+        }
+
+        20%,
+        40%,
+        60%,
+        80% {
+            transform: translateX(5px);
+        }
+    }
+
+    /* 错误状态的标签文字 */
+    label.error {
+        color: #f44336;
+    }
+
+    /* 日期和时间输入框的错误状态 */
+    input[type="date"].error,
+    input[type="time"].error {
+        border-color: #f44336;
+        animation: shake 0.5s ease-in-out;
     }
 
     .workers-tags {
@@ -2912,9 +3119,7 @@ include 'header.php';
     }
 
     .error {
-        text-align: center;
-        color: #e74c3c;
-        padding: 20px 0;
+        border-color: #f44336 !important;
     }
 
     .loading {
@@ -3027,7 +3232,7 @@ include 'header.php';
     }
 
     .confirm-btn {
-        background-color: #3498db;
+        background-color: #4CAF50;
         color: white;
         border: none;
         padding: 10px 20px;
@@ -3035,9 +3240,12 @@ include 'header.php';
         cursor: pointer;
     }
 
-    .cancel-btn:hover,
-    .confirm-btn:hover {
+    .cancel-btn:hover {
         opacity: 0.9;
+    }
+
+    .confirm-btn:hover {
+        background-color: #45a049;
     }
 
     @media (max-width: 768px) {
@@ -3349,6 +3557,42 @@ include 'header.php';
         border: 1px solid #ddd;
         border-radius: 4px;
         min-height: 38px;
+        transition: border-color 0.3s ease;
+    }
+
+    /* 错误状态样式 */
+    .workers-input-wrapper.error {
+        border-color: #f44336;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* 摇摆动画 */
+    @keyframes shake {
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+            transform: translateX(-5px);
+        }
+
+        20%,
+        40%,
+        60%,
+        80% {
+            transform: translateX(5px);
+        }
+    }
+
+    /* 错误状态的标签文字 */
+    label.error {
+        color: #f44336;
     }
 
     .workers-tags {

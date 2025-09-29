@@ -679,12 +679,17 @@ include 'header.php';
     }
 
     .confirm-btn {
-        background-color: #3498db;
+        background-color: #4CAF50;
         color: white;
     }
 
-    .modal-btn:hover {
+    .reset-btn:hover,
+    .cancel-btn:hover {
         opacity: 0.9;
+    }
+    
+    .confirm-btn:hover {
+        background-color: #45a049;
     }
 
     .select-path {
