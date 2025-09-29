@@ -21,12 +21,12 @@ include 'header.php';
 <script>
     // 全局变量存储设备ID
     const deviceId = '<?php echo $did; ?>';
-    
+
     // 页面加载完成后获取设备详情
     document.addEventListener('DOMContentLoaded', function() {
         loadDeviceDetail();
     });
-    
+
     // 通过API获取设备详情
     function loadDeviceDetail() {
         fetch(`api.php?action=getDeviceDetail&did=${deviceId}`)
@@ -48,7 +48,7 @@ include 'header.php';
                 document.querySelector('.device-detail').innerHTML = `<p class="error">获取设备详情失败</p>`;
             });
     }
-    
+
     // 全局设备数据变量
     let globalDeviceData = null;
 
@@ -56,10 +56,10 @@ include 'header.php';
     function displayDeviceDetail(device) {
         // 保存设备数据到全局变量
         globalDeviceData = device;
-        
+
         // 设置页面标题
         document.title = device.device_name + ' - 个人设备信息管理平台';
-        
+
         // 构建设备详情HTML
         const deviceDetailHTML = `
             <h2 style="text-align: center; margin-bottom: 30px;">${device.device_name}</h2>
@@ -99,7 +99,9 @@ include 'header.php';
                         <div class="collapse-header" onclick="toggleCollapse('drawings')">
                             <div class="header-title">
                                 <span>设备图纸</span>
-                                <span class="record-count"> (${device.drawing_count})</span>
+                                <span class="record-count">
+                                    <span class="record-count-number">${device.drawing_count}</span>
+                                </span>
                             </div>
                             <span class="collapse-icon">▼</span>
                         </div>
@@ -115,7 +117,9 @@ include 'header.php';
                         <div class="collapse-header" onclick="toggleCollapse('inspection-records')">
                             <div class="header-title">
                                 <span>巡视记录</span>
-                                <span id="inspection-count" class="record-count">(0)</span>
+                                <span id="inspection-count" class="record-count">
+                                    <span class="record-count-number">?</span>
+                                </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
                             </div>
                             <span class="collapse-icon">▼</span>
@@ -132,7 +136,9 @@ include 'header.php';
                         <div class="collapse-header" onclick="toggleCollapse('maintenance-records')">
                             <div class="header-title">
                                 <span>检修记录</span>
-                                <span id="maintenance-count" class="record-count">(0)</span>
+                                <span id="maintenance-count" class="record-count">
+                                    <span class="record-count-number">?</span>
+                                </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
                             </div>
                             <span class="collapse-icon">▼</span>
@@ -149,7 +155,9 @@ include 'header.php';
                         <div class="collapse-header" onclick="toggleCollapse('problem-records')">
                             <div class="header-title">
                                 <span>问题记录</span>
-                                <span id="problem-count" class="record-count">(0)</span>
+                                <span id="problem-count" class="record-count">
+                                    <span class="record-count-number">?</span>
+                                </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
                             </div>
                             <span class="collapse-icon">▼</span>
@@ -167,10 +175,10 @@ include 'header.php';
                 <button class="edit-btn" onclick="window.location.href='/devices.php?did=${deviceId}&mode=edit'">修改</button>
             </div>
         `;
-        
+
         // 更新设备详情内容
         document.querySelector('.device-detail').innerHTML = deviceDetailHTML;
-        
+
         // 更新新增记录模态框中的部门信息
         const workDepartment = document.getElementById('work-department');
         const workDepartmentId = document.getElementById('work-department-id');
@@ -179,20 +187,20 @@ include 'header.php';
             workDepartmentId.value = device.cid;
         }
     }
-    
+
     // 格式化包保人显示
     function formatKeepers(keepers) {
         if (!keepers) {
             return '无';
         }
-        
+
         const keeperArray = keepers.split('||');
         const formattedKeepers = [];
-        
+
         keeperArray.forEach(keeper => {
             formattedKeepers.push('<span class="keeper-tag">' + keeper + '</span>');
         });
-        
+
         return formattedKeepers.join('');
     }
 </script>
@@ -214,26 +222,22 @@ include 'header.php';
                 <input type="hidden" id="record-did" value="<?php echo $did; ?>">
 
                 <div class="form-group">
-                    <label for="workers">作业人员：</label>
-                    <input type="text" id="workers" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="work-date">作业日期：</label>
-                    <input type="date" id="work-date" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="work-department">作业部门：</label>
-                    <div class="select-container">
-                        <input type="text" id="work-department" readonly placeholder="请选择部门">
-                        <input type="hidden" id="work-department-id">
+                    <label for="workers-input">作业人员：</label>
+                    <div class="workers-input-wrapper">
+                        <div id="workers-tags" class="workers-tags"></div>
+                        <input type="text" id="workers-input" class="workers-input" placeholder="多个姓名使用空格分隔">
+                        <input type="hidden" id="workers">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="work-remark">备注：</label>
-                    <textarea id="work-remark" rows="3"></textarea>
+                    <label for="work-date">作业时间：</label>
+                    <input type="datetime-local" id="work-date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="work-remark">作业说明：</label>
+                    <textarea id="work-remark" rows="3" placeholder="可以为空"></textarea>
                 </div>
             </form>
         </div>
@@ -255,6 +259,7 @@ include 'header.php';
             <form id="add-problem-form">
                 <input type="hidden" id="problem-did" value="<?php echo $did; ?>">
                 <input type="hidden" id="problem-sid">
+                <input type="hidden" id="problem-photos">
 
                 <div class="form-group">
                     <label for="problem-description">问题描述：</label>
@@ -262,26 +267,24 @@ include 'header.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="problem-photos">问题照片：</label>
-                    <input type="text" id="problem-photos" placeholder="多个照片URL用||分隔">
+                    <label for="problem-photos-upload">问题照片：</label>
+                    <input type="file" id="problem-photos-upload" multiple accept=".jpg,.jpeg,.png">
+                    <div id="uploaded-photos" class="uploaded-photos-container"></div>
+                    <p class="upload-note">支持的文件格式：JPG、PNG</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="problem-creator">发现人：</label>
-                    <input type="text" id="problem-creator" required>
+                    <label for="problem-creator-input">发现人：</label>
+                    <div class="workers-input-wrapper">
+                        <div id="creator-tags" class="workers-tags"></div>
+                        <input type="text" id="problem-creator-input" class="workers-input" placeholder="多个姓名使用空格分隔">
+                        <input type="hidden" id="problem-creator">
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="problem-date">发现时间：</label>
-                    <input type="date" id="problem-date" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="problem-department">责任部门：</label>
-                    <div class="select-container">
-                        <input type="text" id="problem-department" readonly placeholder="请选择部门">
-                        <input type="hidden" id="problem-department-id">
-                    </div>
+                    <input type="datetime-local" id="problem-date" required>
                 </div>
             </form>
         </div>
@@ -1283,11 +1286,17 @@ include 'header.php';
                 const countElement = document.getElementById('inspection-count');
                 // 检查返回格式，如果有total字段则使用，否则回退到data.length
                 const count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
-                countElement.textContent = `(${count})`;
+                const numberElement = countElement.querySelector('.record-count-number');
+                if (numberElement) {
+                    numberElement.textContent = count;
+                }
             })
             .catch(error => {
                 const countElement = document.getElementById('inspection-count');
-                countElement.textContent = `(0)`;
+                const numberElement = countElement.querySelector('.record-count-number');
+                if (numberElement) {
+                    numberElement.textContent = '0';
+                }
             });
 
         // 加载检修记录数量
@@ -1297,11 +1306,17 @@ include 'header.php';
                 const countElement = document.getElementById('maintenance-count');
                 // 检查返回格式，如果有total字段则使用，否则回退到data.length
                 const count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
-                countElement.textContent = `(${count})`;
+                const numberElement = countElement.querySelector('.record-count-number');
+                if (numberElement) {
+                    numberElement.textContent = count;
+                }
             })
             .catch(error => {
                 const countElement = document.getElementById('maintenance-count');
-                countElement.textContent = `(0)`;
+                const numberElement = countElement.querySelector('.record-count-number');
+                if (numberElement) {
+                    numberElement.textContent = '0';
+                }
             });
 
         // 加载问题记录数量
@@ -1309,13 +1324,23 @@ include 'header.php';
             .then(response => response.json())
             .then(data => {
                 const countElement = document.getElementById('problem-count');
-                // 检查返回格式，如果有total字段则使用，否则回退到data.length
-                const count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
-                countElement.textContent = `(${count})`;
+                if (countElement) {
+                    // 检查返回格式，如果有total字段则使用，否则回退到data.length
+                    const count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
+                    const numberElement = countElement.querySelector('.record-count-number');
+                    if (numberElement) {
+                        numberElement.textContent = count;
+                    }
+                }
             })
             .catch(error => {
                 const countElement = document.getElementById('problem-count');
-                countElement.textContent = `(0)`;
+                if (countElement) {
+                    const numberElement = countElement.querySelector('.record-count-number');
+                    if (numberElement) {
+                        numberElement.textContent = '0';
+                    }
+                }
             });
     }
 
@@ -1397,14 +1422,25 @@ include 'header.php';
         // 添加记录详情字段
         // 设备名称从页面标题获取
         const deviceName = document.title.split(' - ')[0];
-        
-        const fields = [
-            { label: '设备名称:', value: deviceName },
-            { label: '作业时间:', value: type === 'inspection' ? (record.inspection_time || record.work_date) : (record.maintenance_time || record.work_date) },
-            { label: '作业人员:', value: type === 'inspection' ? (record.inspector || record.workers) : (record.maintainer || record.workers) },
-            { label: '作业说明:', value: record.content || '无' }
+
+        const fields = [{
+                label: '设备名称:',
+                value: deviceName
+            },
+            {
+                label: '作业时间:',
+                value: type === 'inspection' ? (record.inspection_time || record.work_date) : (record.maintenance_time || record.work_date)
+            },
+            {
+                label: '作业人员:',
+                value: type === 'inspection' ? (record.inspector || record.workers) : (record.maintainer || record.workers)
+            },
+            {
+                label: '作业说明:',
+                value: record.content || '无'
+            }
         ];
-        
+
         // 处理作业人员姓名，无论是单人还是多人都添加keeper-tag样式
         const workerField = fields.find(field => field.label === '作业人员:');
         if (workerField && workerField.value) {
@@ -1420,11 +1456,11 @@ include 'header.php';
         fields.forEach(field => {
             const fieldDiv = document.createElement('div');
             fieldDiv.style.cssText = 'display: flex;';
-            
+
             const label = document.createElement('span');
             label.textContent = field.label;
             label.style.cssText = 'font-weight: bold; width: 100px; flex-shrink: 0;';
-            
+
             const value = document.createElement('span');
             // 对于包含HTML的字段（如作业人员）使用innerHTML
             if (field.label === '作业人员:' && field.value.includes('<span')) {
@@ -1433,7 +1469,7 @@ include 'header.php';
                 value.textContent = field.value;
             }
             value.style.cssText = 'flex: 1; word-break: break-word;';
-            
+
             fieldDiv.appendChild(label);
             fieldDiv.appendChild(value);
             detailContent.appendChild(fieldDiv);
@@ -1603,6 +1639,12 @@ include 'header.php';
                 document.body.removeChild(detailModal);
             }
             document.body.style.overflow = '';
+            // 清空对DOM元素的引用，防止后续代码访问不存在的元素
+            try {
+                if (window._tempCloseBtn) {
+                    window._tempCloseBtn = null;
+                }
+            } catch (e) {}
         };
 
         // 组装对话框
@@ -1639,6 +1681,333 @@ include 'header.php';
 
     // 原始的loadProblemRecords函数已被删除，替换为支持分页的版本
 
+    // 初始化作业人员标签功能
+    function initWorkerTags(inputId, tagsContainerId, hiddenInputId) {
+        const input = document.getElementById(inputId);
+        const tagsContainer = document.getElementById(tagsContainerId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+        let tags = [];
+
+        // 加载已保存的标签（如果有）
+        if (hiddenInput.value) {
+            tags = hiddenInput.value.split('||');
+            renderTags();
+        }
+
+        // 监听输入事件
+        input.addEventListener('input', function(e) {
+            const value = e.target.value;
+            // 检查是否输入了分隔符（包括所有中文和英文的分隔符）
+            const separators = [' ', '、', ',', '，', ';', '；', '\uff0c', '\uff1b'];
+
+            for (const separator of separators) {
+                if (value.includes(separator)) {
+                    const parts = value.split(separator);
+                    const name = parts[0].trim();
+                    if (name) {
+                        addTag(name);
+                        // 清空输入框，不保留任何分隔符
+                        e.target.value = '';
+                    }
+                    break;
+                }
+            }
+        });
+
+        // 处理退格键事件
+        input.addEventListener('keydown', function(e) {
+            // 当输入框为空且按下退格键时，触发标签区域晃动提示
+            if (e.key === 'Backspace' && input.value === '') {
+                e.preventDefault();
+                // 添加晃动动画类
+                tagsContainer.classList.add('shake-animation');
+                // 动画结束后移除动画类，以便下次可以再次触发
+                setTimeout(() => {
+                    tagsContainer.classList.remove('shake-animation');
+                }, 500);
+            }
+        });
+
+        // 添加标签
+        function addTag(name) {
+            if (!tags.includes(name)) {
+                tags.push(name);
+                renderTags();
+                updateHiddenInput();
+            }
+        }
+
+        // 移除标签
+        function removeTag(index) {
+            // 保存要删除的标签内容
+            const removedTag = tags[index];
+            // 从标签数组中移除
+            tags.splice(index, 1);
+            // 将删除的标签内容放回输入框
+            input.value = removedTag;
+            renderTags();
+            updateHiddenInput();
+            // 聚焦到输入框
+            input.focus();
+        }
+
+        // 渲染标签
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            tags.forEach((tag, index) => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'keeper-tag';
+                tagElement.textContent = tag;
+                // 只有点击标签本身才能删除
+                tagElement.addEventListener('click', () => removeTag(index));
+                tagsContainer.appendChild(tagElement);
+            });
+        }
+
+        // 更新隐藏输入框
+        function updateHiddenInput() {
+            hiddenInput.value = tags.join('||');
+        }
+
+        // 清空所有标签
+        function clearTags() {
+            tags = [];
+            renderTags();
+            updateHiddenInput();
+        }
+
+        return {
+            clearTags
+        };
+    }
+
+    // 初始化日期时间输入框 - 使用分开的日期和时间选择器
+    function initDateTimeInput(inputId) {
+        // 获取原始输入框并隐藏它
+        const originalInput = document.getElementById(inputId);
+        originalInput.style.display = 'none';
+
+        // 保存原始输入框的required属性和name
+        const isRequired = originalInput.required;
+        const originalName = originalInput.name || inputId;
+
+        // 检查是否已经存在之前创建的选择器，如果有则先删除它们
+        const existingPicker = document.getElementById(inputId + '-picker');
+        const existingDateInput = document.getElementById(inputId + '-date');
+        const existingTimeInput = document.getElementById(inputId + '-time');
+        const existingDateTimeContainer = document.getElementById(inputId + '-container');
+
+        // 清理可能存在的旧元素
+        if (existingDateTimeContainer) {
+            existingDateTimeContainer.parentNode.removeChild(existingDateTimeContainer);
+        } else {
+            if (existingPicker) existingPicker.parentNode.removeChild(existingPicker);
+            if (existingDateInput) existingDateInput.parentNode.removeChild(existingDateInput);
+            if (existingTimeInput) existingTimeInput.parentNode.removeChild(existingTimeInput);
+        }
+
+        // 设置当前时间为默认值（东八区 UTC+8）
+        const now = new Date();
+        const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+
+        // 格式化时间
+        const year = beijingTime.getUTCFullYear();
+        const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+        const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
+        const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+
+        const dateValue = `${year}-${month}-${day}`;
+        const timeValue = `${hours}:${minutes}:${seconds}`;
+        const datetimeLocalValue = `${dateValue}T${timeValue}`;
+
+        // 创建容器来放置日期和时间选择器
+        const container = document.createElement('div');
+        container.id = inputId + '-container';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '10px';
+        container.style.height = '44px';
+
+        // 创建日期选择器
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date';
+        dateInput.id = inputId + '-date';
+        dateInput.value = dateValue;
+        dateInput.required = isRequired;
+
+        // 添加样式
+        dateInput.style.padding = '8px 10px';
+        dateInput.style.border = '1px solid #ddd';
+        dateInput.style.borderRadius = '4px';
+        dateInput.style.fontSize = '16px';
+        dateInput.style.cursor = 'pointer';
+
+        // 添加悬停效果
+        dateInput.addEventListener('mouseover', function() {
+            this.style.borderColor = '#3498db';
+        });
+        dateInput.addEventListener('mouseout', function() {
+            this.style.borderColor = '#ddd';
+        });
+
+        // 创建时间选择器，设置step="1"以支持秒级精度
+        const timeInput = document.createElement('input');
+        timeInput.type = 'time';
+        timeInput.id = inputId + '-time';
+        timeInput.value = timeValue;
+        timeInput.step = '1'; // 支持秒级选择
+        timeInput.required = isRequired;
+
+        // 添加样式
+        timeInput.style.padding = '8px 10px';
+        timeInput.style.border = '1px solid #ddd';
+        timeInput.style.borderRadius = '4px';
+        timeInput.style.fontSize = '16px';
+        timeInput.style.cursor = 'pointer';
+
+        // 添加悬停效果
+        timeInput.addEventListener('mouseover', function() {
+            this.style.borderColor = '#3498db';
+        });
+        timeInput.addEventListener('mouseout', function() {
+            this.style.borderColor = '#ddd';
+        });
+
+        // 将日期和时间选择器添加到容器中
+        container.appendChild(dateInput);
+        container.appendChild(timeInput);
+
+        // 更新原始输入框的值
+        function updateHiddenInput() {
+            const dateValue = dateInput.value;
+            const timeValue = timeInput.value;
+
+            if (dateValue && timeValue) {
+                originalInput.value = `${dateValue}T${timeValue}`;
+            } else {
+                originalInput.value = '';
+            }
+        }
+
+        // 添加事件监听器，当日期或时间发生变化时更新原始输入框的值
+        dateInput.addEventListener('change', updateHiddenInput);
+        timeInput.addEventListener('change', updateHiddenInput);
+
+        // 初始化原始输入框的值
+        originalInput.value = datetimeLocalValue;
+
+        // 将容器插入到原始输入框之前
+        originalInput.parentNode.insertBefore(container, originalInput);
+    }
+
+    // 初始化图片上传功能
+    function initImageUpload(uploadInputId, previewContainerId, hiddenInputId) {
+        const uploadInput = document.getElementById(uploadInputId);
+        const previewContainer = document.getElementById(previewContainerId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+        let uploadedFiles = [];
+        let currentPreviewImages = [];
+
+        // 监听文件选择
+        uploadInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files) {
+                handleFiles(files);
+            }
+            // 清空input，允许重复选择相同文件
+            uploadInput.value = '';
+        });
+
+        // 处理选择的文件
+        function handleFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type.startsWith('image/')) {
+                    uploadedFiles.push(file);
+                    previewFile(file);
+                }
+            }
+        }
+
+        // 预览文件
+        function previewFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.createElement('div');
+                preview.className = 'image-preview';
+
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = file.name;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-image';
+                removeBtn.textContent = '×';
+                removeBtn.addEventListener('click', function() {
+                    const index = currentPreviewImages.indexOf(preview);
+                    if (index !== -1) {
+                        currentPreviewImages.splice(index, 1);
+                        uploadedFiles.splice(index, 1);
+                        previewContainer.removeChild(preview);
+                    }
+                });
+
+                preview.appendChild(img);
+                preview.appendChild(removeBtn);
+                previewContainer.appendChild(preview);
+                currentPreviewImages.push(preview);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 上传文件到服务器
+        async function uploadFiles() {
+            if (uploadedFiles.length === 0) {
+                return [];
+            }
+
+            const promises = uploadedFiles.map(async file => {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('did', document.getElementById('problem-did').value);
+
+                try {
+                    const response = await fetch('api.php?action=uploadProblemPhoto', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.success && data.filePath) {
+                        return data.filePath;
+                    }
+                    return null;
+                } catch (error) {
+                    console.error('上传文件失败:', error);
+                    return null;
+                }
+            });
+
+            const results = await Promise.all(promises);
+            return results.filter(Boolean); // 过滤掉上传失败的文件
+        }
+
+        // 清空所有上传的文件
+        function clearFiles() {
+            uploadedFiles = [];
+            currentPreviewImages.forEach(preview => {
+                previewContainer.removeChild(preview);
+            });
+            currentPreviewImages = [];
+        }
+
+        return {
+            uploadFiles,
+            clearFiles
+        };
+    }
+
     // 打开新增记录模态框
     function openAddRecordModal(type) {
         const modal = document.getElementById('add-record-modal');
@@ -1653,9 +2022,11 @@ include 'header.php';
             recordType.value = '2';
         }
 
-        // 设置当前日期为默认值
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('work-date').value = today;
+        // 初始化作业人员标签功能
+        initWorkerTags('workers-input', 'workers-tags', 'workers');
+
+        // 初始化日期时间输入框
+        initDateTimeInput('work-date');
 
         modal.style.display = 'flex';
         // 阻止背景页面滚动
@@ -1675,8 +2046,18 @@ include 'header.php';
         const did = document.getElementById('record-did').value;
         const workers = document.getElementById('workers').value;
         const workDate = document.getElementById('work-date').value;
-        const departmentId = document.getElementById('work-department-id').value;
         const remark = document.getElementById('work-remark').value;
+
+        // 验证必填字段
+        if (!workers) {
+            alert('请输入作业人员');
+            return;
+        }
+
+        if (!workDate) {
+            alert('请选择作业日期时间');
+            return;
+        }
 
         fetch('api.php?action=addWorkLog', {
                 method: 'POST',
@@ -1688,7 +2069,6 @@ include 'header.php';
                     did: did,
                     workers: workers,
                     workDate: workDate,
-                    departmentId: departmentId,
                     remark: remark
                 })
             })
@@ -1720,16 +2100,22 @@ include 'header.php';
     function openAddProblemModal() {
         const modal = document.getElementById('add-problem-modal');
 
-        // 设置当前日期为默认值
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('problem-date').value = today;
-
         // 如果有全局设备数据，设置部门信息
         if (globalDeviceData) {
             document.getElementById('problem-sid').value = globalDeviceData.sid || '';
-            document.getElementById('problem-department').value = globalDeviceData.department_name || '';
-            document.getElementById('problem-department-id').value = globalDeviceData.cid || '';
         }
+
+        // 初始化发现人标签功能
+        initWorkerTags('problem-creator-input', 'creator-tags', 'problem-creator');
+
+        // 初始化日期时间输入框
+        initDateTimeInput('problem-date');
+
+        // 初始化图片上传功能
+        const imageUploader = initImageUpload('problem-photos-upload', 'uploaded-photos', 'problem-photos');
+
+        // 保存上传器实例，方便在提交时使用
+        modal.imageUploader = imageUploader;
 
         modal.style.display = 'flex';
         // 阻止背景页面滚动
@@ -1738,20 +2124,51 @@ include 'header.php';
 
     // 关闭新增问题模态框
     function closeAddProblemModal() {
-        document.getElementById('add-problem-modal').style.display = 'none';
+        const modal = document.getElementById('add-problem-modal');
+
+        // 清空已上传的文件预览
+        if (modal.imageUploader) {
+            modal.imageUploader.clearFiles();
+        }
+
+        modal.style.display = 'none';
         // 恢复背景页面滚动
         document.body.style.overflow = '';
     }
 
     // 提交新增问题
-    function submitAddProblem() {
+    async function submitAddProblem() {
         const did = document.getElementById('problem-did').value;
         const sid = document.getElementById('problem-sid').value;
         const description = document.getElementById('problem-description').value;
-        const photos = document.getElementById('problem-photos').value;
         const creator = document.getElementById('problem-creator').value;
         const createTime = document.getElementById('problem-date').value;
-        const departmentId = document.getElementById('problem-department-id').value;
+        const modal = document.getElementById('add-problem-modal');
+
+        // 验证必填字段
+        if (!description) {
+            alert('请输入问题描述');
+            return;
+        }
+
+        if (!creator) {
+            alert('请输入发现人');
+            return;
+        }
+
+        if (!createTime) {
+            alert('请选择发现时间');
+            return;
+        }
+
+        // 上传照片文件
+        let photos = '';
+        if (modal.imageUploader) {
+            const uploadedPaths = await modal.imageUploader.uploadFiles();
+            if (uploadedPaths.length > 0) {
+                photos = uploadedPaths.join('||');
+            }
+        }
 
         fetch('api.php?action=addProblem', {
                 method: 'POST',
@@ -1764,8 +2181,7 @@ include 'header.php';
                     description: description,
                     photos: photos,
                     creator: creator,
-                    createTime: createTime,
-                    departmentId: departmentId
+                    createTime: createTime
                 })
             })
             .then(response => response.json())
@@ -1791,8 +2207,8 @@ include 'header.php';
     function deleteRecord(wid, type) {
         // 根据记录类型选择正确的API端点
         let apiAction = '';
-        
-        switch(type) {
+
+        switch (type) {
             case 'inspection':
                 apiAction = 'deleteInspection';
                 break;
@@ -1806,7 +2222,7 @@ include 'header.php';
                 showNotification('不支持的记录类型', 'error');
                 return;
         }
-        
+
         fetch(`api.php?action=${apiAction}&id=${wid}`, {
                 method: 'POST'
             })
@@ -1815,7 +2231,7 @@ include 'header.php';
                 if (data.success) {
                     // 显示删除成功提示
                     showNotification('已删除1条记录！', 'success');
-                    
+
                     // 重新加载对应记录
                     if (type === 'inspection') {
                         document.getElementById('inspection-content').innerHTML = '<div class="loading">加载中...</div>';
@@ -1835,7 +2251,7 @@ include 'header.php';
                 showNotification('删除失败: ' + error.message, 'error');
             });
     }
-    
+
     // 显示通知提示
     function showNotification(message, type = 'info') {
         // 移除已存在的通知
@@ -1843,16 +2259,16 @@ include 'header.php';
         if (existingNotification) {
             document.body.removeChild(existingNotification);
         }
-        
+
         // 创建通知元素
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        
+
         // 设置样式 - 从右侧滑入且低于header导航栏
         // 使用内联样式确保背景色和文本可见
         notification.style.position = 'fixed';
-        notification.style.top = '80px';  // 确保低于header导航栏的高度
-        notification.style.right = '-400px';  // 初始位置在右侧屏幕外
+        notification.style.top = '80px'; // 确保低于header导航栏的高度
+        notification.style.right = '-400px'; // 初始位置在右侧屏幕外
         notification.style.backgroundColor = '#e74c3c';
         notification.style.color = 'white';
         notification.style.padding = '12px 24px';
@@ -1865,24 +2281,24 @@ include 'header.php';
         notification.style.minWidth = '200px';
         notification.style.textAlign = 'center';
         notification.style.transition = 'opacity 0.3s ease, right 0.5s ease';
-        
+
         // 设置消息内容
         notification.textContent = message;
-        
+
         // 添加到页面
         document.body.appendChild(notification);
-        
+
         // 显示通知 - 从右侧滑入
         setTimeout(() => {
             notification.style.opacity = '1';
-            notification.style.right = '20px';  // 最终位置
+            notification.style.right = '20px'; // 最终位置
         }, 10);
-        
+
         // 3秒后隐藏通知 - 滑回右侧
         setTimeout(() => {
             notification.style.opacity = '0';
-            notification.style.right = '-400px';  // 回到初始位置
-            
+            notification.style.right = '-400px'; // 回到初始位置
+
             // 动画结束后移除元素
             setTimeout(() => {
                 if (notification.parentNode) {
@@ -1926,21 +2342,172 @@ include 'header.php';
     .records-table td:nth-child(2) {
         white-space: nowrap;
     }
-    
+
     /* 作业人员单元格 - 允许换行并设置间距 */
     .records-table td:nth-child(3) {
         line-height: 1.6;
     }
-    
+
     .keeper-tag {
-        background-color: rgba(52, 152, 219, 0.2);
-        /* 半透明蓝色 */
-        color: #2c3e50;
+        background-color: #e0f2fe;
+        color: #1976d2;
         padding: 4px 10px;
         margin-right: 8px;
         margin-bottom: 4px;
         border-radius: 4px;
         display: inline-block;
+    }
+
+    /* 左右晃动动画 */
+    @keyframes shake {
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        20%,
+        60% {
+            transform: translateX(-4px);
+        }
+
+        40%,
+        80% {
+            transform: translateX(4px);
+        }
+    }
+
+    .shake-animation {
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* 作业人员标签样式 */
+    .workers-input-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-height: 38px;
+    }
+
+    .workers-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-right: 8px;
+        flex-grow: 1;
+    }
+
+    .workers-input-wrapper .keeper-tag {
+        background-color: #e0f2fe;
+        color: #1976d2;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.3s ease;
+    }
+
+    .workers-input-wrapper .keeper-tag:hover {
+        background-color: #bae6fd;
+        color: #0369a1;
+        transform: scale(1.05);
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex-grow: 1;
+        min-width: 100px;
+        font-size: 14px;
+    }
+
+    /* 日期时间输入框样式 */
+    input[type="datetime-local"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+        box-sizing: border-box;
+    }
+
+    input[type="datetime-local"]:focus {
+        border-color: #3498db;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    }
+
+    /* 图片上传样式 */
+    .image-upload-container {
+        margin-top: 15px;
+    }
+
+    .upload-button {
+        background-color: #f0f0f0;
+        color: #333;
+        padding: 10px 20px;
+        border: 1px dashed #ccc;
+        border-radius: 4px;
+        cursor: pointer;
+        display: inline-block;
+        transition: background-color 0.3s;
+    }
+
+    .upload-button:hover {
+        background-color: #e0e0e0;
+    }
+
+    .upload-button input[type="file"] {
+        display: none;
+    }
+
+    .image-previews {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .image-preview {
+        position: relative;
+        width: 100%;
+        height: 150px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .image-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .remove-image {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background-color: rgba(255, 0, 0, 0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .remove-image:hover {
+        background-color: rgba(255, 0, 0, 0.9);
     }
 
     .collapse-block {
@@ -2027,27 +2594,27 @@ include 'header.php';
         padding: 12px;
         border-bottom: 1px solid #ddd;
     }
-    
+
     /* 所有表头居中显示 */
     .drawings-table th,
     .records-table th,
     .problems-table th {
         text-align: center;
     }
-    
+
     /* 所有单元格默认居中显示 */
     .drawings-table td,
     .records-table td,
     .problems-table td {
         text-align: center;
     }
-    
+
     /* 图纸名称内容居左显示 */
     .drawings-table td:first-child,
     .drawings-table td:nth-child(2) {
         text-align: left;
     }
-    
+
     /* 问题描述内容居左显示 */
     .problems-table td:nth-child(2) {
         text-align: left;
@@ -2315,7 +2882,7 @@ include 'header.php';
     .collapse-header .header-title {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 4px;
         flex: 1;
     }
 
@@ -2328,10 +2895,31 @@ include 'header.php';
 
     /* 统一数量显示样式 */
     .record-count {
-        font-size: 16px;
-        color: #666;
-        font-weight: bold;
-        margin-left: 5px;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        margin-left: 0px;
+        margin-bottom: 0px;
+    }
+
+    .record-count-number {
+        background-color: #fef2df;
+        color: #f39c12;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 10px !important;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    .record-count-number:hover {
+        background-color: #f39c12;
+        color: white;
+        transform: scale(1.05);
     }
 
     .collapse-header .header-title .add-btn {
@@ -2450,6 +3038,7 @@ include 'header.php';
             margin-bottom: 20px;
         }
     }
+
     /* 分页控制样式 */
     .pagination-container {
         display: flex;
@@ -2535,21 +3124,97 @@ include 'header.php';
             justify-content: center;
         }
     }
+
+    /* 作业人员标签样式 */
+    .workers-input-wrapper {
+        display: block;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-height: 38px;
+    }
+
+    .workers-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 8px;
+        min-height: 22px;
+    }
+
+    .keeper-tag {
+        background-color: #e0f2fe;
+        color: #1976d2;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    .keeper-tag:hover {
+        background-color: #1976d2;
+        color: white;
+        transform: scale(1.05);
+    }
+
+    .workers-input {
+        width: 100%;
+        border: none;
+        outline: none;
+        font-size: 14px;
+        padding: 4px 0;
+    }
+
+    /* 确保标签在窄屏上也能正常显示 */
+    @media (max-width: 768px) {
+        .workers-input-wrapper {
+            padding: 6px;
+        }
+
+        .keeper-tag {
+            background-color: #e0f2fe;
+            color: #1976d2;
+            padding: 3px 10px;
+            font-size: 12px;
+        }
+
+        .workers-input {
+            width: 100%;
+            font-size: 12px;
+        }
+    }
 </style>
 <script>
     // 分页状态变量
     const paginationStates = {
-        drawings: { currentPage: 1, pageSize: 5 },
-        inspection: { currentPage: 1, pageSize: 5 },
-        maintenance: { currentPage: 1, pageSize: 5 },
-        problems: { currentPage: 1, pageSize: 5 }
+        drawings: {
+            currentPage: 1,
+            pageSize: 5
+        },
+        inspection: {
+            currentPage: 1,
+            pageSize: 5
+        },
+        maintenance: {
+            currentPage: 1,
+            pageSize: 5
+        },
+        problems: {
+            currentPage: 1,
+            pageSize: 5
+        }
     };
 
     // 添加分页控件
     function addPaginationControls(total, currentPage, pageSize, type) {
         // 先移除已存在的分页控件
         removePaginationControls(type);
-        
+
         // 只有在总数小于5的时候才不显示控件
         if (total < 5) {
             return;
@@ -2650,7 +3315,7 @@ include 'header.php';
         const pageSizeSelect = document.createElement('select');
         // 定义可选的每页显示数量选项
         const pageSizeOptions = [5, 10, 20, 50, 100];
-        
+
         // 先添加"全部"选项
         const allOption = document.createElement('option');
         allOption.value = 'all';
@@ -2659,7 +3324,7 @@ include 'header.php';
             allOption.selected = true;
         }
         pageSizeSelect.appendChild(allOption);
-        
+
         // 添加其他选项
         pageSizeOptions.forEach(size => {
             const option = document.createElement('option');
@@ -2677,7 +3342,7 @@ include 'header.php';
             paginationStates[type].currentPage = 1; // 重置为第一页
             loadDataWithPagination(type);
         });
-        
+
         pageSizeDiv.appendChild(pageSizeSelect);
         paginationContainer.appendChild(pageSizeDiv);
 
@@ -2721,7 +3386,7 @@ include 'header.php';
         const currentState = paginationStates[type];
         const page = currentState.currentPage;
         const pageSize = currentState.pageSize;
-        
+
         switch (type) {
             case 'drawings':
                 loadDrawings(page, pageSize);
@@ -2741,7 +3406,7 @@ include 'header.php';
     // 加载图纸（支持分页） - 平滑加载版本
     function loadDrawings(page = 1, pageSize = 5) {
         const content = document.getElementById('drawings-content');
-        
+
         let url = `api.php?action=getDrawings&did=<?php echo $did; ?>`;
         // 总是添加分页参数
         if (pageSize === 'all') {
@@ -2824,7 +3489,7 @@ include 'header.php';
     // 加载巡视记录（支持分页） - 平滑加载版本
     function loadInspectionRecords(page = 1, pageSize = 5) {
         const content = document.getElementById('inspection-content');
-        
+
         let url = `api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=1`;
         // 总是添加分页参数
         if (pageSize === 'all') {
@@ -2843,11 +3508,14 @@ include 'header.php';
                 const hasPagination = data.total !== undefined && data.data !== undefined;
                 const records = hasPagination ? data.data : data;
                 const total = hasPagination ? data.total : data.length;
-                
+
                 // 更新标题计数
                 const countElement = document.getElementById('inspection-count');
                 if (countElement) {
-                    countElement.textContent = `(${total})`;
+                    const numberElement = countElement.querySelector('.record-count-number');
+                    if (numberElement) {
+                        numberElement.textContent = total;
+                    }
                 }
 
                 if (records.length > 0) {
@@ -2868,10 +3536,10 @@ include 'header.php';
                             // 使用换行符分隔多个作业人员
                             formattedWorkers = formattedArray.join('<br>');
                         }
-                        
+
                         // 计算正确的序号（考虑分页）
                         const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
-                        
+
                         html += `<tr class="record-row" data-id="${record.wid}" data-type="inspection" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${serialNumber}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
                     });
 
@@ -2906,7 +3574,7 @@ include 'header.php';
     // 加载检修记录（支持分页） - 平滑加载版本
     function loadMaintenanceRecords(page = 1, pageSize = 5) {
         const content = document.getElementById('maintenance-content');
-        
+
         let url = `api.php?action=getWorkLogs&did=<?php echo $did; ?>&type=2`;
         // 总是添加分页参数
         if (pageSize === 'all') {
@@ -2925,11 +3593,14 @@ include 'header.php';
                 const hasPagination = data.total !== undefined && data.data !== undefined;
                 const records = hasPagination ? data.data : data;
                 const total = hasPagination ? data.total : data.length;
-                
+
                 // 更新标题计数
                 const countElement = document.getElementById('maintenance-count');
                 if (countElement) {
-                    countElement.textContent = `(${total})`;
+                    const numberElement = countElement.querySelector('.record-count-number');
+                    if (numberElement) {
+                        numberElement.textContent = total;
+                    }
                 }
 
                 if (records.length > 0) {
@@ -2950,10 +3621,10 @@ include 'header.php';
                             // 使用换行符分隔多个作业人员
                             formattedWorkers = formattedArray.join('<br>');
                         }
-                        
+
                         // 计算正确的序号（考虑分页）
                         const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
-                        
+
                         html += `<tr class="record-row" data-id="${record.wid}" data-type="maintenance" data-record='${JSON.stringify(record).replace(/'/g, '\'')}'><td>${serialNumber}</td><td>${record.work_date}</td><td>${formattedWorkers}</td></tr>`;
                     });
 
@@ -2988,7 +3659,7 @@ include 'header.php';
     // 加载问题记录（支持分页） - 平滑加载版本
     function loadProblemRecords(page = 1, pageSize = 5) {
         const content = document.getElementById('problem-content');
-        
+
         let url = `api.php?action=getProblems&did=<?php echo $did; ?>`;
         // 总是添加分页参数
         if (pageSize === 'all') {
@@ -3007,11 +3678,14 @@ include 'header.php';
                 const hasPagination = data.total !== undefined && data.data !== undefined;
                 const problems = hasPagination ? data.data : data;
                 const total = hasPagination ? data.total : data.length;
-                
+
                 // 更新标题计数
                 const countElement = document.getElementById('problem-count');
                 if (countElement) {
-                    countElement.textContent = `(${total})`;
+                    const numberElement = countElement.querySelector('.record-count-number');
+                    if (numberElement) {
+                        numberElement.textContent = total;
+                    }
                 }
 
                 if (problems.length > 0) {
@@ -3022,10 +3696,10 @@ include 'header.php';
                     problems.forEach((problem, index) => {
                         const statusClass = problem.flow === 0 ? 'status-red' : 'status-green';
                         const statusText = problem.flow === 0 ? '已创建' : '已解决';
-                        
+
                         // 计算正确的序号（考虑分页）
                         const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
-                        
+
                         html += `<tr><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td>${problem.create_time}</td><td class="${statusClass}">${statusText}</td></tr>`;
                     });
 

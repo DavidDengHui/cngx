@@ -112,6 +112,9 @@ switch ($action) {
     case 'getFilterOptions':
         getFilterOptions();
         break;
+    case 'uploadProblemPhoto':
+        uploadProblemPhoto();
+        break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
         break;
@@ -418,7 +421,7 @@ function addInspection() {
     
     try {
         $did = $_POST['did'];
-        $inspector = $_POST['inspector'];
+        $inspector = $_POST['inspector']; // 格式为"姓名1||姓名2||姓名3"
         $inspectionTime = $_POST['inspection_time'];
         $content = $_POST['content'];
         
@@ -442,7 +445,7 @@ function addMaintenance() {
     
     try {
         $did = $_POST['did'];
-        $maintainer = $_POST['maintainer'];
+        $maintainer = $_POST['maintainer']; // 格式为"姓名1||姓名2||姓名3"
         $maintenanceTime = $_POST['maintenance_time'];
         $content = $_POST['content'];
         
@@ -492,22 +495,22 @@ function addProblem() {
             'urgency' => $urgency
         ]);
         
-        // 处理附件上传
-        $attachments = [];
-        if (!empty($_FILES['attachments']['name'][0])) {
-            $attachments = processProblemAttachments($pid);
+        // 处理问题照片上传
+        $photos = [];
+        if (!empty($_FILES['photos']['name'][0])) {
+            $photos = processProblemPhotos($pid);
         }
         
-        // 保存附件信息
-        if (!empty($attachments)) {
-            foreach ($attachments as $attachment) {
+        // 保存照片信息
+        if (!empty($photos)) {
+            foreach ($photos as $photo) {
                 $stmt = $pdo->prepare("INSERT INTO problem_attachments (pid, original_name, link_name, root_dir, file_size, upload_time, status) VALUES (:pid, :originalName, :linkName, :rootDir, :fileSize, NOW(), 1)");
                 $stmt->execute([
                     'pid' => $pid,
-                    'originalName' => $attachment['originalName'],
-                    'linkName' => $attachment['linkName'],
-                    'rootDir' => $attachment['rootDir'],
-                    'fileSize' => $attachment['fileSize']
+                    'originalName' => $photo['originalName'],
+                    'linkName' => $photo['linkName'],
+                    'rootDir' => $photo['rootDir'],
+                    'fileSize' => $photo['fileSize']
                 ]);
             }
         }
@@ -516,6 +519,45 @@ function addProblem() {
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '添加失败: ' . $e->getMessage()]);
     }
+}
+
+// 处理问题照片上传
+function processProblemPhotos($pid) {
+    $year = substr($pid, 0, 4);
+    $month = date('m');
+    $uploadDir = __DIR__ . '/uploads/problems/' . $year . '/' . $month . '/';
+    $webDir = '/uploads/problems/' . $year . '/' . $month . '/';
+    
+    // 确保上传目录存在
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+    
+    $result = [];
+    
+    foreach ($_FILES['photos']['name'] as $key => $name) {
+        $tmpName = $_FILES['photos']['tmp_name'][$key];
+        $error = $_FILES['photos']['error'][$key];
+        
+        if ($error === UPLOAD_ERR_OK) {
+            // 生成唯一文件名
+            $ext = pathinfo($name, PATHINFO_EXTENSION);
+            $linkName = 'problem_' . $pid . '_' . uniqid() . '.' . $ext;
+            $fileSize = filesize($tmpName);
+            
+            // 移动文件
+            if (move_uploaded_file($tmpName, $uploadDir . $linkName)) {
+                $result[] = [
+                    'originalName' => $name,
+                    'linkName' => $linkName,
+                    'rootDir' => $webDir,
+                    'fileSize' => $fileSize
+                ];
+            }
+        }
+    }
+    
+    return $result;
 }
 
 // 生成问题ID
@@ -1183,5 +1225,68 @@ function getDashboardStats() {
     } catch (Exception $e) {
         logError('获取首页统计数据失败: ' . $e->getMessage(), 'getDashboardStats');
         echo json_encode(['success' => false, 'message' => '获取首页统计数据失败: ' . $e->getMessage()]);
+    }
+}
+
+// 上传问题照片
+function uploadProblemPhoto() {
+    global $pdo;
+    
+    try {
+        // 检查是否有文件上传
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => '上传文件失败: 未收到文件']);
+            return;
+        }
+        
+        // 获取设备ID
+        $did = isset($_POST['did']) ? intval($_POST['did']) : 0;
+        if ($did <= 0) {
+            echo json_encode(['success' => false, 'message' => '上传文件失败: 无效的设备ID']);
+            return;
+        }
+        
+        // 设置上传目录（按年份和月份组织）
+        $year = date('Y');
+        $month = date('m');
+        $uploadDir = __DIR__ . '/uploads/problems/' . $year . '/' . $month . '/';
+        $rootDir = 'uploads/problems/' . $year . '/' . $month . '/';
+        
+        // 创建目录（如果不存在）
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        // 获取原始文件名和扩展名
+        $originalName = basename($_FILES['file']['name']);
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        
+        // 生成唯一的链接名称
+        $timestamp = time();
+        $randomString = substr(md5(uniqid()), 0, 8);
+        $linkName = $timestamp . '_' . $randomString . '.' . $extension;
+        
+        // 构建完整的文件路径
+        $filePath = $uploadDir . $linkName;
+        $relativePath = $rootDir . $linkName;
+        
+        // 移动上传的文件
+        if (!move_uploaded_file($_FILES['file']['tmp_name'], $filePath)) {
+            echo json_encode(['success' => false, 'message' => '上传文件失败: 无法移动文件']);
+            return;
+        }
+        
+        // 由于问题记录尚未创建，这里暂时不保存到problem_attachments表
+        // 当问题记录创建后，会通过addProblem接口处理照片关联
+        
+        // 返回成功信息和文件路径
+        echo json_encode([
+            'success' => true,
+            'filePath' => $relativePath,
+            'originalName' => $originalName
+        ]);
+    } catch (Exception $e) {
+        logError('上传问题照片失败: ' . $e->getMessage(), 'uploadProblemPhoto');
+        echo json_encode(['success' => false, 'message' => '上传文件失败: ' . $e->getMessage()]);
     }
 }
