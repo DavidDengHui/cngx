@@ -226,7 +226,7 @@ include 'header.php';
                     <label for="workers-input">作业人员：</label>
                     <div class="workers-input-wrapper">
                         <div id="workers-tags" class="workers-tags"></div>
-                        <input type="text" id="workers-input" class="workers-input" placeholder="多个姓名使用空格分隔">
+                        <input type="text" id="workers-input" class="workers-input" placeholder="多个姓名请使用空格分隔">
                         <input type="hidden" id="workers">
                     </div>
                 </div>
@@ -278,7 +278,7 @@ include 'header.php';
                     <label for="problem-creator-input">发现人：</label>
                     <div class="workers-input-wrapper">
                         <div id="creator-tags" class="workers-tags"></div>
-                        <input type="text" id="problem-creator-input" class="workers-input" placeholder="多个姓名使用空格分隔">
+                        <input type="text" id="problem-creator-input" class="workers-input" placeholder="多个姓名请使用空格分隔">
                         <input type="hidden" id="problem-creator">
                     </div>
                 </div>
@@ -1306,7 +1306,7 @@ include 'header.php';
     function refreshCount(type) {
         // 确保使用全局deviceId而不是PHP变量
         const did = deviceId;
-        
+
         // 清空对应类型的缓存状态
         if (dataCache[type]) {
             dataCache[type].loaded = false;
@@ -1398,13 +1398,13 @@ include 'header.php';
 
         // 即使没有找到元素，也要继续获取数据，稍后再更新UI
         if (!url) return;
-        
+
         const updateCountElement = () => {
             // 尝试重新获取元素
-            const elementId = type === 'drawing' ? 'drawing-count' : 
-                           type === 'inspection' ? 'inspection-count' :
-                           type === 'maintenance' ? 'maintenance-count' : 'problem-count';
-            
+            const elementId = type === 'drawing' ? 'drawing-count' :
+                type === 'inspection' ? 'inspection-count' :
+                type === 'maintenance' ? 'maintenance-count' : 'problem-count';
+
             const element = document.getElementById(elementId);
             if (element) {
                 const numberElement = element.querySelector('.record-count-number');
@@ -2243,9 +2243,18 @@ include 'header.php';
     function submitAddRecord() {
         const recordType = document.getElementById('record-type').value;
         const did = document.getElementById('record-did').value;
-        const workers = document.getElementById('workers').value;
+        const workersHidden = document.getElementById('workers').value;
+        const workersInput = document.getElementById('workers-input').value;
         const workDate = document.getElementById('work-date').value;
         const remark = document.getElementById('work-remark').value;
+
+        // 确保即使没有分隔成标签的名字也能被记录
+        let workers = workersHidden;
+        if (!workers && workersInput.trim()) {
+            workers = workersInput.trim();
+            // 同时更新隐藏输入框的值
+            document.getElementById('workers').value = workers;
+        }
 
         // 验证必填字段
         if (!workers) {
@@ -2340,9 +2349,18 @@ include 'header.php';
         const did = document.getElementById('problem-did').value;
         const sid = document.getElementById('problem-sid').value;
         const description = document.getElementById('problem-description').value;
-        const creator = document.getElementById('problem-creator').value;
+        const creatorHidden = document.getElementById('problem-creator').value;
+        const creatorInput = document.getElementById('problem-creator-input').value;
         const createTime = document.getElementById('problem-date').value;
         const modal = document.getElementById('add-problem-modal');
+
+        // 确保即使没有分隔成标签的名字也能被记录
+        let creator = creatorHidden;
+        if (!creator && creatorInput.trim()) {
+            creator = creatorInput.trim();
+            // 同时更新隐藏输入框的值
+            document.getElementById('problem-creator').value = creator;
+        }
 
         // 验证必填字段
         if (!description) {
