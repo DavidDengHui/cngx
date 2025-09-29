@@ -420,10 +420,23 @@ function addInspection() {
     global $pdo;
     
     try {
-        $did = $_POST['did'];
-        $inspector = $_POST['inspector']; // 格式为"姓名1||姓名2||姓名3"
-        $inspectionTime = $_POST['inspection_time'];
-        $content = $_POST['content'];
+        // 获取请求数据（支持JSON和表单格式）
+        $data = [];
+        $contentType = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+        
+        if (strpos($contentType, 'application/json') !== false) {
+            // JSON格式请求
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+        } else {
+            // 表单格式请求
+            $data = $_POST;
+        }
+        
+        $did = isset($data['did']) ? $data['did'] : '';
+        $inspector = isset($data['inspector']) ? $data['inspector'] : ''; // 格式为"姓名1||姓名2||姓名3"
+        $inspectionTime = isset($data['inspection_time']) ? $data['inspection_time'] : '';
+        $content = isset($data['content']) ? $data['content'] : '';
         
         $stmt = $pdo->prepare("INSERT INTO inspections (did, inspector, inspection_time, content, create_time, status) VALUES (:did, :inspector, :inspectionTime, :content, NOW(), 1)");
         $stmt->execute([
@@ -444,10 +457,23 @@ function addMaintenance() {
     global $pdo;
     
     try {
-        $did = $_POST['did'];
-        $maintainer = $_POST['maintainer']; // 格式为"姓名1||姓名2||姓名3"
-        $maintenanceTime = $_POST['maintenance_time'];
-        $content = $_POST['content'];
+        // 获取请求数据（支持JSON和表单格式）
+        $data = [];
+        $contentType = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+        
+        if (strpos($contentType, 'application/json') !== false) {
+            // JSON格式请求
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+        } else {
+            // 表单格式请求
+            $data = $_POST;
+        }
+        
+        $did = isset($data['did']) ? $data['did'] : '';
+        $maintainer = isset($data['maintainer']) ? $data['maintainer'] : ''; // 格式为"姓名1||姓名2||姓名3"
+        $maintenanceTime = isset($data['maintenance_time']) ? $data['maintenance_time'] : '';
+        $content = isset($data['content']) ? $data['content'] : '';
         
         $stmt = $pdo->prepare("INSERT INTO maintenances (did, maintainer, maintenance_time, content, create_time, status) VALUES (:did, :maintainer, :maintenanceTime, :content, NOW(), 1)");
         $stmt->execute([
@@ -468,11 +494,24 @@ function addProblem() {
     global $pdo;
     
     try {
-        $did = $_POST['did'];
-        $reporter = $_POST['reporter'];
-        $reportTime = $_POST['report_time'];
-        $description = $_POST['description'];
-        $urgency = $_POST['urgency'];
+        // 获取请求数据（支持JSON和表单格式）
+        $data = [];
+        $contentType = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+        
+        if (strpos($contentType, 'application/json') !== false) {
+            // JSON格式请求
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+        } else {
+            // 表单格式请求
+            $data = $_POST;
+        }
+        
+        $did = isset($data['did']) ? $data['did'] : '';
+        $reporter = isset($data['reporter']) ? $data['reporter'] : '';
+        $reportTime = isset($data['report_time']) ? $data['report_time'] : '';
+        $description = isset($data['description']) ? $data['description'] : '';
+        $urgency = isset($data['urgency']) ? $data['urgency'] : '';
         
         // 获取部门ID
         $stmt = $pdo->prepare("SELECT cid FROM devices WHERE did = :did AND status = 1");

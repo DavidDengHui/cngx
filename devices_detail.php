@@ -101,7 +101,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>设备图纸</span>
                                 <span id="drawing-count" class="record-count">
-                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'drawing')">${device.drawing_count}</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'drawing')" title="点击标签刷新该项数据">${device.drawing_count}</span>
                                 </span>
                             </div>
                             <span class="collapse-icon">▼</span>
@@ -119,7 +119,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>巡视记录</span>
                                 <span id="inspection-count" class="record-count">
-                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'inspection')">?</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'inspection')" title="点击标签刷新该项数据">?</span>
                                 </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('inspection')">新增</button>
                             </div>
@@ -138,7 +138,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>检修记录</span>
                                 <span id="maintenance-count" class="record-count">
-                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'maintenance')">?</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'maintenance')" title="点击标签刷新该项数据">?</span>
                                 </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddRecordModal('maintenance')">新增</button>
                             </div>
@@ -157,7 +157,7 @@ include 'header.php';
                             <div class="header-title">
                                 <span>问题记录</span>
                                 <span id="problem-count" class="record-count">
-                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'problem')">?</span>
+                                    <span class="record-count-number" onclick="handleCountClickInline(event, 'problem')" title="点击标签刷新该项数据">?</span>
                                 </span>
                                 <button class="add-btn" onclick="event.stopPropagation(); openAddProblemModal()">新增</button>
                             </div>
@@ -2223,9 +2223,16 @@ include 'header.php';
             currentPreviewImages = [];
         }
 
+        // 获取上传的文件列表
+        function getFiles() {
+            return [...uploadedFiles];
+        }
+
+        // 返回公共接口
         return {
             uploadFiles,
-            clearFiles
+            clearFiles,
+            getFiles
         };
     }
 
@@ -2234,6 +2241,10 @@ include 'header.php';
         const modal = document.getElementById('add-record-modal');
         const title = document.getElementById('modal-title');
         const recordType = document.getElementById('record-type');
+        const recordDid = document.getElementById('record-did');
+
+        // 确保记录ID设置为当前设备ID
+        recordDid.value = deviceId;
 
         if (type === 'inspection') {
             title.textContent = '新增巡视记录';
@@ -2289,13 +2300,45 @@ include 'header.php';
         const workDate = document.getElementById('work-date').value;
         const remark = document.getElementById('work-remark').value;
 
-        // 确保即使没有分隔成标签的名字也能被记录
-        let workers = workersHidden;
-        if (!workers && workersInput.trim()) {
-            workers = workersInput.trim();
-            // 同时更新隐藏输入框的值
-            document.getElementById('workers').value = workers;
+        // 合并标签中的名字和输入框中的名字，并去除重复项
+        let workers = '';
+        const workerNames = new Set();
+        
+        // 添加标签中的名字
+        if (workersHidden) {
+            workersHidden.split('||').forEach(name => {
+                if (name.trim()) {
+                    workerNames.add(name.trim());
+                }
+            });
         }
+        
+        // 添加输入框中的名字
+        if (workersInput.trim()) {
+            // 处理输入框中的多个名字（可能包含各种分隔符）
+            const separators = [' ', '、', ',', '，', ';', '；', '||', '\uff0c', '\uff1b'];
+            let names = [workersInput.trim()];
+            
+            // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
+            separators.forEach(sep => {
+                // 转义特殊字符
+                const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                names = names.flatMap(name => name.split(new RegExp(escapedSep)));
+            });
+            
+            // 添加到集合中（自动去重）
+            names.forEach(name => {
+                if (name.trim()) {
+                    workerNames.add(name.trim());
+                }
+            });
+        }
+        
+        // 转换为字符串格式
+        workers = Array.from(workerNames).join('||');
+        
+        // 更新隐藏输入框的值
+        document.getElementById('workers').value = workers;
 
         // 重置所有错误状态
         const workersWrapper = document.getElementById('workers-tags').parentElement;
@@ -2360,18 +2403,36 @@ include 'header.php';
             return;
         }
 
-        fetch('api.php?action=addWorkLog', {
+        // 根据记录类型选择不同的API action
+        let apiAction = '';
+        let requestData = {};
+        
+        if (recordType === '1') {
+            // 巡视记录
+            apiAction = 'addInspection';
+            requestData = {
+                did: did,
+                inspector: workers, // 直接使用workers字符串
+                inspection_time: workDate,
+                content: remark
+            };
+        } else if (recordType === '2') {
+            // 检修记录
+            apiAction = 'addMaintenance';
+            requestData = {
+                did: did,
+                maintainer: workers, // 直接使用workers字符串
+                maintenance_time: workDate,
+                content: remark
+            };
+        }
+        
+        fetch('api.php?action=' + apiAction, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    type: recordType,
-                    did: did,
-                    workers: workers,
-                    workDate: workDate,
-                    remark: remark
-                })
+                body: JSON.stringify(requestData)
             })
             .then(response => response.json())
             .then(data => {
@@ -2466,13 +2527,45 @@ include 'header.php';
         const createTime = document.getElementById('problem-date').value;
         const modal = document.getElementById('add-problem-modal');
 
-        // 确保即使没有分隔成标签的名字也能被记录
-        let creator = creatorHidden;
-        if (!creator && creatorInput.trim()) {
-            creator = creatorInput.trim();
-            // 同时更新隐藏输入框的值
-            document.getElementById('problem-creator').value = creator;
+        // 合并标签中的名字和输入框中的名字，并去除重复项
+        let creator = '';
+        const creatorNames = new Set();
+        
+        // 添加标签中的名字
+        if (creatorHidden) {
+            creatorHidden.split('||').forEach(name => {
+                if (name.trim()) {
+                    creatorNames.add(name.trim());
+                }
+            });
         }
+        
+        // 添加输入框中的名字
+        if (creatorInput.trim()) {
+            // 处理输入框中的多个名字（可能包含各种分隔符）
+            const separators = [' ', '、', ',', '，', ';', '；', '||', '\uff0c', '\uff1b'];
+            let names = [creatorInput.trim()];
+            
+            // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
+            separators.forEach(sep => {
+                // 转义特殊字符
+                const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                names = names.flatMap(name => name.split(new RegExp(escapedSep)));
+            });
+            
+            // 添加到集合中（自动去重）
+            names.forEach(name => {
+                if (name.trim()) {
+                    creatorNames.add(name.trim());
+                }
+            });
+        }
+        
+        // 转换为字符串格式
+        creator = Array.from(creatorNames).join('||');
+        
+        // 更新隐藏输入框的值
+        document.getElementById('problem-creator').value = creator;
 
         // 重置所有错误状态
         const creatorWrapper = document.getElementById('creator-tags').parentElement;
@@ -2542,28 +2635,27 @@ include 'header.php';
             return;
         }
 
-        // 上传照片文件
-        let photos = '';
+        // 构造表单数据
+        const formData = new FormData();
+        formData.append('did', did);
+        formData.append('reporter', creator); // API使用reporter参数
+        formData.append('report_time', createTime); // API使用report_time参数
+        formData.append('description', description);
+        formData.append('urgency', '1'); // 默认紧急程度为1（一般）
+
+        // 处理照片上传（如果有）
         if (modal.imageUploader) {
-            const uploadedPaths = await modal.imageUploader.uploadFiles();
-            if (uploadedPaths.length > 0) {
-                photos = uploadedPaths.join('||');
+            const uploadedFiles = modal.imageUploader.getFiles();
+            if (uploadedFiles.length > 0) {
+                uploadedFiles.forEach((file, index) => {
+                    formData.append(`photos[${index}]`, file);
+                });
             }
         }
 
         fetch('api.php?action=addProblem', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    did: did,
-                    sid: sid,
-                    description: description,
-                    photos: photos,
-                    creator: creator,
-                    createTime: createTime
-                })
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
