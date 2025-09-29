@@ -287,6 +287,14 @@ include 'header.php';
                     <label for="problem-date">发现时间：</label>
                     <input type="datetime-local" id="problem-date" required>
                 </div>
+
+                <div class="form-group">
+                    <label for="problem-department">责任部门：</label>
+                    <div class="select-container">
+                        <input type="text" id="problem-department" readonly placeholder="请选择部门">
+                        <input type="hidden" id="problem-department-id">
+                    </div>
+                </div>
             </form>
         </div>
         <div class="modal-footer">
@@ -1752,6 +1760,620 @@ include 'header.php';
         });
     }
 
+    // 全局变量存储当前选择类型和路径
+    let currentSelectType = '';
+    let currentSelectPath = [];
+
+    // 打开选择模态框
+    function openSelectModal(type, label) {
+        // 创建模态框容器
+        let modal = document.getElementById('select-modal');
+        if (!modal) {
+            // 如果模态框不存在，则创建
+            modal = document.createElement('div');
+            modal.id = 'select-modal';
+            modal.className = 'modal';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <style>
+                    /* 模态框特定样式 - 仅应用于#select-modal内部 */
+                    
+                    /* 模态框按钮样式 */
+                    #select-modal .modal-btn {
+                        padding: 6px 16px;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        margin: 0 5px;
+                    }
+                    
+                    /* 重置按钮 - 灰色 */
+                    #select-modal .reset-btn {
+                        background-color: #95a5a6;
+                        color: white;
+                    }
+                    
+                    /* 默认按钮 - 蓝色 */
+                    #select-modal .default-btn {
+                        background-color: #3498db;
+                        color: white;
+                    }
+                    
+                    /* 取消按钮 */
+                    #select-modal .cancel-btn {
+                        background-color: #95a5a6;
+                        color: white;
+                    }
+                    
+                    /* 确认按钮 - 通用绿色 */
+                    #select-modal .confirm-btn {
+                        background-color: #27ae60;
+                        color: white;
+                    }
+                    
+                    /* 路径样式 */
+                    #select-modal .select-path {
+                        padding: 10px 15px;
+                        background-color: #f8f9fa;
+                        border-bottom: 2px solid #dee2e6;
+                        margin-bottom: 10px;
+                        font-size: 14px;
+                    }
+                    
+                    /* 路径项 - 链接样式 */
+                    #select-modal .path-item {
+                        color: #3498db;
+                        cursor: pointer;
+                        text-decoration: underline;
+                    }
+                    
+                    /* 路径项悬停效果 */
+                    #select-modal .path-item:hover {
+                        color: #2980b9;
+                    }
+                    
+                    /* 选择项容器 */
+                    #select-modal .select-items {
+                        max-height: 400px;
+                        overflow-y: auto;
+                    }
+                    
+                    /* 选择块默认样式 - 灰底黑字 */
+                    #select-modal .select-item {
+                        padding: 12px 15px;
+                        background-color: #f8f9fa;
+                        color: #333;
+                        cursor: pointer;
+                        border: 1px solid transparent;
+                    }
+                    
+                    /* 选择块悬停效果 */
+                    #select-modal .select-item:hover {
+                        background-color: #e9ecef;
+                    }
+                    
+                    /* 选择块点击后效果 - 蓝底白字 */
+                    #select-modal .select-item:active,
+                    #select-modal .select-item.selected {
+                        background-color: #3498db;
+                        color: white;
+                    }
+                </style>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div class="modal-header-left">
+                            <button type="button" class="modal-btn reset-btn">重置</button>
+                            <button type="button" class="modal-btn default-btn" style="display: none;">默认</button>
+                        </div>
+                        <div class="modal-header-right">
+                            <button type="button" class="modal-btn cancel-btn">取消</button>
+                            <button type="button" class="modal-btn confirm-btn">确认</button>
+                        </div>
+                    </div>
+                    <div class="modal-body">
+                        <div id="select-content"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // 添加事件监听
+            modal.querySelector('.reset-btn').addEventListener('click', resetSelect);
+            modal.querySelector('.default-btn').addEventListener('click', selectDefaultDepartment);
+            modal.querySelector('.cancel-btn').addEventListener('click', closeSelectModal);
+            modal.querySelector('.confirm-btn').addEventListener('click', confirmSelect);
+        }
+
+        currentSelectType = type;
+
+        // 根据类型决定是否显示默认按钮
+        if (type === 'problem-department') {
+            modal.querySelector('.default-btn').style.display = 'inline-block';
+        } else {
+            modal.querySelector('.default-btn').style.display = 'none';
+        }
+
+        // 重置选择路径
+        currentSelectPath = [];
+
+        // 获取当前选中的值
+        let currentId = 0;
+        if (type === 'problem-department') {
+            currentId = document.getElementById('problem-department-id').value || 0;
+        }
+
+        // 加载第一级数据
+        loadSelectData(currentId);
+
+        // 显示模态框并确保居中
+        modal.style.display = 'block';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+
+        // 确保模态框内容居中
+        const modalContent = modal.querySelector('.modal-content');
+        modalContent.style.margin = 'auto';
+
+        // 阻止背景页面滚动
+        document.body.style.overflow = 'hidden';
+
+        // ESC键关闭
+        document.addEventListener('keydown', function escListener(e) {
+            if (e.key === 'Escape') {
+                closeSelectModal();
+                document.removeEventListener('keydown', escListener);
+            }
+        });
+
+        // 点击模态框外部关闭
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeSelectModal();
+            }
+        });
+    }
+
+    // 关闭选择模态框
+    function closeSelectModal() {
+        const modal = document.getElementById('select-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        // 恢复背景页面滚动
+        document.body.style.overflow = '';
+    }
+
+    // 加载选择数据
+    function loadSelectData(parentId) {
+        const type = currentSelectType;
+        const contentDiv = document.getElementById('select-content');
+
+        // 清空内容
+        contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+        // 根据类型获取API URL
+        let apiUrl = '';
+        if (type === 'problem-department') {
+            apiUrl = `api.php?action=getDepartments&parentId=${parentId}`;
+        }
+
+        // 发送请求获取数据
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    let html = '';
+
+                    // 显示当前路径
+                    if (currentSelectPath.length > 0) {
+                        html += '<div class="select-path">';
+                        currentSelectPath.forEach((item, index) => {
+                            html += `<span class="path-item" data-id="${item.id}">${item.name}</span>`;
+                            if (index < currentSelectPath.length - 1) {
+                                html += ' / ';
+                            }
+                        });
+                        html += '</div>';
+                    }
+
+                    // 显示选项列表
+                    html += '<div class="select-items">';
+                    data.forEach(item => {
+                        html += `<div class="select-item" data-id="${item.id}" data-name="${item.name}" data-shortname="${item.shortname || item.name}">${item.name}</div>`;
+                    });
+                    html += '</div>';
+
+                    // 更新内容
+                    contentDiv.innerHTML = html;
+
+                    // 添加路径点击事件
+                    document.querySelectorAll('.path-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const id = parseInt(this.getAttribute('data-id'));
+                            // 找到该路径项的索引
+                            const index = currentSelectPath.findIndex(p => p.id === id);
+                            if (index !== -1) {
+                                // 移除该索引之后的所有路径项
+                                currentSelectPath.splice(index + 1);
+                                // 重新加载数据
+                                loadSelectData(id);
+                            }
+                        });
+                    });
+
+                    // 添加选项点击事件
+                    document.querySelectorAll('.select-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            // 移除所有选择项的选中状态
+                            document.querySelectorAll('.select-item').forEach(selectItem => {
+                                selectItem.classList.remove('selected');
+                            });
+
+                            // 添加当前项的选中状态
+                            this.classList.add('selected');
+
+                            const id = parseInt(this.getAttribute('data-id'));
+                            const name = this.getAttribute('data-name');
+                            const shortname = this.getAttribute('data-shortname');
+
+                            // 添加到选择路径
+                            currentSelectPath.push({
+                                id: id,
+                                name: name,
+                                shortname: shortname
+                            });
+
+                            // 加载下一级数据
+                            loadSelectData(id);
+                        });
+                    });
+                } else {
+                    // 如果没有子项，检查是否是打开模态框时的初始加载
+                    // 如果是初始加载（currentSelectPath为空）且parentId > 0，表示当前选择的部门没有下级部门
+                    // 这种情况下，我们应该显示与当前部门同级的所有部门
+                    if (currentSelectPath.length === 0 && parentId > 0) {
+                        // 为了获取同级部门，我们需要遍历部门树来找到当前部门的父部门ID
+                        // 我们可以通过递归查询所有部门来实现这一点
+
+                        // 先获取所有顶级部门
+                        fetch(`api.php?action=getDepartments&parentId=0`)
+                            .then(response => response.json())
+                            .then(topDepartments => {
+                                // 递归查找当前部门
+                                let foundParentId = null;
+                                let currentDeptInfo = null;
+
+                                // 递归函数来查找当前部门ID
+                                function findDepartmentWithId(departments, targetId) {
+                                    for (let dept of departments) {
+                                        if (dept.id === targetId) {
+                                            // 找到当前部门，但我们还需要知道它的父部门ID
+                                            // 由于我们是从顶级部门开始遍历，我们需要在外部记录找到的父部门ID
+                                            return true;
+                                        }
+
+                                        // 对于每个部门，尝试获取其子部门
+                                        return new Promise(resolve => {
+                                            fetch(`api.php?action=getDepartments&parentId=${dept.id}`)
+                                                .then(res => res.json())
+                                                .then(children => {
+                                                    if (children && children.length > 0) {
+                                                        for (let child of children) {
+                                                            if (child.id === targetId) {
+                                                                // 找到当前部门，其父部门ID就是dept.id
+                                                                foundParentId = dept.id;
+                                                                currentDeptInfo = child;
+                                                                resolve(true);
+                                                                return;
+                                                            }
+                                                        }
+
+                                                        // 递归查找每个子部门的子部门
+                                                        for (let child of children) {
+                                                            if (findDepartmentWithId([child], targetId)) {
+                                                                resolve(true);
+                                                                return;
+                                                            }
+                                                        }
+                                                    }
+                                                    resolve(false);
+                                                })
+                                                .catch(() => resolve(false));
+                                        });
+                                    }
+                                    return false;
+                                }
+
+                                // 由于递归中包含异步调用，我们需要特殊处理
+                                // 为了简化实现，我们采用一个备选方案：尝试获取所有可能的部门级别
+                                // 直到找到当前部门或遍历完所有层级
+
+                                // 备选方案：尝试从顶级部门开始，逐层获取部门，直到找到包含当前部门的父部门
+                                let parentLevelFound = false;
+                                let currentLevel = 0;
+                                const maxLevels = 5; // 限制最大层级以避免无限循环
+
+                                // 我们可以尝试另一种方法：先获取当前部门的可能父部门
+                                // 由于我们知道getDepartments接口返回特定父部门的所有子部门
+                                // 我们可以尝试获取所有顶级部门的子部门，看看哪个包含当前部门ID
+
+                                // 这里我们采用一个更直接的方法：
+                                // 1. 假设当前部门的父部门是某个存在的部门ID
+                                // 2. 尝试获取所有可能的父部门的子部门列表
+                                // 3. 找到包含当前部门ID的父部门
+
+                                // 为了简化，我们这里直接获取顶级部门，然后查看当前部门是否是顶级部门
+                                // 如果不是，我们可以尝试获取每个顶级部门的子部门，看看当前部门是否在其中
+                                // 如果找到，那么该顶级部门就是当前部门的父部门
+
+                                // 先检查当前部门是否是顶级部门
+                                let isTopLevel = false;
+                                topDepartments.forEach(dept => {
+                                    if (dept.id === parentId) {
+                                        isTopLevel = true;
+                                        currentDeptInfo = dept;
+                                    }
+                                });
+
+                                if (isTopLevel) {
+                                    // 如果是顶级部门，显示所有顶级部门
+                                    displayDepartmentsList(topDepartments, parentId);
+                                } else {
+                                    // 使用childId参数获取父部门信息，这是更直接可靠的方法
+                                    fetch(`api.php?action=getDepartments&childId=${parentId}`)
+                                        .then(res => res.json())
+                                        .then(parentDept => {
+                                            if (parentDept && parentDept.id) {
+                                                // 获取当前部门的名称信息
+                                                let currentDept = null;
+                                                // 递归构建完整的部门路径
+                                                function buildCompletePath(childId, path = []) {
+                                                    return fetch(`api.php?action=getDepartments&childId=${childId}`)
+                                                        .then(res => res.json())
+                                                        .then(parent => {
+                                                            if (parent && parent.id) {
+                                                                // 将当前父部门添加到路径前面
+                                                                path.unshift({id: parent.id, name: parent.name, shortname: parent.shortname || parent.name});
+                                                                // 继续向上查找
+                                                                return buildCompletePath(parent.id, path);
+                                                            } else {
+                                                                // 已到达一级部门，返回完整路径
+                                                                return path;
+                                                            }
+                                                        })
+                                                        .catch(() => {
+                                                            // 出错时返回已构建的路径
+                                                            return path;
+                                                        });
+                                                }
+
+                                                // 先找到当前部门信息
+                                                return fetch(`api.php?action=getDepartments&parentId=${parentDept.id}`)
+                                                    .then(res => res.json())
+                                                    .then(siblingDepartments => {
+                                                        // 找到当前部门
+                                                        siblingDepartments.forEach(dept => {
+                                                            if (dept.id === parentId) {
+                                                                currentDept = dept;
+                                                            }
+                                                        });
+
+                                                        // 构建完整路径
+                                                        return buildCompletePath(parentId).then(completePath => {
+                                                            // 更新当前选择路径
+                                                            currentSelectPath = completePath;
+                                                            // 添加当前部门到路径末尾
+                                                            if (currentDept) {
+                                                                currentSelectPath.push({id: currentDept.id, name: currentDept.name, shortname: currentDept.shortname || currentDept.name});
+                                                            }
+
+                                                            // 显示同级部门列表和完整路径
+                                                            let html = '';
+
+                                                            // 显示完整路径
+                                                            if (currentSelectPath.length > 0) {
+                                                                html += '<div class="select-path">';
+                                                                currentSelectPath.forEach((item, index) => {
+                                                                    html += `<span class="path-item" data-id="${item.id}">${item.name}</span>`;
+                                                                    if (index < currentSelectPath.length - 1) {
+                                                                        html += ' / ';
+                                                                    }
+                                                                });
+                                                                html += '</div>';
+                                                            }
+
+                                                            // 显示同级部门列表
+                                                            html += '<div class="select-items">';
+                                                            siblingDepartments.forEach(item => {
+                                                                const isSelected = item.id === parentId;
+                                                                html += `<div class="select-item ${isSelected ? 'selected' : ''}" data-id="${item.id}" data-name="${item.name}" data-shortname="${item.shortname || item.name}">${item.name}</div>`;
+                                                            });
+                                                            html += '</div>';
+
+                                                            // 更新内容
+                                                            contentDiv.innerHTML = html;
+
+                                                            // 添加路径点击事件
+                                                            document.querySelectorAll('.path-item').forEach(item => {
+                                                                item.addEventListener('click', function() {
+                                                                    const id = parseInt(this.getAttribute('data-id'));
+                                                                    // 找到该路径项的索引
+                                                                    const index = currentSelectPath.findIndex(p => p.id === id);
+                                                                    if (index !== -1) {
+                                                                        // 移除该索引之后的所有路径项
+                                                                        currentSelectPath.splice(index + 1);
+                                                                        // 重新加载数据
+                                                                        loadSelectData(id);
+                                                                    }
+                                                                });
+                                                            });
+
+                                                            // 添加选项点击事件
+                                                            document.querySelectorAll('.select-item').forEach(item => {
+                                                                item.addEventListener('click', function() {
+                                                                    // 移除所有选择项的选中状态
+                                                                    document.querySelectorAll('.select-item').forEach(selectItem => {
+                                                                        selectItem.classList.remove('selected');
+                                                                    });
+
+                                                                    // 添加当前项的选中状态
+                                                                    this.classList.add('selected');
+
+                                                                    const id = parseInt(this.getAttribute('data-id'));
+                                                                    const name = this.getAttribute('data-name');
+                                                                    const shortname = this.getAttribute('data-shortname');
+
+                                                                    // 添加到选择路径
+                                                                    currentSelectPath.push({
+                                                                        id: id,
+                                                                        name: name,
+                                                                        shortname: shortname
+                                                                    });
+
+                                                                    // 加载下一级数据
+                                                                    loadSelectData(id);
+                                                                });
+                                                            });
+                                                        });
+                                                    })
+                                                    .catch(() => {
+                                                        contentDiv.innerHTML = `<div class="error">加载同级部门失败</div>`;
+                                                    });
+                                            } else {
+                                                contentDiv.innerHTML = `<div class="error">无法找到部门的同级部门</div>`;
+                                            }
+                                        })
+                                        .catch(() => {
+                                            contentDiv.innerHTML = `<div class="error">获取父部门信息失败</div>`;
+                                        });
+                                }
+
+                                // 显示部门列表的函数
+                                function displayDepartmentsList(departments, selectedId) {
+                                    if (departments && departments.length > 0) {
+                                        let html = '';
+
+                                        // 显示部门列表
+                                        html += '<div class="select-items">';
+                                        departments.forEach(item => {
+                                            const isSelected = item.id === selectedId;
+                                            html += `<div class="select-item ${isSelected ? 'selected' : ''}" data-id="${item.id}" data-name="${item.name}" data-shortname="${item.shortname || item.name}">${item.name}</div>`;
+                                        });
+                                        html += '</div>';
+
+                                        // 更新内容
+                                        contentDiv.innerHTML = html;
+
+                                        // 添加选项点击事件
+                                        document.querySelectorAll('.select-item').forEach(item => {
+                                            item.addEventListener('click', function() {
+                                                // 移除所有选择项的选中状态
+                                                document.querySelectorAll('.select-item').forEach(selectItem => {
+                                                    selectItem.classList.remove('selected');
+                                                });
+
+                                                // 添加当前项的选中状态
+                                                this.classList.add('selected');
+
+                                                const id = parseInt(this.getAttribute('data-id'));
+                                                const name = this.getAttribute('data-name');
+                                                const shortname = this.getAttribute('data-shortname');
+
+                                                // 添加到选择路径
+                                                currentSelectPath.push({
+                                                    id: id,
+                                                    name: name,
+                                                    shortname: shortname
+                                                });
+
+                                                // 加载下一级数据
+                                                loadSelectData(id);
+                                            });
+                                        });
+                                    } else {
+                                        // 如果没有同级部门，显示当前部门
+                                        contentDiv.innerHTML = `<div class="select-items"><div class="select-item selected" data-id="${selectedId}" data-name="当前部门">当前部门</div></div>`;
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                console.error('加载部门数据失败:', error);
+                                contentDiv.innerHTML = `<div class="error">加载部门列表失败</div>`;
+                            });
+                    } else if (currentSelectPath.length > 0) {
+                        // 如果不是初始加载，且已到达叶子节点，自动确认选择
+                        const lastItem = currentSelectPath[currentSelectPath.length - 1];
+
+                        let html = '';
+
+                        // 显示当前路径
+                        html += '<div class="select-path">';
+                        currentSelectPath.forEach((item, index) => {
+                            html += `<span class="path-item" data-id="${item.id}">${item.name}</span>`;
+                            if (index < currentSelectPath.length - 1) {
+                                html += ' / ';
+                            }
+                        });
+                        html += '</div>';
+
+                        // 显示已选择的叶子节点
+                        html += '<div class="select-items">';
+                        html += `<div class="select-item selected" data-id="${lastItem.id}" data-name="${lastItem.name}" data-shortname="${lastItem.shortname}">${lastItem.name}</div>`;
+                        html += '</div>';
+
+                        // 更新内容
+                        contentDiv.innerHTML = html;
+
+                        // 自动确认选择
+                        setTimeout(() => {
+                            confirmSelect();
+                        }, 300);
+                    }
+                }
+            })
+            .catch(error => {
+                contentDiv.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            });
+    }
+
+    // 选择项
+    function selectItem(id, name, shortname) {
+        if (currentSelectType === 'problem-department') {
+            // 更新输入框的值
+            const pathStr = currentSelectPath.map(item => item.shortname || item.name).join('/');
+            document.getElementById('problem-department').value = pathStr;
+            document.getElementById('problem-department-id').value = id;
+
+            // 关闭模态框
+            closeSelectModal();
+        }
+    }
+
+    // 重置选择
+    function resetSelect() {
+        currentSelectPath = [];
+        loadSelectData(0);
+    }
+
+    // 确认选择
+    function confirmSelect() {
+        if (currentSelectPath.length > 0) {
+            const lastItem = currentSelectPath[currentSelectPath.length - 1];
+            selectItem(lastItem.id, lastItem.name, lastItem.shortname);
+        }
+    }
+
+    // 选择默认部门（设备包保部门）
+    function selectDefaultDepartment() {
+        if (globalDeviceData && globalDeviceData.department_name && globalDeviceData.cid) {
+            document.getElementById('problem-department').value = globalDeviceData.department_name;
+            document.getElementById('problem-department-id').value = globalDeviceData.cid;
+            closeSelectModal();
+        }
+    }
+
     // 显示删除确认对话框
     function showDeleteConfirmDialog(wid, type) {
         // 创建确认对话框
@@ -2303,7 +2925,7 @@ include 'header.php';
         // 合并标签中的名字和输入框中的名字，并去除重复项
         let workers = '';
         const workerNames = new Set();
-        
+
         // 添加标签中的名字
         if (workersHidden) {
             workersHidden.split('||').forEach(name => {
@@ -2312,20 +2934,20 @@ include 'header.php';
                 }
             });
         }
-        
+
         // 添加输入框中的名字
         if (workersInput.trim()) {
             // 处理输入框中的多个名字（可能包含各种分隔符）
             const separators = [' ', '、', ',', '，', ';', '；', '||', '\uff0c', '\uff1b'];
             let names = [workersInput.trim()];
-            
+
             // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
             separators.forEach(sep => {
                 // 转义特殊字符
                 const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 names = names.flatMap(name => name.split(new RegExp(escapedSep)));
             });
-            
+
             // 添加到集合中（自动去重）
             names.forEach(name => {
                 if (name.trim()) {
@@ -2333,10 +2955,10 @@ include 'header.php';
                 }
             });
         }
-        
+
         // 转换为字符串格式
         workers = Array.from(workerNames).join('||');
-        
+
         // 更新隐藏输入框的值
         document.getElementById('workers').value = workers;
 
@@ -2367,21 +2989,21 @@ include 'header.php';
         // 分别验证日期和时间
         const dateValue = document.getElementById('work-date-date').value;
         const timeValue = document.getElementById('work-date-time').value;
-        
+
         if (!dateValue) {
             errors.push({
                 elements: [dateInput]
             });
             hasError = true;
         }
-        
+
         if (!timeValue) {
             errors.push({
                 elements: [timeInput]
             });
             hasError = true;
         }
-        
+
         // 如果日期或时间有一个为空，标签也显示错误
         if (!dateValue || !timeValue) {
             if (workDateLabel) {
@@ -2406,7 +3028,7 @@ include 'header.php';
         // 根据记录类型选择不同的API action
         let apiAction = '';
         let requestData = {};
-        
+
         if (recordType === '1') {
             // 巡视记录
             apiAction = 'addInspection';
@@ -2426,7 +3048,7 @@ include 'header.php';
                 content: remark
             };
         }
-        
+
         fetch('api.php?action=' + apiAction, {
                 method: 'POST',
                 headers: {
@@ -2465,6 +3087,9 @@ include 'header.php';
         // 如果有全局设备数据，设置部门信息
         if (globalDeviceData) {
             document.getElementById('problem-sid').value = globalDeviceData.sid || '';
+            // 设置默认责任部门为设备包保部门
+            document.getElementById('problem-department').value = globalDeviceData.department_name || '';
+            document.getElementById('problem-department-id').value = globalDeviceData.cid || '';
         }
 
         // 重置错误状态样式
@@ -2484,6 +3109,11 @@ include 'header.php';
 
         // 保存上传器实例，方便在提交时使用
         modal.imageUploader = imageUploader;
+
+        // 添加责任部门选择的点击事件
+        document.getElementById('problem-department').addEventListener('click', function() {
+            openSelectModal('problem-department', '部门');
+        });
 
         modal.style.display = 'flex';
         // 阻止背景页面滚动
@@ -2530,7 +3160,7 @@ include 'header.php';
         // 合并标签中的名字和输入框中的名字，并去除重复项
         let creator = '';
         const creatorNames = new Set();
-        
+
         // 添加标签中的名字
         if (creatorHidden) {
             creatorHidden.split('||').forEach(name => {
@@ -2539,20 +3169,20 @@ include 'header.php';
                 }
             });
         }
-        
+
         // 添加输入框中的名字
         if (creatorInput.trim()) {
             // 处理输入框中的多个名字（可能包含各种分隔符）
             const separators = [' ', '、', ',', '，', ';', '；', '||', '\uff0c', '\uff1b'];
             let names = [creatorInput.trim()];
-            
+
             // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
             separators.forEach(sep => {
                 // 转义特殊字符
                 const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 names = names.flatMap(name => name.split(new RegExp(escapedSep)));
             });
-            
+
             // 添加到集合中（自动去重）
             names.forEach(name => {
                 if (name.trim()) {
@@ -2560,10 +3190,10 @@ include 'header.php';
                 }
             });
         }
-        
+
         // 转换为字符串格式
         creator = Array.from(creatorNames).join('||');
-        
+
         // 更新隐藏输入框的值
         document.getElementById('problem-creator').value = creator;
 
@@ -2599,21 +3229,21 @@ include 'header.php';
         // 分别验证日期和时间
         const dateValue = document.getElementById('problem-date-date').value;
         const timeValue = document.getElementById('problem-date-time').value;
-        
+
         if (!dateValue) {
             errors.push({
                 elements: [dateInput]
             });
             hasError = true;
         }
-        
+
         if (!timeValue) {
             errors.push({
                 elements: [timeInput]
             });
             hasError = true;
         }
-        
+
         // 如果日期或时间有一个为空，标签也显示错误
         if (!dateValue || !timeValue) {
             if (createTimeLabel) {
@@ -2642,6 +3272,10 @@ include 'header.php';
         formData.append('report_time', createTime); // API使用report_time参数
         formData.append('description', description);
         formData.append('urgency', '1'); // 默认紧急程度为1（一般）
+
+        // 添加责任部门ID
+        const departmentId = document.getElementById('problem-department-id').value;
+        formData.append('department_id', departmentId);
 
         // 处理照片上传（如果有）
         if (modal.imageUploader) {

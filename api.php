@@ -124,16 +124,47 @@ switch ($action) {
 function getDepartments() {
     global $pdo;
     
-    $parentId = isset($_GET['parentId']) ? intval($_GET['parentId']) : 0;
-    
-    try {
-        $stmt = $pdo->prepare("SELECT cid as id, full_name as name, short_name as shortname FROM departments WHERE parent_id = :parentId AND status = 1 ORDER BY cid ASC");
-        $stmt->execute(['parentId' => $parentId]);
-        $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // 检查是否提供了childId参数
+    if (isset($_GET['childId'])) {
+        $childId = intval($_GET['childId']);
         
-        echo json_encode($departments);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => '获取部门数据失败: ' . $e->getMessage()]);
+        try {
+            // 先查询子部门记录，获取parent_id
+            $stmt = $pdo->prepare("SELECT parent_id FROM departments WHERE cid = :childId AND status = 1");
+            $stmt->execute(['childId' => $childId]);
+            $childDept = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($childDept && $childDept['parent_id'] > 0) {
+                // 再查询父部门记录
+                $parentId = $childDept['parent_id'];
+                $stmt = $pdo->prepare("SELECT cid as id, full_name as name, short_name as shortname FROM departments WHERE cid = :parentId AND status = 1");
+                $stmt->execute(['parentId' => $parentId]);
+                $parentDept = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($parentDept) {
+                    echo json_encode($parentDept);
+                } else {
+                    echo json_encode(['success' => false, 'message' => '未找到父部门信息']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'message' => '未找到子部门或该部门没有父部门']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => '获取父部门数据失败: ' . $e->getMessage()]);
+        }
+    } else {
+        // 原有逻辑：通过parentId查询子部门
+        $parentId = isset($_GET['parentId']) ? intval($_GET['parentId']) : 0;
+        
+        try {
+            $stmt = $pdo->prepare("SELECT cid as id, full_name as name, short_name as shortname FROM departments WHERE parent_id = :parentId AND status = 1 ORDER BY cid ASC");
+            $stmt->execute(['parentId' => $parentId]);
+            $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode($departments);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => '获取部门数据失败: ' . $e->getMessage()]);
+        }
     }
 }
 
@@ -513,11 +544,16 @@ function addProblem() {
         $description = isset($data['description']) ? $data['description'] : '';
         $urgency = isset($data['urgency']) ? $data['urgency'] : '';
         
-        // 获取部门ID
-        $stmt = $pdo->prepare("SELECT cid FROM devices WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $did]);
-        $device = $stmt->fetch();
-        $cid = $device ? $device['cid'] : '';
+        // 获取部门ID - 优先使用客户端提交的department_id参数
+        $cid = isset($data['department_id']) ? $data['department_id'] : '';
+        
+        // 如果客户端没有提交部门ID或者提交的值为空，则从设备表获取
+        if (empty($cid)) {
+            $stmt = $pdo->prepare("SELECT cid FROM devices WHERE did = :did AND status = 1");
+            $stmt->execute(['did' => $did]);
+            $device = $stmt->fetch();
+            $cid = $device ? $device['cid'] : '';
+        }
         
         // 生成问题ID（10位数）
         $pid = generateProblemId();
@@ -562,10 +598,9 @@ function addProblem() {
 
 // 处理问题照片上传
 function processProblemPhotos($pid) {
-    $year = substr($pid, 0, 4);
-    $month = date('m');
-    $uploadDir = __DIR__ . '/uploads/problems/' . $year . '/' . $month . '/';
-    $webDir = '/uploads/problems/' . $year . '/' . $month . '/';
+    // 设置上传目录（统一放在problems文件夹下，不按日期分类）
+    $uploadDir = __DIR__ . '/uploads/problems/';
+    $webDir = '/uploads/problems/';
     
     // 确保上传目录存在
     if (!is_dir($uploadDir)) {
@@ -579,9 +614,14 @@ function processProblemPhotos($pid) {
         $error = $_FILES['photos']['error'][$key];
         
         if ($error === UPLOAD_ERR_OK) {
-            // 生成唯一文件名
+            // 获取原始文件名和扩展名
             $ext = pathinfo($name, PATHINFO_EXTENSION);
-            $linkName = 'problem_' . $pid . '_' . uniqid() . '.' . $ext;
+            
+            // 生成唯一文件名: problem_10位时间戳.文件哈希值.文件类型
+            $timestamp = time();
+            // 计算文件哈希值
+            $fileHash = md5_file($tmpName);
+            $linkName = 'problem_' . $timestamp . '.' . $fileHash . '.' . $ext;
             $fileSize = filesize($tmpName);
             
             // 移动文件
@@ -619,8 +659,9 @@ function generateProblemId() {
 
 // 处理问题附件上传
 function processProblemAttachments($pid) {
-    $uploadDir = __DIR__ . '/uploads/problems/' . substr($pid, 0, 4) . '/';
-    $webDir = '/uploads/problems/' . substr($pid, 0, 4) . '/';
+    // 设置上传目录（统一放在problems文件夹下，不按日期分类）
+    $uploadDir = __DIR__ . '/uploads/problems/';
+    $webDir = '/uploads/problems/';
     
     // 确保上传目录存在
     if (!is_dir($uploadDir)) {
@@ -1285,11 +1326,9 @@ function uploadProblemPhoto() {
             return;
         }
         
-        // 设置上传目录（按年份和月份组织）
-        $year = date('Y');
-        $month = date('m');
-        $uploadDir = __DIR__ . '/uploads/problems/' . $year . '/' . $month . '/';
-        $rootDir = 'uploads/problems/' . $year . '/' . $month . '/';
+        // 设置上传目录（统一放在problems文件夹下，不按日期分类）
+        $uploadDir = __DIR__ . '/uploads/problems/';
+        $rootDir = 'uploads/problems/';
         
         // 创建目录（如果不存在）
         if (!is_dir($uploadDir)) {
@@ -1300,10 +1339,11 @@ function uploadProblemPhoto() {
         $originalName = basename($_FILES['file']['name']);
         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
         
-        // 生成唯一的链接名称
+        // 生成唯一的链接名称: problem_10位时间戳.文件哈希值.文件类型
         $timestamp = time();
-        $randomString = substr(md5(uniqid()), 0, 8);
-        $linkName = $timestamp . '_' . $randomString . '.' . $extension;
+        // 计算文件哈希值
+        $fileHash = md5_file($_FILES['file']['tmp_name']);
+        $linkName = 'problem_' . $timestamp . '.' . $fileHash . '.' . $extension;
         
         // 构建完整的文件路径
         $filePath = $uploadDir . $linkName;
