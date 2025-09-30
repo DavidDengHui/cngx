@@ -3065,12 +3065,12 @@ include 'header.php';
                     if (recordType === '1') {
                         document.getElementById('inspection-content').innerHTML = '<div class="loading">加载中...</div>';
                         loadDataWithPagination('inspection');
+                        showNotification('已添加巡视记录！', 'success');
                     } else if (recordType === '2') {
                         document.getElementById('maintenance-content').innerHTML = '<div class="loading">加载中...</div>';
                         loadDataWithPagination('maintenance');
+                        showNotification('已添加检修记录！', 'success');
                     }
-
-                    alert('添加成功');
                 } else {
                     alert('添加失败: ' + data.message);
                 }
@@ -3299,8 +3299,8 @@ include 'header.php';
                     // 重新加载问题记录
                     document.getElementById('problem-content').innerHTML = '<div class="loading">加载中...</div>';
                     loadDataWithPagination('problems');
-
-                    alert('添加成功');
+                    
+                    showNotification('已添加问题记录！', 'success');
                 } else {
                     alert('添加失败: ' + data.message);
                 }
@@ -3337,7 +3337,7 @@ include 'header.php';
             .then(data => {
                 if (data.success) {
                     // 显示删除成功提示
-                    showNotification('已删除1条记录！', 'success');
+                    showNotification('已删除1条记录！', 'delete');
 
                     // 重新加载对应记录
                     if (type === 'inspection') {
@@ -3376,7 +3376,14 @@ include 'header.php';
         notification.style.position = 'fixed';
         notification.style.top = '80px'; // 确保低于header导航栏的高度
         notification.style.right = '-400px'; // 初始位置在右侧屏幕外
-        notification.style.backgroundColor = '#e74c3c';
+        // 根据通知类型设置不同的背景色
+        if (type === 'success') {
+            notification.style.backgroundColor = '#27ae60'; // 绿色 - 用于添加操作
+        } else if (type === 'delete') {
+            notification.style.backgroundColor = '#e74c3c'; // 红色 - 用于删除操作
+        } else {
+            notification.style.backgroundColor = '#e74c3c'; // 红色 - 用于错误信息
+        }
         notification.style.color = 'white';
         notification.style.padding = '12px 24px';
         notification.style.borderRadius = '4px';
@@ -4937,7 +4944,7 @@ include 'header.php';
 
                         problems.forEach((problem, index) => {
                             const statusClass = problem.flow === 0 ? 'status-red' : 'status-green';
-                            const statusText = problem.flow === 0 ? '已创建' : '已解决';
+                        const statusText = problem.flow === 0 ? '已录入' : '已闭环';
 
                             // 计算正确的序号（考虑分页）
                             const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;

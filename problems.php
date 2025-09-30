@@ -1,10 +1,10 @@
 <?php
-// 检查登录状态
-include 'common/check_login.php';
-include 'common/connect_db.php';
+// 引入配置文件
+include 'config.php';
 
 // 页面标题
-$pageTitle = "问题管理";
+$page_title = "问题管理";
+$nav_title = "问题管理";
 
 // 获取当前页面类型
 $pid = isset($_GET['pid']) ? $_GET['pid'] : '';
@@ -24,18 +24,8 @@ $jsParams = [
     'keyword' => isset($_GET['keyword']) ? $_GET['keyword'] : ''
 ];
 
+include 'header.php';
 ?>
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $pageTitle; ?></title>
-    <link rel="stylesheet" href="assets/css/common.css">
-    <link rel="stylesheet" href="assets/css/problems.css">
-</head>
-<body>
-    <?php include 'common/header.php'; ?>
     
     <div class="container">
         <div class="content">
@@ -84,9 +74,8 @@ $jsParams = [
                             <label for="status">问题状态:</label>
                             <select id="status" class="form-control">
                                 <option value="">全部</option>
-                                <option value="0">未解决</option>
-                                <option value="1">处理中</option>
-                                <option value="2">已解决</option>
+                                <option value="0">已录入</option>
+                                <option value="1">已闭环</option>
                             </select>
                         </div>
                     </div>
@@ -133,7 +122,7 @@ $jsParams = [
         </div>
     </div>
     
-    <?php include 'common/footer.php'; ?>
+    <?php include 'footer.php'; ?>
     
     <script>
         // 保存PHP传递的参数
@@ -519,5 +508,5 @@ $jsParams = [
             loadProblemList(page);
         }
     </script>
-</body>
-</html>
+
+<?php include 'footer.php'; ?>
