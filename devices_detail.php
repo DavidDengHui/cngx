@@ -3916,6 +3916,7 @@ include 'header.php';
 
     .collapse-content {
         padding: 20px;
+        overflow-x: auto;
     }
 
     .action-buttons {
@@ -3938,11 +3939,16 @@ include 'header.php';
         background-color: #e67e22;
     }
 
-    .drawings-table,
-    .records-table,
+    .drawings-table,    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    /* 问题记录列表固定宽度 */
     .problems-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: auto; /* 自动表格布局，适应内容 */
     }
 
     /* 默认表格样式 */
@@ -4039,14 +4045,51 @@ include 'header.php';
         background-color: #c0392b;
     }
 
+    .status-tag {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: normal;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        min-width: 45px;
+    }
+
     .status-red {
+        background-color: #fee;
         color: #e74c3c;
-        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+
+    .status-red:hover {
+        background-color: #e74c3c;
+        color: white;
     }
 
     .status-green {
+        background-color: #efe;
         color: #27ae60;
-        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+
+    .status-green:hover {
+        background-color: #27ae60;
+        color: white;
+    }
+
+    /* 表格行悬浮或点击时状态标签变色 */
+    .problems-table tr:hover .status-red,
+    .problems-table tr:active .status-red {
+        background-color: #e74c3c;
+        color: white;
+    }
+
+    .problems-table tr:hover .status-green,
+    .problems-table tr:active .status-green {
+        background-color: #27ae60;
+        color: white;
     }
 
     .no-result {
@@ -4442,7 +4485,7 @@ include 'header.php';
         color: white;
         border-color: #3498db;
     }
-    
+
     /* 激活状态的页码按钮在鼠标悬浮时保持原有背景色，只改变边框颜色 */
     .pagination-btn.active:hover:not(:disabled) {
         background-color: #3498db;
@@ -4759,10 +4802,10 @@ include 'header.php';
             'drawings': 'drawings-content',
             'inspection': 'inspection-content'
         };
-        
+
         const contentId = typeToContentId[type] || (type + '-content');
         const contentDiv = document.getElementById(contentId);
-        
+
         if (contentDiv) {
             contentDiv.appendChild(paginationContainer);
         } else {
@@ -5161,7 +5204,8 @@ include 'header.php';
 
                     if (problems.length > 0) {
                         let html = '<table class="problems-table">';
-                        html += '<thead><tr><th>序号</th><th>问题描述</th><th>发现时间</th><th>当前状态</th></tr></thead>';
+                        // 移除发现时间列，为问题描述列留出更多空间
+                        html += '<thead><tr><th style="min-width: 50px; width: 50px;">序号</th><th style="width: auto; overflow: hidden; text-overflow: ellipsis;">问题描述</th><th style="min-width: 60px; width: 60px;">状态</th></tr></thead>';
                         html += '<tbody>';
 
                         problems.forEach((problem, index) => {
@@ -5171,7 +5215,8 @@ include 'header.php';
                             // 计算正确的序号（考虑分页）
                             const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
-                            html += `<tr><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td>${problem.create_time}</td><td class="${statusClass}">${statusText}</td></tr>`;
+                            // 将发现时间作为数据属性存储，用于悬浮提示
+                            html += `<tr data-create-time="${problem.create_time}"><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td><span class="status-tag ${statusClass}">${statusText}</span></td></tr>`;
                         });
 
                         html += '</tbody></table>';
@@ -5264,4 +5309,160 @@ include 'header.php';
 
         document.body.removeChild(textArea);
     }
+
+    // 添加问题记录行的悬浮提示功能
+    function initProblemTooltip() {
+        // 创建气泡容器
+        let tooltipContainer = document.createElement('div');
+        tooltipContainer.className = 'problem-tooltip-container';
+        tooltipContainer.style.cssText = `
+            position: absolute;
+            z-index: 1000;
+            display: none;
+            pointer-events: none;
+        `;
+
+        // 创建气泡内容
+        let tooltip = document.createElement('div');
+        tooltip.className = 'problem-tooltip';
+        tooltip.style.cssText = `
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            position: relative;
+            pointer-events: auto;
+        `;
+
+        // 创建文本容器
+        let tooltipText = document.createElement('span');
+        tooltipText.className = 'problem-tooltip-text';
+        tooltip.appendChild(tooltipText);
+
+        // 创建尖角
+        let tooltipArrow = document.createElement('div');
+        tooltipArrow.className = 'problem-tooltip-arrow';
+        tooltipArrow.style.cssText = `
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+        `;
+
+        tooltip.appendChild(tooltipArrow);
+        tooltipContainer.appendChild(tooltip);
+        document.body.appendChild(tooltipContainer);
+
+        // 记录当前显示气泡的行
+        let currentVisibleRow = null;
+
+        // 点击行显示/隐藏气泡
+        document.addEventListener('click', function(e) {
+            const row = e.target.closest('.problems-table tr');
+            const isTableElement = e.target.closest('.problems-table');
+
+            // 如果点击的是当前显示气泡的行，则隐藏气泡
+            if (row === currentVisibleRow) {
+                tooltipContainer.style.display = 'none';
+                currentVisibleRow = null;
+                return;
+            }
+
+            // 如果点击的是有效行，则显示气泡（不隐藏之前的气泡）
+            if (row && row.dataset.createTime) {
+                const createTime = row.dataset.createTime;
+                const tooltipText = tooltip.querySelector('.problem-tooltip-text');
+                tooltipText.textContent = '发现时间: ' + createTime;
+
+                // 定位到状态标签上方
+                updateTooltipPosition(row);
+
+                // 先临时显示气泡以正确测量尺寸
+                tooltipContainer.style.opacity = '0';
+                tooltipContainer.style.display = 'block';
+                
+                // 强制重新计算位置
+                updateTooltipPosition(row);
+                
+                // 恢复气泡可见性
+                setTimeout(() => {
+                    tooltipContainer.style.opacity = '1';
+                }, 10);
+                
+                currentVisibleRow = row;
+                // 更新全局引用
+                window.currentProblemTooltip = {
+                    container: tooltipContainer,
+                    tooltip: tooltip,
+                    updatePosition: updateTooltipPosition
+                };
+                window.currentProblemTooltipRow = row;
+            } else if (!isTableElement) {
+                // 只有当点击表格外部区域时，才隐藏气泡
+                // 这样确保点击表格内的任何行时，气泡都不会消失
+                tooltipContainer.style.display = 'none';
+                currentVisibleRow = null;
+                window.currentProblemTooltipRow = null;
+            }
+        });
+
+        // 更新提示位置（固定在状态标签上方）
+        function updateTooltipPosition(row) {
+            // 找到状态标签元素
+            const statusTag = row.querySelector('.status-tag');
+            if (!statusTag) return;
+
+            // 确保tooltip元素已经渲染
+            if (!tooltip.offsetWidth) {
+                // 如果还没渲染，强制显示一下以获取尺寸
+                const originalVisibility = tooltip.style.visibility;
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.display = 'block';
+            }
+
+            // 获取状态标签和气泡的位置信息
+            const statusRect = statusTag.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+
+            // 重置tooltip的visibility
+            tooltip.style.visibility = '';
+
+            // 设置气泡容器的位置
+            tooltipContainer.style.position = 'fixed';
+
+            // 计算水平居中位置
+            let left = statusRect.left + statusRect.width / 2 - tooltipRect.width / 2;
+
+            // 确保气泡不会超出视口
+            if (left < 0) left = 0;
+            if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width;
+
+            // 设置最终位置
+            tooltipContainer.style.left = left + 'px';
+            tooltipContainer.style.top = (statusRect.top - tooltipRect.height - 10) + 'px'; // 显示在状态标签上方，不遮挡行内容
+        }
+    }
+
+    // 页面加载完成后初始化悬浮提示功能
+        document.addEventListener('DOMContentLoaded', initProblemTooltip);
+
+        // 页面滚动时更新气泡位置
+        function handleScroll() {
+            // 确保当前有显示的气泡
+            if (window.currentProblemTooltip && window.currentProblemTooltipRow) {
+                // 重新计算气泡位置
+                window.currentProblemTooltip.updatePosition(window.currentProblemTooltipRow);
+            }
+        }
+
+        // 添加滚动事件监听器
+        window.addEventListener('scroll', handleScroll);
 </script>

@@ -26,6 +26,52 @@ $jsParams = [
 
 include 'header.php';
 ?>
+<style>
+/* 问题状态标签样式 */
+.status-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-red {
+    background-color: #fee;
+    color: #e74c3c;
+    transition: all 0.3s ease;
+}
+
+.status-red:hover {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.status-green {
+    background-color: #efe;
+    color: #27ae60;
+    transition: all 0.3s ease;
+}
+
+.status-green:hover {
+    background-color: #27ae60;
+    color: white;
+}
+
+/* 表格行悬浮或点击时状态标签变色 */
+.data-table tr:hover .status-red,
+.data-table tr:active .status-red {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.data-table tr:hover .status-green,
+.data-table tr:active .status-green {
+    background-color: #27ae60;
+    color: white;
+}
+</style>
     
     <div class="container">
         <div class="content">
@@ -98,8 +144,7 @@ include 'header.php';
                                 <th>所属站场</th>
                                 <th>设备名称</th>
                                 <th>设备类型</th>
-                                <th>问题描述</th>
-                                <th>报告时间</th>
+                                <th style="width: auto;">问题描述</th>
                                 <th>紧急程度</th>
                                 <th>问题状态</th>
                                 <th>操作</th>
@@ -160,6 +205,9 @@ include 'header.php';
                     document.getElementById('keyword').value = '';
                     loadProblemList(1);
                 });
+
+                // 初始化问题记录行的悬浮提示功能
+                initProblemTooltip();
                 
                 // 绑定回车键搜索
                 document.getElementById('keyword').addEventListener('keypress', function(e) {
@@ -413,14 +461,13 @@ include 'header.php';
             let html = '';
             problems.forEach(problem => {
                 html += `
-                    <tr>
+                    <tr data-report-time="${problem.report_time}">
                         <td>${problem.pid}</td>
                         <td>${problem.department_name}</td>
                         <td>${problem.station_name}</td>
                         <td>${problem.device_name}</td>
                         <td>${problem.type_name}</td>
                         <td class="description-cell">${problem.description}</td>
-                        <td>${formatDate(problem.report_time)}</td>
                         <td><span class="urgency-tag urgency-${problem.urgency}">${problem.urgency_text}</span></td>
                         <td><span class="status-tag status-${problem.status}">${problem.status_text}</span></td>
                         <td>
@@ -506,6 +553,137 @@ include 'header.php';
             
             pageInput.value = page;
             loadProblemList(page);
+        }
+        
+        // 添加问题记录行的悬浮提示功能
+        function initProblemTooltip() {
+            // 创建悬浮提示元素
+            let tooltip = document.createElement('div');
+            tooltip.className = 'problem-tooltip';
+            tooltip.style.cssText = `
+                position: fixed;
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                pointer-events: auto;
+                z-index: 1000;
+                display: none;
+                white-space: nowrap;
+            `;
+            
+            // 创建尖角元素
+            let arrow = document.createElement('div');
+            arrow.style.cssText = `
+                position: absolute;
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid rgba(0, 0, 0, 0.8);
+                bottom: -6px;
+                left: 50%;
+                transform: translateX(-50%);
+            `;
+            tooltip.appendChild(arrow);
+            
+            document.body.appendChild(tooltip);
+            
+            // 跟踪当前显示的行
+            let currentVisibleRow = null;
+            
+            // 格式化日期
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '';
+                return new Date(dateStr).toLocaleString('zh-CN');
+            };
+            
+            // 定位到状态标签上方
+            function positionTooltipToStatusLabel(row) {
+                // 找到状态标签单元格（第8列）
+                const statusCell = row.cells[7]; // 假设状态是第8列
+                if (statusCell) {
+                    const statusRect = statusCell.getBoundingClientRect();
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    
+                    // 计算位置，显示在状态标签上方，不遮挡当前行
+                    let left = statusRect.left + statusRect.width / 2 - tooltipRect.width / 2;
+                    let top = statusRect.top - tooltipRect.height - 10; // 10px的间距
+                    
+                    // 确保提示不会超出视口
+                    if (left < 0) left = 0;
+                    if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width;
+                    
+                    tooltip.style.left = left + 'px';
+                    tooltip.style.top = top + 'px';
+                }
+            }
+            
+            // 点击行切换显示/隐藏提示
+            document.addEventListener('click', function(e) {
+                const row = e.target.closest('.data-table tr');
+                
+                // 如果点击的是当前显示的行，则隐藏提示
+                if (row === currentVisibleRow) {
+                    tooltip.style.display = 'none';
+                    currentVisibleRow = null;
+                    return;
+                }
+                
+                // 如果点击的是其他行且有报告时间数据，则显示提示
+                if (row && row.dataset.reportTime) {
+                    const reportTime = row.dataset.reportTime;
+                    tooltip.textContent = '报告时间: ' + formatDate(reportTime);
+                    
+                    // 先临时显示气泡以正确测量尺寸
+                    tooltip.style.opacity = '0';
+                    tooltip.style.display = 'block';
+                    
+                    // 确保tooltip元素已经渲染
+                    if (!tooltip.offsetWidth) {
+                        // 如果还没渲染，强制显示一下以获取尺寸
+                        const originalVisibility = tooltip.style.visibility;
+                        tooltip.style.visibility = 'hidden';
+                        tooltip.style.display = 'block';
+                        
+                        // 重置visibility
+                        tooltip.style.visibility = originalVisibility;
+                    }
+                    
+                    positionTooltipToStatusLabel(row);
+                    
+                    // 恢复气泡可见性
+                    setTimeout(() => {
+                        tooltip.style.opacity = '1';
+                    }, 10);
+                      
+                    currentVisibleRow = row;
+                    // 更新全局引用
+                    window.currentProblemsTooltip = {
+                        tooltip: tooltip,
+                        updatePosition: positionTooltipToStatusLabel
+                    };
+                    window.currentProblemsTooltipRow = row;
+                } else if (currentVisibleRow) {
+                    // 如果点击的不是行且有显示的提示，则隐藏提示
+                    tooltip.style.display = 'none';
+                    currentVisibleRow = null;
+                    window.currentProblemsTooltipRow = null;
+                }
+            });
+            
+            // 页面滚动时更新气泡位置
+            function handleProblemsScroll() {
+                // 确保当前有显示的气泡
+                if (window.currentProblemsTooltip && window.currentProblemsTooltipRow) {
+                    // 重新计算气泡位置
+                    window.currentProblemsTooltip.updatePosition(window.currentProblemsTooltipRow);
+                }
+            }
+        
+            // 添加滚动事件监听器
+            window.addEventListener('scroll', handleProblemsScroll);
         }
     </script>
 
