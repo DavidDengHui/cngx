@@ -7,3 +7,4 @@ Thumbs.db
 *.sql
 .well-known/
 .user.ini
+sync_to_remote.sh
