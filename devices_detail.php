@@ -223,7 +223,7 @@ include 'header.php';
                 <input type="hidden" id="record-did" value="<?php echo $did; ?>">
 
                 <div class="form-group">
-                    <label for="workers-input">作业人员：</label>
+                    <label for="workers-input">作业人员：<span class="required">*</span></label>
                     <div class="workers-input-wrapper">
                         <div id="workers-tags" class="workers-tags"></div>
                         <input type="text" id="workers-input" class="workers-input" placeholder="多个姓名请使用空格分隔">
@@ -232,7 +232,7 @@ include 'header.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="work-date">作业时间：</label>
+                    <label for="work-date">作业时间：<span class="required">*</span></label>
                     <input type="datetime-local" id="work-date" required>
                 </div>
 
@@ -263,19 +263,12 @@ include 'header.php';
                 <input type="hidden" id="problem-photos">
 
                 <div class="form-group">
-                    <label for="problem-description">问题描述：</label>
+                    <label for="problem-description">问题描述：<span class="required">*</span></label>
                     <textarea id="problem-description" rows="4" required></textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="problem-photos-upload">问题照片：</label>
-                    <input type="file" id="problem-photos-upload" multiple accept=".jpg,.jpeg,.png">
-                    <div id="uploaded-photos" class="uploaded-photos-container"></div>
-                    <p class="upload-note">支持的文件格式：JPG、PNG</p>
-                </div>
-
-                <div class="form-group">
-                    <label for="problem-creator-input">发现人：</label>
+                    <label for="problem-creator-input">发现人：<span class="required">*</span></label>
                     <div class="workers-input-wrapper">
                         <div id="creator-tags" class="workers-tags"></div>
                         <input type="text" id="problem-creator-input" class="workers-input" placeholder="多个姓名请使用空格分隔">
@@ -284,16 +277,23 @@ include 'header.php';
                 </div>
 
                 <div class="form-group">
-                    <label for="problem-date">发现时间：</label>
+                    <label for="problem-date">发现时间：<span class="required">*</span></label>
                     <input type="datetime-local" id="problem-date" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="problem-department">责任部门：</label>
+                    <label>责任部门：<span class="required">*</span></label>
                     <div class="select-container">
                         <input type="text" id="problem-department" readonly placeholder="请选择部门">
                         <input type="hidden" id="problem-department-id">
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label>问题照片：</label>
+                    <input type="file" id="problem-photos-upload" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.bmp">
+                    <div id="uploaded-photos" class="uploaded-photos-container"></div>
+                    <p class="upload-note">支持的文件格式：JPG、JPEG、PNG、WebP、GIF、BMP</p>
                 </div>
             </form>
         </div>
@@ -2135,7 +2135,11 @@ include 'header.php';
                                                         .then(parent => {
                                                             if (parent && parent.id) {
                                                                 // 将当前父部门添加到路径前面
-                                                                path.unshift({id: parent.id, name: parent.name, shortname: parent.shortname || parent.name});
+                                                                path.unshift({
+                                                                    id: parent.id,
+                                                                    name: parent.name,
+                                                                    shortname: parent.shortname || parent.name
+                                                                });
                                                                 // 继续向上查找
                                                                 return buildCompletePath(parent.id, path);
                                                             } else {
@@ -2166,7 +2170,11 @@ include 'header.php';
                                                             currentSelectPath = completePath;
                                                             // 添加当前部门到路径末尾
                                                             if (currentDept) {
-                                                                currentSelectPath.push({id: currentDept.id, name: currentDept.name, shortname: currentDept.shortname || currentDept.name});
+                                                                currentSelectPath.push({
+                                                                    id: currentDept.id,
+                                                                    name: currentDept.name,
+                                                                    shortname: currentDept.shortname || currentDept.name
+                                                                });
                                                             }
 
                                                             // 显示同级部门列表和完整路径
@@ -3049,6 +3057,9 @@ include 'header.php';
             };
         }
 
+        // 显示加载提示框
+        showLoadingIndicator('记录添加中');
+
         fetch('api.php?action=' + apiAction, {
                 method: 'POST',
                 headers: {
@@ -3058,6 +3069,9 @@ include 'header.php';
             })
             .then(response => response.json())
             .then(data => {
+                // 隐藏加载提示框
+                hideLoadingIndicator();
+
                 if (data.success) {
                     closeAddRecordModal();
 
@@ -3076,6 +3090,8 @@ include 'header.php';
                 }
             })
             .catch(error => {
+                // 隐藏加载提示框
+                hideLoadingIndicator();
                 alert('添加失败: ' + error.message);
             });
     }
@@ -3210,15 +3226,29 @@ include 'header.php';
         if (timeInput) timeInput.classList.remove('error');
         if (createTimeLabel) createTimeLabel.classList.remove('error');
 
-        // 验证必填字段
-        if (!description) {
-            alert('请输入问题描述');
-            return;
-        }
+        // 重置所有错误状态
+        const descriptionInput = document.getElementById('problem-description');
+        const descriptionLabel = document.querySelector('label[for="problem-description"]');
+        const departmentContainer = document.querySelector('#problem-department').parentElement;
+        const departmentLabel = document.querySelector('label[for="problem-department"]');
+
+        if (descriptionInput) descriptionInput.classList.remove('error');
+        if (descriptionLabel) descriptionLabel.classList.remove('error');
+        if (departmentContainer) departmentContainer.classList.remove('error');
+        if (departmentLabel) departmentLabel.classList.remove('error');
 
         let hasError = false;
         const errors = [];
 
+        // 验证问题描述
+        if (!description) {
+            errors.push({
+                elements: [descriptionInput, descriptionLabel]
+            });
+            hasError = true;
+        }
+
+        // 验证发现人
         if (!creator) {
             errors.push({
                 elements: [creatorWrapper, creatorLabel]
@@ -3253,6 +3283,15 @@ include 'header.php';
             }
         }
 
+        // 验证责任部门
+        const departmentId = document.getElementById('problem-department-id').value;
+        if (!departmentId) {
+            errors.push({
+                elements: [departmentContainer, departmentLabel]
+            });
+            hasError = true;
+        }
+
         if (hasError) {
             // 使用setTimeout确保每次点击都能重新触发动画
             setTimeout(() => {
@@ -3273,19 +3312,24 @@ include 'header.php';
         formData.append('description', description);
         formData.append('urgency', '1'); // 默认紧急程度为1（一般）
 
-        // 添加责任部门ID
-        const departmentId = document.getElementById('problem-department-id').value;
+        // 添加责任部门ID (使用已声明的departmentId变量)
         formData.append('department_id', departmentId);
 
         // 处理照片上传（如果有）
+        let hasImages = false;
         if (modal.imageUploader) {
             const uploadedFiles = modal.imageUploader.getFiles();
-            if (uploadedFiles.length > 0) {
+            hasImages = uploadedFiles.length > 0;
+            if (hasImages) {
                 uploadedFiles.forEach((file, index) => {
                     formData.append(`photos[${index}]`, file);
                 });
             }
         }
+
+        // 显示加载提示框
+        const loadingMessage = hasImages ? '图片上传中' : '问题录入中';
+        showLoadingIndicator(loadingMessage);
 
         fetch('api.php?action=addProblem', {
                 method: 'POST',
@@ -3293,13 +3337,16 @@ include 'header.php';
             })
             .then(response => response.json())
             .then(data => {
+                // 隐藏加载提示框
+                hideLoadingIndicator();
+
                 if (data.success) {
                     closeAddProblemModal();
 
                     // 重新加载问题记录
                     document.getElementById('problem-content').innerHTML = '<div class="loading">加载中...</div>';
                     loadDataWithPagination('problems');
-                    
+
                     showNotification('已添加问题记录！', 'success');
                 } else {
                     alert('添加失败: ' + data.message);
@@ -3420,6 +3467,94 @@ include 'header.php';
                 }
             }, 500);
         }, 3000);
+    }
+
+    // 显示全屏加载提示框
+    function showLoadingIndicator(message) {
+        // 移除已存在的加载提示
+        const existingLoader = document.querySelector('.loading-overlay');
+        if (existingLoader) {
+            document.body.removeChild(existingLoader);
+        }
+
+        // 创建遮罩层
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        overlay.style.display = 'flex';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.zIndex = '10001'; // 确保在最上层
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.3s ease';
+
+        // 创建加载提示框
+        const loader = document.createElement('div');
+        loader.className = 'loading-indicator';
+        loader.style.backgroundColor = 'white';
+        loader.style.padding = '30px';
+        loader.style.borderRadius = '8px';
+        loader.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+        loader.style.display = 'flex';
+        loader.style.flexDirection = 'column';
+        loader.style.alignItems = 'center';
+        loader.style.gap = '15px';
+
+        // 创建旋转动画元素
+        const spinner = document.createElement('div');
+        spinner.className = 'loading-spinner';
+        spinner.style.width = '30px';
+        spinner.style.height = '30px';
+        spinner.style.border = '3px solid #f3f3f3';
+        spinner.style.borderTop = '3px solid #3498db';
+        spinner.style.borderRadius = '50%';
+        spinner.style.animation = 'spin 1s linear infinite';
+
+        // 创建消息文本
+        const messageEl = document.createElement('div');
+        messageEl.className = 'loading-message';
+        messageEl.style.fontSize = '14px';
+        messageEl.style.color = '#333';
+        messageEl.textContent = message;
+
+        // 添加到提示框
+        loader.appendChild(spinner);
+        loader.appendChild(messageEl);
+        overlay.appendChild(loader);
+        document.body.appendChild(overlay);
+
+        // 显示加载提示（添加动画）
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+        }, 10);
+
+        // 添加旋转动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // 隐藏全屏加载提示框
+    function hideLoadingIndicator() {
+        const overlay = document.querySelector('.loading-overlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                if (overlay.parentNode) {
+                    document.body.removeChild(overlay);
+                }
+            }, 300);
+        }
     }
 </script>
 
@@ -3542,9 +3677,33 @@ include 'header.php';
         color: #f44336;
     }
 
+    /* 必填项标记 */
+    .required {
+        color: #e74c3c;
+    }
+
+    /* 上传提示文字样式 */
+    .upload-note {
+        font-size: 12px;
+        color: #666;
+        margin: 0;
+    }
+
     /* 日期和时间输入框的错误状态 */
     input[type="date"].error,
     input[type="time"].error {
+        border-color: #f44336;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* 文本域的错误状态 */
+    textarea.error {
+        border-color: #f44336;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* 责任部门输入框的错误状态 */
+    .select-container.error input {
         border-color: #f44336;
         animation: shake 0.5s ease-in-out;
     }
@@ -4944,7 +5103,7 @@ include 'header.php';
 
                         problems.forEach((problem, index) => {
                             const statusClass = problem.flow === 0 ? 'status-red' : 'status-green';
-                        const statusText = problem.flow === 0 ? '已录入' : '已闭环';
+                            const statusText = problem.flow === 0 ? '已录入' : '已闭环';
 
                             // 计算正确的序号（考虑分页）
                             const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
