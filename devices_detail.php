@@ -5215,8 +5215,10 @@ include 'header.php';
                             // 计算正确的序号（考虑分页）
                             const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
-                            // 将发现时间作为数据属性存储，用于悬浮提示
-                            html += `<tr data-create-time="${problem.create_time}"><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td><span class="status-tag ${statusClass}">${statusText}</span></td></tr>`;
+                            // 将发现时间和解决时间作为数据属性存储，用于悬浮提示
+                            // 解决时间字段可能是solve_time或close_time或其他名称，这里假设是solve_time
+                            const solveTime = problem.solve_time || problem.close_time || '';
+                            html += `<tr data-create-time="${problem.create_time}" data-solve-time="${solveTime}" data-status="${problem.flow}"><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td><span class="status-tag ${statusClass}">${statusText}</span></td></tr>`;
                         });
 
                         html += '</tbody></table>';
@@ -5312,131 +5314,92 @@ include 'header.php';
 
     // 添加问题记录行的悬浮提示功能
     function initProblemTooltip() {
-        // 创建气泡容器
-        let tooltipContainer = document.createElement('div');
-        tooltipContainer.className = 'problem-tooltip-container';
-        tooltipContainer.style.cssText = `
-            position: absolute;
-            z-index: 1000;
-            display: none;
-            pointer-events: none;
-        `;
+        // 存储所有气泡及其关联的行
+        const tooltipsMap = new Map();
+        // 存储所有气泡元素的集合
+        const allTooltips = new Set();
 
-        // 创建气泡内容
-        let tooltip = document.createElement('div');
-        tooltip.className = 'problem-tooltip';
-        tooltip.style.cssText = `
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            white-space: nowrap;
-            position: relative;
-            pointer-events: auto;
-        `;
+        // 创建新气泡的函数
+        function createTooltip() {
+            // 创建气泡容器
+            const tooltipContainer = document.createElement('div');
+            tooltipContainer.className = 'problem-tooltip-container';
+            tooltipContainer.style.cssText = `
+                position: fixed;
+                z-index: 1000;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+            `;
 
-        // 创建文本容器
-        let tooltipText = document.createElement('span');
-        tooltipText.className = 'problem-tooltip-text';
-        tooltip.appendChild(tooltipText);
+            // 创建气泡内容
+            const tooltip = document.createElement('div');
+            tooltip.className = 'problem-tooltip';
+            tooltip.style.cssText = `
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                position: relative;
+            `;
 
-        // 创建尖角
-        let tooltipArrow = document.createElement('div');
-        tooltipArrow.className = 'problem-tooltip-arrow';
-        tooltipArrow.style.cssText = `
-            position: absolute;
-            bottom: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 5px solid rgba(0, 0, 0, 0.8);
-            pointer-events: none;
-        `;
+            // 创建文本容器
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'problem-tooltip-text';
+            tooltip.appendChild(tooltipText);
 
-        tooltip.appendChild(tooltipArrow);
-        tooltipContainer.appendChild(tooltip);
-        document.body.appendChild(tooltipContainer);
+            // 创建尖角
+            const tooltipArrow = document.createElement('div');
+            tooltipArrow.className = 'problem-tooltip-arrow';
+            tooltipArrow.style.cssText = `
+                position: absolute;
+                bottom: -5px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 0;
+                height: 0;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid rgba(0, 0, 0, 0.8);
+                pointer-events: none;
+            `;
 
-        // 记录当前显示气泡的行
-        let currentVisibleRow = null;
-
-        // 点击行显示/隐藏气泡
-        document.addEventListener('click', function(e) {
-            const row = e.target.closest('.problems-table tr');
-            const isTableElement = e.target.closest('.problems-table');
-
-            // 如果点击的是当前显示气泡的行，则隐藏气泡
-            if (row === currentVisibleRow) {
-                tooltipContainer.style.display = 'none';
-                currentVisibleRow = null;
-                return;
-            }
-
-            // 如果点击的是有效行，则显示气泡（不隐藏之前的气泡）
-            if (row && row.dataset.createTime) {
-                const createTime = row.dataset.createTime;
-                const tooltipText = tooltip.querySelector('.problem-tooltip-text');
-                tooltipText.textContent = '发现时间: ' + createTime;
-
-                // 定位到状态标签上方
-                updateTooltipPosition(row);
-
-                // 先临时显示气泡以正确测量尺寸
-                tooltipContainer.style.opacity = '0';
-                tooltipContainer.style.display = 'block';
-                
-                // 强制重新计算位置
-                updateTooltipPosition(row);
-                
-                // 恢复气泡可见性
-                setTimeout(() => {
-                    tooltipContainer.style.opacity = '1';
-                }, 10);
-                
-                currentVisibleRow = row;
-                // 更新全局引用
-                window.currentProblemTooltip = {
-                    container: tooltipContainer,
-                    tooltip: tooltip,
-                    updatePosition: updateTooltipPosition
-                };
-                window.currentProblemTooltipRow = row;
-            } else if (!isTableElement) {
-                // 只有当点击表格外部区域时，才隐藏气泡
-                // 这样确保点击表格内的任何行时，气泡都不会消失
-                tooltipContainer.style.display = 'none';
-                currentVisibleRow = null;
-                window.currentProblemTooltipRow = null;
-            }
-        });
+            tooltip.appendChild(tooltipArrow);
+            tooltipContainer.appendChild(tooltip);
+            document.body.appendChild(tooltipContainer);
+            allTooltips.add(tooltipContainer);
+            
+            return tooltipContainer;
+        }
 
         // 更新提示位置（固定在状态标签上方）
-        function updateTooltipPosition(row) {
+        function updateTooltipPosition(tooltipContainer, row) {
             // 找到状态标签元素
             const statusTag = row.querySelector('.status-tag');
             if (!statusTag) return;
 
+            const tooltip = tooltipContainer.querySelector('.problem-tooltip');
+            
             // 确保tooltip元素已经渲染
             if (!tooltip.offsetWidth) {
                 // 如果还没渲染，强制显示一下以获取尺寸
                 const originalVisibility = tooltip.style.visibility;
+                const originalDisplay = tooltipContainer.style.display;
                 tooltip.style.visibility = 'hidden';
-                tooltip.style.display = 'block';
+                tooltipContainer.style.display = 'block';
+                
+                // 强制重排
+                void tooltip.offsetWidth;
+                
+                tooltip.style.visibility = originalVisibility;
+                tooltipContainer.style.display = originalDisplay;
             }
 
             // 获取状态标签和气泡的位置信息
             const statusRect = statusTag.getBoundingClientRect();
             const tooltipRect = tooltip.getBoundingClientRect();
-
-            // 重置tooltip的visibility
-            tooltip.style.visibility = '';
-
-            // 设置气泡容器的位置
-            tooltipContainer.style.position = 'fixed';
 
             // 计算水平居中位置
             let left = statusRect.left + statusRect.width / 2 - tooltipRect.width / 2;
@@ -5449,20 +5412,113 @@ include 'header.php';
             tooltipContainer.style.left = left + 'px';
             tooltipContainer.style.top = (statusRect.top - tooltipRect.height - 10) + 'px'; // 显示在状态标签上方，不遮挡行内容
         }
-    }
 
-    // 页面加载完成后初始化悬浮提示功能
-        document.addEventListener('DOMContentLoaded', initProblemTooltip);
-
-        // 页面滚动时更新气泡位置
-        function handleScroll() {
-            // 确保当前有显示的气泡
-            if (window.currentProblemTooltip && window.currentProblemTooltipRow) {
-                // 重新计算气泡位置
-                window.currentProblemTooltip.updatePosition(window.currentProblemTooltipRow);
+        // 显示气泡的函数
+        function showTooltip(tooltipContainer, row) {
+            const createTime = row.dataset.createTime;
+            const solveTime = row.dataset.solveTime;
+            const status = row.dataset.status;
+            const tooltip = tooltipContainer.querySelector('.problem-tooltip');
+            const tooltipText = tooltipContainer.querySelector('.problem-tooltip-text');
+            
+            // 构建气泡文本内容
+            let tooltipContent = '发现时间: ' + createTime;
+            // 如果是已闭环状态且有解决时间，则添加解决时间显示
+            if (status === '1' && solveTime && solveTime.trim() !== '') {
+                tooltipContent += '\n解决时间: ' + solveTime;
+                // 为多行文本更新样式
+                tooltip.style.whiteSpace = 'pre-line';
+                tooltip.style.padding = '8px 10px';
+            } else {
+                // 恢复单行样式
+                tooltip.style.whiteSpace = 'nowrap';
+                tooltip.style.padding = '5px 10px';
             }
+            
+            tooltipText.textContent = tooltipContent;
+
+            // 定位到状态标签上方
+            updateTooltipPosition(tooltipContainer, row);
+
+            // 显示气泡
+            tooltipContainer.style.display = 'block';
+            // 使用setTimeout确保浏览器有时间处理样式变化
+            setTimeout(() => {
+                tooltipContainer.style.opacity = '1';
+            }, 10);
+        }
+
+        // 隐藏气泡的函数
+        function hideTooltip(tooltipContainer) {
+            tooltipContainer.style.opacity = '0';
+            setTimeout(() => {
+                tooltipContainer.style.display = 'none';
+            }, 200);
+        }
+
+        // 移除所有气泡的函数
+        function removeAllTooltips() {
+            allTooltips.forEach(tooltipContainer => {
+                tooltipContainer.style.display = 'none';
+                if (tooltipContainer.parentNode) {
+                    tooltipContainer.parentNode.removeChild(tooltipContainer);
+                }
+            });
+            allTooltips.clear();
+            tooltipsMap.clear();
+        }
+
+        // 点击行显示/隐藏气泡
+        document.addEventListener('click', function(e) {
+            const row = e.target.closest('.problems-table tr');
+            
+            // 如果点击的是有效行
+            if (row && row.dataset.createTime) {
+                // 检查是否已有该行列的气泡
+                const existingTooltip = tooltipsMap.get(row);
+                
+                if (existingTooltip) {
+                    // 如果已有气泡，则隐藏它
+                    hideTooltip(existingTooltip);
+                    tooltipsMap.delete(row);
+                } else {
+                    // 如果没有气泡，则创建并显示新气泡
+                    const newTooltip = createTooltip();
+                    tooltipsMap.set(row, newTooltip);
+                    showTooltip(newTooltip, row);
+                }
+            }
+        });
+
+        // 监听分页控件点击，移除所有气泡
+        document.addEventListener('click', function(e) {
+            // 检测是否点击了分页控件
+            if (e.target.closest('.pagination-container') || 
+                e.target.closest('.pagination-btn') || 
+                e.target.closest('.page-size-select')) {
+                removeAllTooltips();
+            }
+        });
+
+        // 页面滚动时更新所有气泡位置
+        function handleScroll() {
+            tooltipsMap.forEach((tooltipContainer, row) => {
+                if (tooltipContainer.style.display !== 'none') {
+                    updateTooltipPosition(tooltipContainer, row);
+                }
+            });
         }
 
         // 添加滚动事件监听器
         window.addEventListener('scroll', handleScroll);
+        
+        // 添加窗口大小改变事件监听器
+        window.addEventListener('resize', handleScroll);
+        
+        // 导出清除所有气泡的函数，以便在其他地方调用
+        window.clearProblemTooltips = removeAllTooltips;
+    }
+
+    // 页面加载完成后初始化悬浮提示功能
+    document.addEventListener('DOMContentLoaded', initProblemTooltip);
 </script>
