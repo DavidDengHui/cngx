@@ -238,7 +238,7 @@ include 'header.php';
 
                 <div class="form-group">
                     <label for="work-remark">作业说明：</label>
-                    <textarea id="work-remark" rows="3" placeholder="没啥要说的就跳过吧 :-)"></textarea>
+                    <textarea id="work-remark" rows="3" placeholder="没啥要说的就跳过吧 ;-)"></textarea>
                 </div>
             </form>
         </div>
@@ -291,9 +291,9 @@ include 'header.php';
 
                 <div class="form-group">
                     <label>问题照片：</label>
-                    <input type="file" id="problem-photos-upload" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.bmp">
+                    <input type="file" id="problem-photos-upload" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.bmp,.svg">
                     <div id="uploaded-photos" class="uploaded-photos-container"></div>
-                    <p class="upload-note">支持的文件格式：JPG、JPEG、PNG、WebP、GIF、BMP</p>
+                    <p class="upload-note">支持的图片格式：JPG、JPEG、PNG、WebP、GIF、BMP、SVG</p>
                 </div>
             </form>
         </div>
@@ -486,6 +486,15 @@ include 'header.php';
         modal.style.display = 'flex';
         // 阻止背景页面滚动
         document.body.style.overflow = 'hidden';
+
+        // 重置模态框滚动位置到顶部
+        if (modalContent) {
+            modalContent.scrollTop = 0;
+        }
+
+        if (modalBody) {
+            modalBody.scrollTop = 0;
+        }
 
         // 点击模态框背景关闭
         modal.onclick = function(e) {
@@ -811,7 +820,7 @@ include 'header.php';
         // 检查文件扩展名，决定如何预览
         const fileExtension = url.split('.').pop().toLowerCase();
 
-        if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
+        if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
             // 图片文件直接预览
             const img = document.createElement('img');
             img.src = url;
@@ -1913,8 +1922,8 @@ include 'header.php';
         modal.style.justifyContent = 'center';
 
         // 确保模态框内容居中
-        const modalContent = modal.querySelector('.modal-content');
-        modalContent.style.margin = 'auto';
+        const modalContentElement = modal.querySelector('.modal-content');
+        modalContentElement.style.margin = 'auto';
 
         // 阻止背景页面滚动
         document.body.style.overflow = 'hidden';
@@ -2919,6 +2928,19 @@ include 'header.php';
         if (dateInput) dateInput.classList.remove('error');
         if (timeInput) timeInput.classList.remove('error');
         if (workDateLabel) workDateLabel.classList.remove('error');
+
+        // 清空作业人员相关输入框
+        const workersInput = document.getElementById('workers-input');
+        const workersHidden = document.getElementById('workers');
+        const workersTags = document.getElementById('workers-tags');
+
+        if (workersInput) workersInput.value = '';
+        if (workersHidden) workersHidden.value = '';
+        if (workersTags) workersTags.innerHTML = '';
+
+        // 清空作业说明输入框
+        const workRemark = document.getElementById('work-remark');
+        if (workRemark) workRemark.value = '';
     }
 
     // 提交新增记录
@@ -3119,6 +3141,18 @@ include 'header.php';
 
         // 初始化日期时间输入框
         initDateTimeInput('problem-date');
+
+        // 清空文件上传控件
+        const fileInput = document.getElementById('problem-photos-upload');
+        if (fileInput) {
+            fileInput.value = '';
+        }
+
+        // 清空已上传图片预览容器
+        const uploadedPhotosContainer = document.getElementById('uploaded-photos');
+        if (uploadedPhotosContainer) {
+            uploadedPhotosContainer.innerHTML = '';
+        }
 
         // 初始化图片上传功能
         const imageUploader = initImageUpload('problem-photos-upload', 'uploaded-photos', 'problem-photos');
@@ -3341,6 +3375,17 @@ include 'header.php';
                 hideLoadingIndicator();
 
                 if (data.success) {
+                    // 清空问题描述和发现人输入框
+                    document.getElementById('problem-description').value = '';
+                    document.getElementById('problem-creator-input').value = '';
+                    document.getElementById('problem-creator').value = '';
+
+                    // 清空发现人标签显示
+                    const creatorTags = document.getElementById('creator-tags');
+                    if (creatorTags) {
+                        creatorTags.innerHTML = '';
+                    }
+
                     closeAddProblemModal();
 
                     // 重新加载问题记录
@@ -4825,7 +4870,7 @@ include 'header.php';
                             // 确定文件类型
                             const fileExtension = drawing.original_name.split('.').pop()?.toLowerCase() || '';
                             let fileType = '其他文件';
-                            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
+                            if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
                                 fileType = '图片';
                             } else if (['dwg', 'dxf', 'dgn', 'rvt'].includes(fileExtension)) {
                                 fileType = 'CAD';
