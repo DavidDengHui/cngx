@@ -4613,8 +4613,8 @@ include 'header.php';
         // 先移除已存在的分页控件
         removePaginationControls(type);
 
-        // 只有在总数小于5的时候才不显示控件
-        if (total < 5) {
+        // 只有在总数大于5的时候才显示控件
+        if (total <= 5) {
             return;
         }
 
@@ -4745,10 +4745,21 @@ include 'header.php';
         paginationContainer.appendChild(pageSizeDiv);
 
         // 添加到对应内容区域
-        const contentId = type + '-content';
+        // 类型到内容区域ID的映射，解决problems类型使用problem-content的问题
+        const typeToContentId = {
+            'problems': 'problem-content',
+            'maintenance': 'maintenance-content',
+            'drawings': 'drawings-content',
+            'inspection': 'inspection-content'
+        };
+        
+        const contentId = typeToContentId[type] || (type + '-content');
         const contentDiv = document.getElementById(contentId);
+        
         if (contentDiv) {
             contentDiv.appendChild(paginationContainer);
+        } else {
+            console.error('Content element not found:', contentId);
         }
     }
 
