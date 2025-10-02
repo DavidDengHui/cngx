@@ -859,6 +859,13 @@ if (isset($_GET['did'])) {
             color: white;
             border-color: #3498db;
         }
+        
+        /* 激活状态的页码按钮在鼠标悬浮时保持原有背景色，只改变边框颜色 */
+        .pagination-btn.active:hover:not(:disabled) {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
 
         .pagination-btn:disabled {
             cursor: not-allowed;
