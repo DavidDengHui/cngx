@@ -1440,6 +1440,13 @@ include 'header.php';
                 if (type === 'drawing') {
                     // 处理设备详情数据
                     count = data.success && data.data && data.data.drawing_count !== undefined ? data.data.drawing_count : 0;
+                } else if (type === 'problem') {
+                    // 处理问题记录数据（适配增强后的API）
+                    if (data.success) {
+                        count = data.total !== undefined ? data.total : ((Array.isArray(data.data)) ? data.data.length : 0);
+                    } else {
+                        console.warn('获取问题记录数量失败:', data.message || '未知错误');
+                    }
                 } else {
                     // 处理其他记录类型
                     count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
@@ -1535,17 +1542,22 @@ include 'header.php';
                 }
             });
 
-        // 加载问题记录数量
-        fetch(`api.php?action=getProblems&did=<?php echo $did; ?>`)
+        // 加载问题记录数量（适配增强后的API）
+        fetch(`api.php?action=getProblems&did=<?php echo $did; ?>&page=1&pageSize=1`)
             .then(response => response.json())
             .then(data => {
                 const countElement = document.getElementById('problem-count');
                 if (countElement) {
-                    // 检查返回格式，如果有total字段则使用，否则回退到data.length
-                    const count = data.total !== undefined ? data.total : (Array.isArray(data) ? data.length : 0);
-                    const numberElement = countElement.querySelector('.record-count-number');
-                    if (numberElement) {
-                        numberElement.textContent = count;
+                    // 检查数据是否包含success字段
+                    if (data.success) {
+                        // 检查返回格式，如果有total字段则使用，否则回退到data.data.length
+                        const count = data.total !== undefined ? data.total : ((Array.isArray(data.data)) ? data.data.length : 0);
+                        const numberElement = countElement.querySelector('.record-count-number');
+                        if (numberElement) {
+                            numberElement.textContent = count;
+                        }
+                    } else {
+                        console.warn('获取问题记录数量失败:', data.message || '未知错误');
                     }
                 }
             })
@@ -1557,6 +1569,7 @@ include 'header.php';
                         numberElement.textContent = '0';
                     }
                 }
+                console.error('获取问题记录数量失败:', error);
             });
     }
 
@@ -5169,13 +5182,14 @@ include 'header.php';
         });
     }
 
-    // 加载问题记录（支持分页） - 平滑加载版本
+    // 加载问题记录（仅支持设备ID和分页）
     function loadProblemRecords(page = 1, pageSize = 5) {
         return new Promise((resolve, reject) => {
             const content = document.getElementById('problem-content');
 
             let url = `api.php?action=getProblems&did=<?php echo $did; ?>`;
-            // 总是添加分页参数
+            
+            // 添加分页参数
             if (pageSize === 'all') {
                 // 当选择全部时，传递pageSize=0表示查询所有记录
                 url += `&page=1&pageSize=0`;
@@ -5188,10 +5202,15 @@ include 'header.php';
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
+                    // 检查数据是否包含success字段和data字段
+                    if (!data.success) {
+                        throw new Error(data.message || '加载问题记录失败');
+                    }
+                    
                     // 检查数据是否包含total字段（分页模式）
                     const hasPagination = data.total !== undefined && data.data !== undefined;
-                    const problems = hasPagination ? data.data : data;
-                    const total = hasPagination ? data.total : data.length;
+                    const problems = hasPagination ? data.data : data.data || [];
+                    const total = hasPagination ? data.total : problems.length;
 
                     // 更新标题计数
                     const countElement = document.getElementById('problem-count');
@@ -5209,16 +5228,16 @@ include 'header.php';
                         html += '<tbody>';
 
                         problems.forEach((problem, index) => {
-                            const statusClass = problem.flow === 0 ? 'status-red' : 'status-green';
-                            const statusText = problem.flow === 0 ? '已录入' : '已闭环';
+                            const statusClass = problem.process === 0 ? 'status-red' : 'status-green';
+                            const statusText = problem.process === 0 ? '已创建' : '已闭环';
 
                             // 计算正确的序号（考虑分页）
                             const serialNumber = pageSize === 'all' ? index + 1 : (page - 1) * pageSize + index + 1;
 
                             // 将发现时间和解决时间作为数据属性存储，用于悬浮提示
-                            // 解决时间字段可能是solve_time或close_time或其他名称，这里假设是solve_time
-                            const solveTime = problem.solve_time || problem.close_time || '';
-                            html += `<tr data-create-time="${problem.create_time}" data-solve-time="${solveTime}" data-status="${problem.flow}"><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td><span class="status-tag ${statusClass}">${statusText}</span></td></tr>`;
+                            const reportTime = problem.report_time || '';
+                            const resolutionTime = problem.resolution_time || '';
+                            html += `<tr data-report-time="${reportTime}" data-resolution-time="${resolutionTime}" data-status="${problem.process}"><td>${serialNumber}</td><td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td><td><span class="status-tag ${statusClass}">${statusText}</span></td></tr>`;
                         });
 
                         html += '</tbody></table>';
@@ -5415,17 +5434,17 @@ include 'header.php';
 
         // 显示气泡的函数
         function showTooltip(tooltipContainer, row) {
-            const createTime = row.dataset.createTime;
-            const solveTime = row.dataset.solveTime;
+            const reportTime = row.dataset.reportTime;
+            const resolutionTime = row.dataset.resolutionTime;
             const status = row.dataset.status;
             const tooltip = tooltipContainer.querySelector('.problem-tooltip');
             const tooltipText = tooltipContainer.querySelector('.problem-tooltip-text');
             
             // 构建气泡文本内容
-            let tooltipContent = '发现时间: ' + createTime;
+            let tooltipContent = '发现时间: ' + reportTime;
             // 如果是已闭环状态且有解决时间，则添加解决时间显示
-            if (status === '1' && solveTime && solveTime.trim() !== '') {
-                tooltipContent += '\n解决时间: ' + solveTime;
+            if (status === '1' && resolutionTime && resolutionTime.trim() !== '') {
+                tooltipContent += '\n解决时间: ' + resolutionTime;
                 // 为多行文本更新样式
                 tooltip.style.whiteSpace = 'pre-line';
                 tooltip.style.padding = '8px 10px';
@@ -5473,7 +5492,7 @@ include 'header.php';
             const row = e.target.closest('.problems-table tr');
             
             // 如果点击的是有效行
-            if (row && row.dataset.createTime) {
+            if (row && row.dataset.reportTime) {
                 // 检查是否已有该行列的气泡
                 const existingTooltip = tooltipsMap.get(row);
                 

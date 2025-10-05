@@ -111,9 +111,7 @@ switch ($action) {
     case 'getProblemDetail':
         getProblemDetail();
         break;
-    case 'getProblemList':
-        getProblemList();
-        break;
+
     case 'getFilterOptions':
         getFilterOptions();
         break;
@@ -917,49 +915,141 @@ function getWorkLogs()
     }
 }
 
-// 获取问题记录
+// 获取问题记录（增强版，支持多条件筛选、排序和分页）
 function getProblems()
 {
     global $pdo;
 
     try {
-        $did = $_GET['did'];
+        // 获取筛选参数
+        $did = isset($_GET['did']) ? $_GET['did'] : '';
+        $cid = isset($_GET['cid']) ? $_GET['cid'] : '';
+        $reporter = isset($_GET['reporter']) ? $_GET['reporter'] : '';
+        $resolver = isset($_GET['resolver']) ? $_GET['resolver'] : '';
+        $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : '';
+        $create_time = isset($_GET['create_time']) ? $_GET['create_time'] : '';
+        $create_time_end = isset($_GET['create_time_end']) ? $_GET['create_time_end'] : '';
+        $resolution_time = isset($_GET['resolution_time']) ? $_GET['resolution_time'] : '';
+        $resolution_time_end = isset($_GET['resolution_time_end']) ? $_GET['resolution_time_end'] : '';
+        
+        // 获取排序参数
+        $sortField = isset($_GET['sortField']) ? $_GET['sortField'] : 'report_time'; // 默认按report_time排序
+        $sortOrder = isset($_GET['sortOrder']) && strtolower($_GET['sortOrder']) == 'asc' ? 'ASC' : 'DESC'; // 默认降序
+        
         // 获取分页参数
         $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
         $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 5;
+
+        // 构建查询条件
+        $conditions = "status = 1";
+        $params = [];
+        
+        // did精准匹配
+        if (!empty($did)) {
+            $conditions .= " AND did = :did";
+            $params[':did'] = $did;
+        }
+        
+        // cid精准匹配
+        if (!empty($cid)) {
+            $conditions .= " AND cid = :cid";
+            $params[':cid'] = $cid;
+        }
+        
+        // reporter包含字符串
+        if (!empty($reporter)) {
+            $conditions .= " AND reporter LIKE CONCAT('%', :reporter, '%')";
+            $params[':reporter'] = $reporter;
+        }
+        
+        // resolver包含字符串
+        if (!empty($resolver)) {
+            $conditions .= " AND resolver LIKE CONCAT('%', :resolver, '%')";
+            $params[':resolver'] = $resolver;
+        }
+        
+        // keyword在description和resolution_content中包含
+        if (!empty($keyword)) {
+            $conditions .= " AND (description LIKE CONCAT('%', :keyword, '%') OR resolution_content LIKE CONCAT('%', :keyword, '%'))";
+            $params[':keyword'] = $keyword;
+        }
+        
+        // create_time时间范围（该时间至今）
+        if (!empty($create_time)) {
+            $conditions .= " AND report_time >= :create_time";
+            $params[':create_time'] = $create_time;
+        }
+        
+        // create_time_end时间范围（create_time至该时间）
+        if (!empty($create_time_end)) {
+            $conditions .= " AND report_time <= :create_time_end";
+            $params[':create_time_end'] = $create_time_end;
+        }
+        
+        // resolution_time时间范围（该时间至今）
+        if (!empty($resolution_time)) {
+            $conditions .= " AND resolution_time >= :resolution_time";
+            $params[':resolution_time'] = $resolution_time;
+        }
+        
+        // resolution_time_end时间范围（resolution_time至该时间）
+        if (!empty($resolution_time_end)) {
+            $conditions .= " AND resolution_time <= :resolution_time_end";
+            $params[':resolution_time_end'] = $resolution_time_end;
+        }
+
+        // 查询总记录数
+        $countSql = "SELECT COUNT(*) as total FROM problems WHERE $conditions";
+        $stmt = $pdo->prepare($countSql);
+        $stmt->execute($params);
+        $total = $stmt->fetchColumn();
 
         // 如果pageSize为0，表示查询所有记录
         $limitClause = '';
         if ($pageSize > 0) {
             $offset = ($page - 1) * $pageSize;
-            $limitClause = "LIMIT $offset, $pageSize";
+            $limitClause = "LIMIT :offset, :pageSize";
         }
 
-        // 查询总记录数
-        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM problems WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $did]);
-        $total = $stmt->fetchColumn();
-
-        // 查询当前页数据
-        $stmt = $pdo->prepare("SELECT pid, reporter, report_time, description, urgency, status, create_time, update_time FROM problems WHERE did = :did AND status = 1 ORDER BY report_time DESC $limitClause");
-        $stmt->execute(['did' => $did]);
+        // 查询当前页数据，按用户要求的字段结构
+        $sql = "SELECT pid, did, cid, reporter, report_time, description, resolver, resolution_time, resolution_content FROM problems WHERE $conditions ORDER BY $sortField $sortOrder $limitClause";
+        $stmt = $pdo->prepare($sql);
+        
+        // 绑定参数
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        
+        // 绑定分页参数（需要指定类型）
+        if ($pageSize > 0) {
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->bindValue(':pageSize', $pageSize, PDO::PARAM_INT);
+        }
+        
+        $stmt->execute();
         $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 格式化紧急程度和状态，并映射字段名以匹配前端代码
-        foreach ($problems as &$problem) {
-            // 紧急程度（现在表示问题状态：0为已入库，1为已闭环）
-            $problem['urgency_text'] = isset($problemStatus[$problem['urgency']]) ? $problemStatus[$problem['urgency']] : '未知';
-
-            // 问题状态 - 映射为前端期望的字段名flow
-            $problem['flow'] = $problem['urgency']; // 使用urgency作为flow值
-
-            // 将report_time映射为create_time，以匹配前端代码
-            $problem['create_time'] = $problem['report_time'];
+        // 格式化数据，根据resolver设置process字段
+        $formattedProblems = [];
+        foreach ($problems as $problem) {
+            $formattedProblems[] = [
+                'pid' => $problem['pid'],
+                'did' => $problem['did'],
+                'cid' => $problem['cid'],
+                'reporter' => $problem['reporter'],
+                'report_time' => $problem['report_time'],
+                'description' => $problem['description'],
+                'resolver' => $problem['resolver'],
+                'resolution_time' => $problem['resolution_time'],
+                'resolution_content' => $problem['resolution_content'],
+                'process' => !empty($problem['resolver']) ? 1 : 0 // resolver非空则为1表示已闭环，否则为0已创建
+            ];
         }
 
         // 返回分页结果
         echo json_encode([
-            'data' => $problems,
+            'success' => true,
+            'data' => $formattedProblems,
             'total' => $total,
             'page' => $page,
             'pageSize' => $pageSize
@@ -1077,80 +1167,45 @@ function getDeviceDetail()
 // 获取问题详情
 function getProblemDetail()
 {
-    global $pdo, $problemStatus;
+    global $pdo;
 
     try {
-        $pid = $_GET['pid'];
-
-        // 查询问题基本信息
-        $stmt = $pdo->prepare("SELECT * FROM problems WHERE pid = :pid AND status = 1");
-        $stmt->execute(['pid' => $pid]);
-        $problem = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$problem) {
-            echo json_encode(['success' => false, 'message' => '问题不存在']);
+        $pid = isset($_GET['pid']) ? $_GET['pid'] : '';
+        if (empty($pid)) {
+            echo json_encode(['success' => false, 'message' => '问题ID不能为空']);
             return;
         }
 
-        // 获取相关设备信息
-        $stmt = $pdo->prepare("SELECT device_name FROM devices WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $problem['did']]);
-        $device = $stmt->fetch(PDO::FETCH_ASSOC);
-        $problem['device_name'] = $device ? $device['device_name'] : '未知设备';
+        // 查询问题基本信息，按用户要求的字段结构
+        $sql = "SELECT 
+                    pid, did, cid, reporter, report_time, description, resolver, resolution_time, resolution_content
+                FROM problems 
+                WHERE pid = :pid";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindParam(':pid', $pid);
+        $stmt->execute();
+        $problemData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // 获取设备类型信息
-        $stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
-        $stmt->execute(['tid' => $problem['tid']]);
-        $type = $stmt->fetch(PDO::FETCH_ASSOC);
-        $problem['type_name'] = $type ? $type['type_name'] : '未知类型';
-
-        // 获取站场信息
-        $stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = :sid AND status = 1");
-        $stmt->execute(['sid' => $problem['sid']]);
-        $station = $stmt->fetch(PDO::FETCH_ASSOC);
-        $problem['station_name'] = $station ? $station['station_name'] : '未知站场';
-
-        // 获取部门信息
-        $stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
-        $stmt->execute(['cid' => $problem['cid']]);
-        $department = $stmt->fetch(PDO::FETCH_ASSOC);
-        $problem['department_name'] = $department ? $department['full_name'] : '未知部门';
-
-        // 格式化紧急程度
-        switch ($problem['urgency']) {
-            case 1:
-                $problem['urgency_text'] = '低';
-                break;
-            case 2:
-                $problem['urgency_text'] = '中';
-                break;
-            case 3:
-                $problem['urgency_text'] = '高';
-                break;
-            default:
-                $problem['urgency_text'] = '未知';
-                break;
+        if (!$problemData) {
+            echo json_encode(['success' => false, 'message' => '未找到该问题']);
+            return;
         }
 
-        // 格式化问题状态（使用urgency字段）
-        $problem['status_text'] = isset($problemStatus[$problem['urgency']]) ? $problemStatus[$problem['urgency']] : '未知状态';
+        // 构建返回数据结构
+        $result = [
+            'pid' => $problemData['pid'],
+            'did' => $problemData['did'],
+            'cid' => $problemData['cid'],
+            'reporter' => $problemData['reporter'],
+            'report_time' => $problemData['report_time'],
+            'description' => $problemData['description'],
+            'resolver' => $problemData['resolver'],
+            'resolution_time' => $problemData['resolution_time'],
+            'resolution_content' => $problemData['resolution_content'],
+            'process' => !empty($problemData['resolver']) ? 1 : 0 // resolver非空则为1表示已闭环，否则为0已创建
+        ];
 
-        // 格式化启用状态
-        $problem['enabled_text'] = isset($enabledStatus[$problem['status']]) ? $enabledStatus[$problem['status']] : '未知状态';
-
-        // 获取问题附件
-        $stmt = $pdo->prepare("SELECT * FROM problem_attachments WHERE pid = :pid AND status = 1");
-        $stmt->execute(['pid' => $pid]);
-        $attachments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $problem['attachments'] = $attachments;
-
-        // 获取问题处理记录
-        $stmt = $pdo->prepare("SELECT * FROM problem_process WHERE pid = :pid ORDER BY process_time ASC");
-        $stmt->execute(['pid' => $pid]);
-        $process_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $problem['process_records'] = $process_records;
-
-        echo json_encode(['success' => true, 'data' => $problem]);
+        echo json_encode(['success' => true, 'data' => $result]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => '获取问题详情失败: ' . $e->getMessage()]);
     }
@@ -1159,7 +1214,7 @@ function getProblemDetail()
 // 获取问题列表
 function getProblemList()
 {
-    global $pdo, $problemStatus;
+    global $pdo;
 
     try {
         // 获取筛选参数
@@ -1194,8 +1249,12 @@ function getProblemList()
         }
 
         if (!empty($status)) {
-            $conditions .= " AND problems.urgency = :status";
-            $params[':status'] = $status;
+            // 根据resolver是否为空来判断状态
+            if ($status == 1) {
+                $conditions .= " AND problems.resolver IS NOT NULL";
+            } else {
+                $conditions .= " AND problems.resolver IS NULL";
+            }
         }
 
         if (!empty($keyword)) {
@@ -1209,13 +1268,19 @@ function getProblemList()
         $stmt->execute($params);
         $total = $stmt->fetchColumn();
 
-        // 查询当前页数据
-        $sql = "SELECT problems.*, devices.device_name, devices.device_code, types.type_name, stations.station_name, departments.full_name as department_name 
+        // 查询当前页数据，按用户要求的字段结构
+        $sql = "SELECT 
+                    problems.pid, 
+                    problems.did, 
+                    problems.cid, 
+                    problems.reporter, 
+                    problems.report_time, 
+                    problems.description, 
+                    problems.resolver, 
+                    problems.resolution_time, 
+                    problems.resolution_content
                 FROM problems 
                 INNER JOIN devices ON problems.did = devices.did 
-                INNER JOIN types ON devices.tid = types.tid 
-                INNER JOIN stations ON devices.sid = stations.sid 
-                INNER JOIN departments ON devices.cid = departments.cid 
                 WHERE $conditions 
                 ORDER BY problems.report_time DESC 
                 LIMIT :offset, :pageSize";
@@ -1230,35 +1295,27 @@ function getProblemList()
         $stmt->execute();
         $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 格式化紧急程度和状态
-        foreach ($problems as &$problem) {
-            // 紧急程度
-            switch ($problem['urgency']) {
-                case 1:
-                    $problem['urgency_text'] = '低';
-                    break;
-                case 2:
-                    $problem['urgency_text'] = '中';
-                    break;
-                case 3:
-                    $problem['urgency_text'] = '高';
-                    break;
-                default:
-                    $problem['urgency_text'] = '未知';
-                    break;
-            }
-
-            // 问题状态（使用urgency字段）
-            $problem['status_text'] = isset($problemStatus[$problem['urgency']]) ? $problemStatus[$problem['urgency']] : '未知状态';
-
-            // 格式化启用状态
-            $problem['enabled_text'] = isset($enabledStatus[$problem['status']]) ? $enabledStatus[$problem['status']] : '未知状态';
+        // 格式化数据，根据resolver设置process字段
+        $formattedProblems = [];
+        foreach ($problems as $problem) {
+            $formattedProblems[] = [
+                'pid' => $problem['pid'],
+                'did' => $problem['did'],
+                'cid' => $problem['cid'],
+                'reporter' => $problem['reporter'],
+                'report_time' => $problem['report_time'],
+                'description' => $problem['description'],
+                'resolver' => $problem['resolver'],
+                'resolution_time' => $problem['resolution_time'],
+                'resolution_content' => $problem['resolution_content'],
+                'process' => !empty($problem['resolver']) ? 1 : 0 // resolver非空则为1表示已闭环，否则为0已创建
+            ];
         }
 
         // 返回分页结果
         echo json_encode([
             'success' => true,
-            'data' => $problems,
+            'data' => $formattedProblems,
             'total' => $total,
             'page' => $page,
             'pageSize' => $pageSize
