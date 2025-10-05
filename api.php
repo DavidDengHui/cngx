@@ -533,7 +533,7 @@ function addMaintenance()
     }
 }
 
-// 添加问题记录
+// 添加问题记录 - 按照实际数据表结构修改
 function addProblem()
 {
     global $pdo;
@@ -556,9 +556,6 @@ function addProblem()
         $reporter = isset($data['reporter']) ? $data['reporter'] : '';
         $reportTime = isset($data['report_time']) ? $data['report_time'] : '';
         $description = isset($data['description']) ? $data['description'] : '';
-        // urgency默认为0，表示该问题处于"已入库"状态
-        // $urgency = isset($data['urgency']) && $data['urgency'] === '1' ? 1 : 0;
-        $urgency = 0;
         // 获取部门ID - 优先使用客户端提交的department_id参数
         $cid = isset($data['department_id']) ? $data['department_id'] : '';
 
@@ -573,16 +570,15 @@ function addProblem()
         // 生成问题ID（10位数），并确保唯一性
         $pid = generateProblemId();
 
-        // 插入问题记录 - status默认为1，表示该条问题启用
-        $stmt = $pdo->prepare("INSERT INTO problems (pid, did, cid, reporter, report_time, description, urgency, status, create_time, update_time) VALUES (:pid, :did, :cid, :reporter, :reportTime, :description, :urgency, 1, NOW(), NOW())");
+        // 插入问题记录 - 按照实际数据表结构，去掉urgency字段，status默认为1
+        $stmt = $pdo->prepare("INSERT INTO problems (pid, did, cid, reporter, report_time, description, status) VALUES (:pid, :did, :cid, :reporter, :reportTime, :description, 1)");
         $stmt->execute([
             'pid' => $pid,
             'did' => $did,
             'cid' => $cid,
             'reporter' => $reporter,
             'reportTime' => $reportTime,
-            'description' => $description,
-            'urgency' => $urgency
+            'description' => $description
         ]);
 
         // 处理问题照片上传

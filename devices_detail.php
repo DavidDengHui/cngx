@@ -3351,13 +3351,14 @@ include 'header.php';
             return;
         }
 
-        // 构造表单数据
+        // 构造表单数据 - 按照实际数据表结构存储
         const formData = new FormData();
         formData.append('did', did);
         formData.append('reporter', creator); // API使用reporter参数
         formData.append('report_time', createTime); // API使用report_time参数
         formData.append('description', description);
-        formData.append('urgency', '1'); // 默认紧急程度为1（一般）
+        // 注意：根据实际数据表结构，不需要传递urgency字段
+        // process字段由API端根据resolver是否为空动态生成，不需要在此处传递
 
         // 添加责任部门ID (使用已声明的departmentId变量)
         formData.append('department_id', departmentId);
