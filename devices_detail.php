@@ -3953,16 +3953,18 @@ include 'header.php';
         background-color: #e67e22;
     }
 
-    .drawings-table,    .records-table {
+    .drawings-table,
+    .records-table {
         width: 100%;
         border-collapse: collapse;
     }
-    
+
     /* 问题记录列表固定宽度 */
     .problems-table {
         width: 100%;
         border-collapse: collapse;
-        table-layout: auto; /* 自动表格布局，适应内容 */
+        table-layout: auto;
+        /* 自动表格布局，适应内容 */
     }
 
     /* 默认表格样式 */
@@ -5189,7 +5191,7 @@ include 'header.php';
             const content = document.getElementById('problem-content');
 
             let url = `api.php?action=getProblems&did=<?php echo $did; ?>`;
-            
+
             // 添加分页参数
             if (pageSize === 'all') {
                 // 当选择全部时，传递pageSize=0表示查询所有记录
@@ -5207,7 +5209,7 @@ include 'header.php';
                     if (!data.success) {
                         throw new Error(data.message || '加载问题记录失败');
                     }
-                    
+
                     // 检查数据是否包含total字段（分页模式）
                     const hasPagination = data.total !== undefined && data.data !== undefined;
                     const problems = hasPagination ? data.data : data.data || [];
@@ -5358,11 +5360,16 @@ include 'header.php';
             tooltip.style.cssText = `
                 background: rgba(0, 0, 0, 0.8);
                 color: white;
-                padding: 5px 10px;
+                padding: 8px 12px;
                 border-radius: 4px;
                 font-size: 12px;
+                font-family: monospace; /* 使用等宽字体，确保所有字符宽度一致 */
                 white-space: nowrap;
                 position: relative;
+                min-width: 230px; /* 再次增加最小宽度，确保能容纳任何日期时间格式 */
+                text-align: center;
+                width: auto;
+                box-sizing: border-box;
             `;
 
             // 创建文本容器
@@ -5390,7 +5397,7 @@ include 'header.php';
             tooltipContainer.appendChild(tooltip);
             document.body.appendChild(tooltipContainer);
             allTooltips.add(tooltipContainer);
-            
+
             return tooltipContainer;
         }
 
@@ -5401,7 +5408,7 @@ include 'header.php';
             if (!statusTag) return;
 
             const tooltip = tooltipContainer.querySelector('.problem-tooltip');
-            
+
             // 确保tooltip元素已经渲染
             if (!tooltip.offsetWidth) {
                 // 如果还没渲染，强制显示一下以获取尺寸
@@ -5409,10 +5416,10 @@ include 'header.php';
                 const originalDisplay = tooltipContainer.style.display;
                 tooltip.style.visibility = 'hidden';
                 tooltipContainer.style.display = 'block';
-                
+
                 // 强制重排
                 void tooltip.offsetWidth;
-                
+
                 tooltip.style.visibility = originalVisibility;
                 tooltipContainer.style.display = originalDisplay;
             }
@@ -5440,7 +5447,7 @@ include 'header.php';
             const status = row.dataset.status;
             const tooltip = tooltipContainer.querySelector('.problem-tooltip');
             const tooltipText = tooltipContainer.querySelector('.problem-tooltip-text');
-            
+
             // 构建气泡文本内容
             let tooltipContent = '发现时间: ' + reportTime;
             // 如果是已闭环状态且有解决时间，则添加解决时间显示
@@ -5454,7 +5461,7 @@ include 'header.php';
                 tooltip.style.whiteSpace = 'nowrap';
                 tooltip.style.padding = '5px 10px';
             }
-            
+
             tooltipText.textContent = tooltipContent;
 
             // 定位到状态标签上方
@@ -5491,12 +5498,12 @@ include 'header.php';
         // 点击行显示/隐藏气泡
         document.addEventListener('click', function(e) {
             const row = e.target.closest('.problems-table tr');
-            
+
             // 如果点击的是有效行
             if (row && row.dataset.reportTime) {
                 // 检查是否已有该行列的气泡
                 const existingTooltip = tooltipsMap.get(row);
-                
+
                 if (existingTooltip) {
                     // 如果已有气泡，则隐藏它
                     hideTooltip(existingTooltip);
@@ -5513,8 +5520,8 @@ include 'header.php';
         // 监听分页控件点击，移除所有气泡
         document.addEventListener('click', function(e) {
             // 检测是否点击了分页控件
-            if (e.target.closest('.pagination-container') || 
-                e.target.closest('.pagination-btn') || 
+            if (e.target.closest('.pagination-container') ||
+                e.target.closest('.pagination-btn') ||
                 e.target.closest('.page-size-select')) {
                 removeAllTooltips();
             }
@@ -5531,10 +5538,10 @@ include 'header.php';
 
         // 添加滚动事件监听器
         window.addEventListener('scroll', handleScroll);
-        
+
         // 添加窗口大小改变事件监听器
         window.addEventListener('resize', handleScroll);
-        
+
         // 导出清除所有气泡的函数，以便在其他地方调用
         window.clearProblemTooltips = removeAllTooltips;
     }
