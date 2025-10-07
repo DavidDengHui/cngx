@@ -134,6 +134,10 @@ $is_edit_mode = !empty($did);
             <div id="select-path" class="select-path"></div>
             <div id="select-items" class="select-items"></div>
         </div>
+        <div class="modal-footer">
+            <button type="button" class="reset-btn">重置</button>
+            <button type="button" class="confirm-btn">确认</button>
+        </div>
     </div>
 </div>
 
@@ -141,7 +145,7 @@ $is_edit_mode = !empty($did);
 <div id="loading-modal" class="modal loading-modal" style="display: none;">
     <div class="modal-content loading-content">
         <div class="loading-spinner"></div>
-        <p id="loading-text">处理中，请稍候...</p>
+        <p id="loading-text">加载中，请稍候...</p>
     </div>
 </div>
 
@@ -149,6 +153,11 @@ $is_edit_mode = !empty($did);
     // 当前选中的类型
     let currentSelectType = '';
     let currentPath = [];
+    let initialPath = [];
+    let selectedItem = null; // 保存当前选择但未确认的项
+
+    // 保存从数据库加载的原始数据
+    let originalDeviceData = {};
 
     // 初始化页面
     window.onload = function() {
@@ -163,7 +172,7 @@ $is_edit_mode = !empty($did);
             openSelectModal('station', '选择所属站场');
         });
         document.getElementById('department').addEventListener('click', function() {
-            openSelectModal('department', '选择所属部门');
+            openSelectModal('department', '选择包保部门');
         });
 
         // 绑定清除按钮事件
@@ -218,15 +227,28 @@ $is_edit_mode = !empty($did);
                     // 更新页面标题
                     document.title = `${formattedTitle} - 个人设备信息管理平台`;
 
+                    // 保存从数据库加载的原始数据
+                    originalDeviceData = {
+                        device_name: device.device_name || '',
+                        type_name: device.type_name || '',
+                        tid: device.tid || '',
+                        station_name: device.station_name || '',
+                        sid: device.sid || '',
+                        department_name: device.department_name || '',
+                        cid: device.cid || '',
+                        remark: device.remark || '',
+                        keepers: device.keepers || ''
+                    };
+
                     // 填充表单数据
-                    document.getElementById('device_name').value = device.device_name || '';
-                    document.getElementById('type').value = device.type_name || '';
-                    document.getElementById('type-id').value = device.tid || '';
-                    document.getElementById('station').value = device.station_name || '';
-                    document.getElementById('station-id').value = device.sid || '';
-                    document.getElementById('department').value = device.department_name || '';
-                    document.getElementById('department-id').value = device.cid || '';
-                    document.getElementById('remark').value = device.remark || '';
+                    document.getElementById('device_name').value = originalDeviceData.device_name;
+                    document.getElementById('type').value = originalDeviceData.type_name;
+                    document.getElementById('type-id').value = originalDeviceData.tid;
+                    document.getElementById('station').value = originalDeviceData.station_name;
+                    document.getElementById('station-id').value = originalDeviceData.sid;
+                    document.getElementById('department').value = originalDeviceData.department_name;
+                    document.getElementById('department-id').value = originalDeviceData.cid;
+                    document.getElementById('remark').value = originalDeviceData.remark;
 
                     // 显示清除按钮
                     updateClearButtonVisibility('type');
@@ -262,7 +284,7 @@ $is_edit_mode = !empty($did);
 
     // 加载图纸列表
     function loadDrawingList(did) {
-        fetch(`api.php?action=getDeviceDrawings&did=${did}`)
+        fetch(`api.php?action=getDrawings&did=${did}`)
             .then(response => response.json())
             .then(data => {
                 const drawingList = document.getElementById('drawing-list');
@@ -306,7 +328,7 @@ $is_edit_mode = !empty($did);
         }
 
         if (!departmentId) {
-            alert('请选择所属部门');
+            alert('请选择包保部门');
             return;
         }
 
@@ -613,15 +635,248 @@ $is_edit_mode = !empty($did);
     function openSelectModal(type, title) {
         currentSelectType = type;
         currentPath = [];
+        selectedItem = null;
 
         const modal = document.getElementById('select-modal');
         document.getElementById('select-modal-title').textContent = title;
         document.getElementById('select-path').textContent = title;
 
-        // 加载选项数据
-        loadSelectItems(type);
+        // 保存初始路径，用于重置
+        initialPath = [];
 
-        modal.style.display = 'flex';
+        // 检查是否已有选中值，如果有则尝试加载到对应路径
+        const input = document.getElementById(currentSelectType);
+        const hiddenInput = document.getElementById(currentSelectType + '-id');
+
+        // 显示加载动画
+        showLoadingModal();
+
+        if (input.value && hiddenInput.value) {
+            // 尝试加载到已有路径，完成后显示模态框
+            navigateToExistingPath(type, hiddenInput.value, input.value).then(() => {
+                modal.style.display = 'flex';
+                hideLoadingModal();
+            }).catch(() => {
+                // 加载失败时也显示模态框
+                loadSelectItems(type);
+                modal.style.display = 'flex';
+                hideLoadingModal();
+            });
+        } else {
+            // 直接加载顶级数据
+            loadSelectItems(type);
+            modal.style.display = 'flex';
+            hideLoadingModal();
+        }
+
+        // 绑定重置和确认按钮事件
+        document.querySelector('.reset-btn').onclick = resetSelection;
+        document.querySelector('.confirm-btn').onclick = confirmSelection;
+    }
+
+    // 尝试导航到已有路径
+    function navigateToExistingPath(type, id, name) {
+        return new Promise((resolve, reject) => {
+            // 保存完整的初始路径信息
+            const fullPathInfo = {
+                id: id,
+                name: name,
+                type: type
+            };
+            initialPath = [fullPathInfo];
+
+            // 清空当前路径
+            currentPath = [];
+
+            // 根据类型设置actionName
+            let actionName = '';
+            switch (type) {
+                case 'department':
+                    actionName = 'getDepartments';
+                    break;
+                case 'station':
+                    actionName = 'getStations';
+                    break;
+                case 'type':
+                    actionName = 'getTypes';
+                    break;
+                default:
+                    actionName = `get${type.charAt(0).toUpperCase() + type.slice(1)}List`;
+            }
+
+            // 使用递归函数获取完整路径
+            const getFullPath = (targetId, path = []) => {
+                return fetch(`api.php?action=${actionName}&childId=${targetId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // 检查是否获取到父部门数据
+                        if ((data && data.id) || (data.success && data.data)) {
+                            const parentData = data.success ? data.data : data;
+
+                            // 将父部门添加到路径
+                            const parentId = parentData.id || parentData.cid;
+                            const parentName = parentData.name || parentData.department_name || parentData.type_name || parentData.station_name;
+
+                            // 构建新路径
+                            const newPath = [{
+                                id: parentId,
+                                name: parentName
+                            }, ...path];
+
+                            // 递归获取父级的父级
+                            return getFullPath(parentId, newPath);
+                        } else {
+                            // 没有更多父级，路径已完整
+                            return path;
+                        }
+                    })
+                    .catch(error => {
+                        // 出错时返回当前已获取的路径
+                        console.error('获取完整路径失败:', error);
+                        return path;
+                    });
+            };
+
+            // 开始获取完整路径
+            getFullPath(id)
+                .then(fullPath => {
+                    // 设置完整路径
+                    currentPath = fullPath;
+                    updatePathDisplay();
+
+                    // 加载当前位置的同级列表
+                    // 如果有路径，则使用最后一个节点的ID作为parentId
+                    let parentId = 0;
+                    if (currentPath.length > 0) {
+                        parentId = currentPath[currentPath.length - 1].id;
+                    }
+
+                    // 使用Promise处理loadSelectItems
+                    return new Promise((resolveLoad, rejectLoad) => {
+                        // 重写loadSelectItems的回调行为
+                        const originalCallback = loadSelectItems.callback;
+                        loadSelectItems.callback = () => {
+                            // 恢复原始回调
+                            loadSelectItems.callback = originalCallback;
+                            resolveLoad();
+                        };
+
+                        // 加载同级列表
+                        loadSelectItems(type, parentId);
+                    });
+                })
+                .then(() => {
+                    resolve();
+                })
+                .catch(error => {
+                    console.error('导航到已有路径失败:', error);
+                    reject(error);
+                });
+        });
+    }
+
+    // 递归加载完整路径
+    function loadFullPath(type, actionName, targetId, targetName) {
+        // 先加载顶层数据
+        fetch(`api.php?action=${actionName}`)
+            .then(response => response.json())
+            .then(data => {
+                // 处理数据
+                const items = Array.isArray(data) ? data : (data.success ? data.data : []);
+
+                // 检查顶层数据中是否有目标ID
+                const targetItem = items.find(item => {
+                    // 对于部门类型，优先使用cid字段
+                    const itemId = type === 'department' ? (item.cid || item.id) : (item.id || item.tid || item.sid || item.cid);
+                    return itemId == targetId;
+                });
+
+                if (targetItem) {
+                    // 如果在顶层找到目标项，直接添加到路径
+                    currentPath.push({
+                        id: type === 'department' ? (targetItem.cid || targetItem.id) : (targetItem.id || targetItem.tid || targetItem.sid || targetItem.cid),
+                        name: targetItem.name || targetItem.full_name || targetItem.short_name || targetItem.type_name || targetItem.station_name
+                    });
+                    updatePathDisplay();
+                    loadSelectItems(type);
+                    return;
+                }
+
+                // 如果顶层没找到，查找目标ID所在的路径
+                findPathInItems(items, type, actionName, targetId, targetName);
+            })
+            .catch(error => {
+                console.error('加载路径失败:', error);
+                // 如果加载失败，显示当前项
+                loadSelectItems(type);
+            });
+    }
+
+    // 在项目列表中查找路径
+    function findPathInItems(items, type, actionName, targetId, targetName) {
+        if (!items || items.length === 0) {
+            // 如果没有数据，加载顶层数据
+            if (currentPath.length === 0) {
+                loadSelectItems(type);
+            }
+            return;
+        }
+
+        // 遍历所有项
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            // 对于部门类型，优先使用cid字段
+            const itemId = type === 'department' ? (item.cid || item.id) : (item.id || item.tid || item.sid || item.cid);
+            const itemName = item.name || item.type_name || item.station_name || item.full_name || item.short_name;
+
+            // 检查当前项是否有子项
+            fetch(`api.php?action=${actionName}&parentId=${itemId}`)
+                .then(response => response.json())
+                .then(children => {
+                    const childItems = Array.isArray(children) ? children : (children.success ? children.data : []);
+
+                    if (childItems && childItems.length > 0) {
+                        // 递归检查子项中是否有目标ID
+                        for (let j = 0; j < childItems.length; j++) {
+                            const childItem = childItems[j];
+                            // 对于部门类型，优先使用cid字段
+                            const childItemId = type === 'department' ? (childItem.cid || childItem.id) : (childItem.id || childItem.tid || childItem.sid || childItem.cid);
+                            const childItemName = childItem.name || childItem.type_name || childItem.station_name || childItem.full_name || childItem.short_name;
+
+                            if (childItemId == targetId) {
+                                // 将当前项添加到路径
+                                currentPath.push({
+                                    id: itemId,
+                                    name: itemName
+                                });
+                                updatePathDisplay();
+
+                                // 加载子项
+                                loadSelectItems(type);
+                                return;
+                            } else {
+                                // 递归查找更深层级
+                                findPathInItems([childItem], type, actionName, targetId, targetName);
+
+                                // 如果已经找到路径，就不再继续查找
+                                if (currentPath.length > 0) {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('检查子项失败:', error);
+                });
+        }
+
+        // 如果没有找到路径，加载顶层数据
+        setTimeout(() => {
+            if (currentPath.length === 0) {
+                loadSelectItems(type);
+            }
+        }, 500);
     }
 
     // 关闭选择模态框
@@ -630,7 +885,7 @@ $is_edit_mode = !empty($did);
     }
 
     // 加载选择项数据
-    function loadSelectItems(type) {
+    function loadSelectItems(type, customParentId = null) {
         const selectItems = document.getElementById('select-items');
         selectItems.innerHTML = '<div class="loading">加载中...</div>';
 
@@ -651,12 +906,19 @@ $is_edit_mode = !empty($did);
         }
         let apiParams = `action=${actionName}`;
 
-        // 如果有父级ID，添加到参数中
-        if (currentPath.length > 0) {
+        // 如果提供了自定义父ID，使用它；否则使用当前路径的最后一个节点ID
+        let parentId = 0;
+        if (customParentId !== null) {
+            parentId = customParentId;
+        } else if (currentPath.length > 0) {
             const lastPath = currentPath[currentPath.length - 1];
             if (lastPath.id) {
-                apiParams += `&parentId=${lastPath.id}`;
+                parentId = lastPath.id;
             }
+        }
+
+        if (parentId > 0) {
+            apiParams += `&parentId=${parentId}`;
         }
 
         fetch(`api.php?${apiParams}`)
@@ -692,19 +954,31 @@ $is_edit_mode = !empty($did);
                                         updatePathDisplay();
                                         loadSelectItems(type);
                                     } else {
-                                        // 选择该项
-                                        selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                        // 选择最后一级，保存但不立即更新到输入框
+                                        selectedItem = {
+                                            id: itemDiv.dataset.id,
+                                            name: itemDiv.dataset.name
+                                        };
+
+                                        // 自动确认选择
+                                        confirmSelection();
                                     }
                                 })
                                 .catch(error => {
                                     console.error('加载子项失败:', error);
-                                    // 发生错误时也选择该项
-                                    selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                    // 发生错误时保存选择但不立即更新
+                                    selectedItem = {
+                                        id: itemDiv.dataset.id,
+                                        name: itemDiv.dataset.name
+                                    };
                                 });
                         });
 
                         selectItems.appendChild(itemDiv);
                     });
+
+                    // 数据加载完成后调用回调
+                    loadSelectItems.callback();
                 }
                 // 处理带有success和data字段的情况
                 else if (data.success && data.data && data.data.length > 0) {
@@ -734,26 +1008,44 @@ $is_edit_mode = !empty($did);
                                         updatePathDisplay();
                                         loadSelectItems(type);
                                     } else {
-                                        // 选择该项
-                                        selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                        // 选择最后一级，保存但不立即更新到输入框
+                                        selectedItem = {
+                                            id: itemDiv.dataset.id,
+                                            name: itemDiv.dataset.name
+                                        };
+
+                                        // 自动确认选择
+                                        confirmSelection();
                                     }
                                 })
                                 .catch(error => {
                                     console.error('加载子项失败:', error);
-                                    // 发生错误时也选择该项
-                                    selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                    // 发生错误时保存选择但不立即更新
+                                    selectedItem = {
+                                        id: itemDiv.dataset.id,
+                                        name: itemDiv.dataset.name
+                                    };
                                 });
                         });
 
                         selectItems.appendChild(itemDiv);
                     });
+
+                    // 数据加载完成后调用回调
+                    loadSelectItems.callback();
                 } else {
                     selectItems.innerHTML = '<p class="no-data">暂无数据</p>';
+
+                    // 数据加载完成后调用回调
+                    loadSelectItems.callback();
                 }
             })
             .catch(error => {
                 console.error('加载数据失败:', error);
                 selectItems.innerHTML = '<p class="error">加载失败，请重试</p>';
+
+                // 加载失败时也调用回调
+                loadSelectItems.callback();
             });
     }
 
@@ -808,6 +1100,54 @@ $is_edit_mode = !empty($did);
         updateClearButtonVisibility(currentSelectType);
     }
 
+    // 确认选择
+    function confirmSelection() {
+        if (selectedItem) {
+            // 不管是否选择到了最末端级别，都直接将当前已选的路径计入输入框
+            selectItem(selectedItem.id, selectedItem.name);
+            closeSelectModal();
+        } else if (currentPath.length > 0) {
+            // 如果有当前路径但没有selectedItem，使用当前路径的最后一项
+            const lastPath = currentPath[currentPath.length - 1];
+            selectItem(lastPath.id, lastPath.name);
+            closeSelectModal();
+        }
+    }
+
+    // 重置选择
+    function resetSelection() {
+        const input = document.getElementById(currentSelectType);
+        const hiddenInput = document.getElementById(currentSelectType + '-id');
+
+        // 判断是编辑模式还是新增模式
+        const didElement = document.getElementById('did');
+        const isEditMode = didElement && didElement.value;
+
+        if (isEditMode && originalDeviceData) {
+            // 编辑模式：恢复到从数据库获取的最原始记录的路径
+            if (currentSelectType === 'type') {
+                input.value = originalDeviceData.type_name || '';
+                hiddenInput.value = originalDeviceData.tid || '';
+            } else if (currentSelectType === 'station') {
+                input.value = originalDeviceData.station_name || '';
+                hiddenInput.value = originalDeviceData.sid || '';
+            } else if (currentSelectType === 'department') {
+                input.value = originalDeviceData.department_name || '';
+                hiddenInput.value = originalDeviceData.cid || '';
+            }
+        } else {
+            // 新增模式：清空输入内容
+            input.value = '';
+            hiddenInput.value = '';
+        }
+
+        // 更新清除按钮可见性
+        updateClearButtonVisibility(currentSelectType);
+
+        // 关闭模态框
+        closeSelectModal();
+    }
+
     // 更新清除按钮可见性
     function updateClearButtonVisibility(target) {
         const input = document.getElementById(target);
@@ -821,7 +1161,7 @@ $is_edit_mode = !empty($did);
     }
 
     // 显示加载模态框
-    function showLoadingModal(text = '处理中，请稍候...') {
+    function showLoadingModal(text = '加载中，请稍候...') {
         const modal = document.getElementById('loading-modal');
         document.getElementById('loading-text').textContent = text;
         modal.style.display = 'flex';
@@ -831,6 +1171,9 @@ $is_edit_mode = !empty($did);
     function hideLoadingModal() {
         document.getElementById('loading-modal').style.display = 'none';
     }
+
+    // 加载选择项完成后的回调函数（默认不做任何事）
+    loadSelectItems.callback = function() {}
 </script>
 
 <style>
@@ -1258,6 +1601,44 @@ $is_edit_mode = !empty($did);
         flex: 1;
     }
 
+    .modal-footer {
+        padding: 15px 20px;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .reset-btn {
+        background-color: #95a5a6;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        font-size: 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .reset-btn:hover {
+        background-color: #7f8c8d;
+    }
+
+    .confirm-btn {
+        background-color: #27ae60;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        font-size: 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .confirm-btn:hover {
+        background-color: #229954;
+    }
+
     /* 选择模态框样式 */
     .select-path {
         padding: 10px 15px;
@@ -1326,13 +1707,15 @@ $is_edit_mode = !empty($did);
     }
 
     /* 基础样式确保移动设备兼容性 */
-    html, body {
+    html,
+    body {
         overflow-x: hidden;
         width: 100%;
     }
 
     /* 响应式布局 */
     @media (max-width: 768px) {
+
         /* 根容器设置 */
         .devices-container {
             background: none;
@@ -1388,7 +1771,10 @@ $is_edit_mode = !empty($did);
         }
 
         /* 确保所有表单元素都不会超出容器 */
-        input, textarea, .select-container, .workers-input-wrapper {
+        input,
+        textarea,
+        .select-container,
+        .workers-input-wrapper {
             max-width: 100% !important;
             width: 100% !important;
             box-sizing: border-box !important;
@@ -1402,7 +1788,8 @@ $is_edit_mode = !empty($did);
         }
 
         .select-container input[type="text"] {
-            padding-right: 35px;  /* 为清除按钮留出空间 */
+            padding-right: 35px;
+            /* 为清除按钮留出空间 */
         }
 
         .workers-input-wrapper {

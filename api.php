@@ -177,16 +177,47 @@ function getStations()
 {
     global $pdo;
 
-    $parentId = isset($_GET['parentId']) ? intval($_GET['parentId']) : 0;
+    // 检查是否提供了childId参数
+    if (isset($_GET['childId'])) {
+        $childId = intval($_GET['childId']);
 
-    try {
-        $stmt = $pdo->prepare("SELECT sid as id, station_name as name FROM stations WHERE parent_id = :parentId AND status = 1 ORDER BY sid ASC");
-        $stmt->execute(['parentId' => $parentId]);
-        $stations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            // 先查询子站场记录，获取parent_id
+            $stmt = $pdo->prepare("SELECT parent_id FROM stations WHERE sid = :childId AND status = 1");
+            $stmt->execute(['childId' => $childId]);
+            $childStation = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        echo json_encode($stations);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => '获取站场数据失败: ' . $e->getMessage()]);
+            if ($childStation && $childStation['parent_id'] > 0) {
+                // 再查询父站场记录
+                $parentId = $childStation['parent_id'];
+                $stmt = $pdo->prepare("SELECT sid as id, station_name as name FROM stations WHERE sid = :parentId AND status = 1");
+                $stmt->execute(['parentId' => $parentId]);
+                $parentStation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($parentStation) {
+                    echo json_encode($parentStation);
+                } else {
+                    echo json_encode(['success' => false, 'message' => '未找到父站场信息']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'message' => '未找到子站场或该站场没有父站场']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => '获取父站场数据失败: ' . $e->getMessage()]);
+        }
+    } else {
+        // 原有逻辑：通过parentId查询子站场
+        $parentId = isset($_GET['parentId']) ? intval($_GET['parentId']) : 0;
+
+        try {
+            $stmt = $pdo->prepare("SELECT sid as id, station_name as name FROM stations WHERE parent_id = :parentId AND status = 1 ORDER BY sid ASC");
+            $stmt->execute(['parentId' => $parentId]);
+            $stations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode($stations);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => '获取站场数据失败: ' . $e->getMessage()]);
+        }
     }
 }
 
@@ -195,16 +226,47 @@ function getTypes()
 {
     global $pdo;
 
-    $parentId = isset($_GET['parentId']) ? intval($_GET['parentId']) : 0;
+    // 检查是否提供了childId参数
+    if (isset($_GET['childId'])) {
+        $childId = intval($_GET['childId']);
 
-    try {
-        $stmt = $pdo->prepare("SELECT tid as id, type_name as name FROM types WHERE parent_id = :parentId AND status = 1 ORDER BY tid ASC");
-        $stmt->execute(['parentId' => $parentId]);
-        $types = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            // 先查询子类型记录，获取parent_id
+            $stmt = $pdo->prepare("SELECT parent_id FROM types WHERE tid = :childId AND status = 1");
+            $stmt->execute(['childId' => $childId]);
+            $childType = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        echo json_encode($types);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => '获取设备类型数据失败: ' . $e->getMessage()]);
+            if ($childType && $childType['parent_id'] > 0) {
+                // 再查询父类型记录
+                $parentId = $childType['parent_id'];
+                $stmt = $pdo->prepare("SELECT tid as id, type_name as name FROM types WHERE tid = :parentId AND status = 1");
+                $stmt->execute(['parentId' => $parentId]);
+                $parentType = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($parentType) {
+                    echo json_encode($parentType);
+                } else {
+                    echo json_encode(['success' => false, 'message' => '未找到父类型信息']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'message' => '未找到子类型或该类型没有父类型']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => '获取父类型数据失败: ' . $e->getMessage()]);
+        }
+    } else {
+        // 原有逻辑：通过parentId查询子类型
+        $parentId = isset($_GET['parentId']) ? intval($_GET['parentId']) : 0;
+
+        try {
+            $stmt = $pdo->prepare("SELECT tid as id, type_name as name FROM types WHERE parent_id = :parentId AND status = 1 ORDER BY tid ASC");
+            $stmt->execute(['parentId' => $parentId]);
+            $types = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode($types);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => '获取设备类型数据失败: ' . $e->getMessage()]);
+        }
     }
 }
 
