@@ -539,9 +539,19 @@ $is_edit_mode = !empty($did);
         // 提交保存请求
         fetch('api.php?action=saveDevice', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                // 添加移动设备兼容性配置
+                credentials: 'same-origin',
+                keepalive: true,
+                // 超时设置
+                signal: AbortSignal.timeout(60000) // 60秒超时
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`网络错误：${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 hideLoadingModal();
 
@@ -560,8 +570,14 @@ $is_edit_mode = !empty($did);
             })
             .catch(error => {
                 hideLoadingModal();
-                // 显示错误提示
-                showNotification('保存失败：' + error.message, 'error');
+                // 显示更具体的错误提示
+                if (error.name === 'TimeoutError') {
+                    showNotification('保存失败：网络连接超时，请检查网络后重试', 'error');
+                } else if (error.message.includes('Failed to fetch')) {
+                    showNotification('保存失败：网络连接异常，请检查网络后重试', 'error');
+                } else {
+                    showNotification('保存失败：' + error.message, 'error');
+                }
             });
     }
 
