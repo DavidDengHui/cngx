@@ -385,47 +385,49 @@ $is_edit_mode = !empty($did);
         const tagsContainer = document.querySelector('.workers-tags');
         const input = document.querySelector('.workers-input');
         const hiddenInput = document.getElementById('keepers');
-
+    
         // 支持的分隔符
         const separators = [' ', '、', ',', '，', ';', '；', '\uff0c', '\uff1b'];
-
+    
         // 输入处理
         input.addEventListener('input', function(e) {
-            const value = e.target.value.trim();
-
-            // 检查是否输入了任何分隔符
+            const originalValue = e.target.value;
+            const trimmedValue = originalValue.trim();
+    
+            // 检查是否输入了任何分隔符（使用原始值检测分隔符）
             for (const separator of separators) {
-                if (value.includes(separator)) {
+                if (originalValue.includes(separator)) {
                     // 处理输入框中的多个名字（可能包含各种分隔符）
-                    let names = [value.trim()];
-
+                    let names = [originalValue];
+    
                     // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
                     separators.forEach(sep => {
                         // 转义特殊字符
                         const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                         names = names.flatMap(name => name.split(new RegExp(escapedSep)));
                     });
-
+    
                     // 添加有效的姓名标签
                     names.forEach(name => {
-                        if (name.trim()) {
-                            addKeeperTag(name.trim());
+                        const trimmedName = name.trim();
+                        if (trimmedName) {
+                            addKeeperTag(trimmedName);
                         }
                     });
-
+    
                     this.value = '';
                     updateHiddenInput();
                     break;
                 }
             }
         });
-
+    
         // 回车添加
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const value = this.value.trim();
-
+    
                 if (value) {
                     addKeeperTag(value);
                     this.value = '';
