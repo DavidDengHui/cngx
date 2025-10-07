@@ -6,493 +6,927 @@ if (basename($_SERVER['PHP_SELF']) == 'devices_edit.php') {
 }
 
 // 确保did参数存在
-if (!isset($did)) {
+if (!isset($_GET['did'])) {
     header('Location: /devices.php');
     exit();
 }
 
-// 验证did是否为有效的8位数编码
-if (!preg_match('/^[1-9]\d{7}$/', $did)) {
-    $nav_title = '设备信息编辑';
-    $page_title = '设备信息编辑';
-    include 'header.php';
-?>
-    <div class="error-message">
-        <p>该设备码[<?php echo $did; ?>]无效</p>
-        <p>请联系<a href="mailto:david.deng.hui@qq.com" target="_blank">管理员</a>核实</p>
-    </div>
-<?php
-    include 'footer.php';
-    exit();
-}
+// 设置导航标题和页面标题
+$nav_title = '设备信息编辑';
+$page_title = '设备信息编辑';
 
-// 设备是否存在未知，先设置默认标题
-$nav_title = '新增设备';
-$page_title = '新增设备';
-
+// 引入页眉（config.php已在devices.php中引入）
 include 'header.php';
 
-// 保存did到JS可以访问的变量
+// 获取设备ID
+$did = isset($_GET['did']) ? $_GET['did'] : '';
+$is_edit_mode = !empty($did);
 ?>
-<script>
-    // 全局变量存储设备ID和信息
-    const deviceId = '<?php echo $did; ?>';
-    let deviceInfo = null;
-    let drawings = [];
-    
-    // 页面加载完成后获取设备详情
-    document.addEventListener('DOMContentLoaded', function() {
-        loadDeviceInfo();
-    });
-    
-    // 通过API获取设备信息
-    function loadDeviceInfo() {
-        fetch(`api.php?action=getDeviceDetail&did=${deviceId}`)
-            .then(response => response.json())
-            .then(result => {
-                if (result.success && result.data) {
-                    // 设备存在，设置为编辑模式
-                    deviceInfo = result.data;
-                    document.title = '编辑[' + deviceInfo.device_name + '] - 个人设备信息管理平台';
-                    document.querySelector('h2').textContent = '编辑[' + deviceInfo.device_name + ']';
-                    
-                    // 填充表单
-                    document.getElementById('device-name').value = deviceInfo.device_name;
-                    document.getElementById('device-type').value = deviceInfo.type_name;
-                    document.getElementById('device-type-id').value = deviceInfo.tid;
-                    document.getElementById('device-station').value = deviceInfo.station_name;
-                    document.getElementById('device-station-id').value = deviceInfo.sid;
-                    document.getElementById('device-department').value = deviceInfo.department_name;
-                    document.getElementById('device-department-id').value = deviceInfo.cid;
-                    document.getElementById('device-keepers').value = deviceInfo.keepers;
-                    document.getElementById('device-remark').value = deviceInfo.remark || '';
-                    
-                    // 加载图纸列表
-                    loadDrawings();
-                } else {
-                    // 设备不存在，显示为新增模式
-                    document.getElementById('device-type').value = '其他类型';
-                    document.getElementById('device-type-id').value = '1000';
-                    document.getElementById('device-station').value = '其他站场';
-                    document.getElementById('device-station-id').value = '100000';
-                    document.getElementById('device-department').value = '其他部门';
-                    document.getElementById('device-department-id').value = '100000';
-                    
-                    // 显示暂无图纸
-                    const drawingsList = document.querySelector('.drawings-list');
-                    drawingsList.innerHTML = '<p class="no-drawings">暂无图纸</p>';
-                }
-            })
-            .catch(error => {
-                console.error('获取设备信息失败:', error);
-                alert('获取设备信息失败，请刷新页面重试');
-            });
-    }
-    
-    // 通过API获取图纸列表
-    function loadDrawings() {
-        fetch(`api.php?action=getDrawings&did=${deviceId}`)
-            .then(response => response.json())
-            .then(result => {
-                if (result.success && result.data) {
-                    drawings = result.data;
-                    renderDrawings();
-                } else {
-                    // 显示暂无图纸
-                    const drawingsList = document.querySelector('.drawings-list');
-                    drawingsList.innerHTML = '<p class="no-drawings">暂无图纸</p>';
-                }
-            })
-            .catch(error => {
-                console.error('获取图纸列表失败:', error);
-                alert('获取图纸列表失败');
-            });
-    }
-    
-    // 渲染图纸列表
-    function renderDrawings() {
-        const drawingsList = document.querySelector('.drawings-list');
-        
-        if (drawings.length > 0) {
-            let html = '<table class="drawings-table">';
-            html += '<thead>';
-            html += '<tr>';
-            html += '<th>序号</th>';
-            html += '<th>图纸名称</th>';
-            html += '<th>上传时间</th>';
-            html += '<th>操作</th>';
-            html += '</tr>';
-            html += '</thead>';
-            html += '<tbody>';
-            
-            drawings.forEach((drawing, index) => {
-                html += '<tr>';
-                html += `<td>${index + 1}</td>`;
-                html += `<td><a href="${drawing.root_dir}${drawing.link_name}" target="_blank">${drawing.original_name}</a></td>`;
-                html += `<td>${drawing.upload_time}</td>`;
-                html += `<td><button type="button" class="delete-btn" onclick="deleteDrawing(${drawing.id})">删除</button></td>`;
-                html += '</tr>';
-            });
-            
-            html += '</tbody>';
-            html += '</table>';
-            drawingsList.innerHTML = html;
-        } else {
-            drawingsList.innerHTML = '<p class="no-drawings">暂无图纸</p>';
-        }
-    }
-</script>
-<div class="device-edit">
-    <h2 style="text-align: center; margin-bottom: 30px;">设备信息编辑</h2>
 
-    <form id="edit-form" enctype="multipart/form-data">
-        <input type="hidden" name="did" value="<?php echo $did; ?>">
+<div class="devices-container">
+    <h2 id="page-title">设备信息编辑</h2>
 
-        <div class="form-group">
-            <label for="device-name">设备名称 <span class="required">*</span>：</label>
-            <input type="text" id="device-name" name="device_name" required>
+    <div class="devices-layout">
+        <div class="devices-form">
+            <form id="device-form">
+                <input type="hidden" id="did" value="<?php echo $did; ?>">
+
+                <div class="form-layout">
+                    <div class="form-column left-column">
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label for="device_name">设备名称 <span class="required">*</span></label>
+                                <input type="text" id="device_name" placeholder="请输入设备名称" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label>设备类型 <span class="required">*</span></label>
+                                <div class="select-container">
+                                    <input type="text" id="type" readonly placeholder="请选择设备类型" required>
+                                    <input type="hidden" id="type-id">
+                                    <button type="button" class="clear-btn" data-target="type"></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label>所属站场 <span class="required">*</span></label>
+                                <div class="select-container">
+                                    <input type="text" id="station" readonly placeholder="请选择所属站场" required>
+                                    <input type="hidden" id="station-id">
+                                    <button type="button" class="clear-btn" data-target="station"></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label>包保部门 <span class="required">*</span></label>
+                                <div class="select-container">
+                                    <input type="text" id="department" readonly placeholder="请选择包保部门" required>
+                                    <input type="hidden" id="department-id">
+                                    <button type="button" class="clear-btn" data-target="department"></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label for="keepers">包保人员 <span class="required">*</span></label>
+                                <div class="workers-input-wrapper">
+                                    <div class="workers-tags"></div>
+                                    <input type="text" class="workers-input" placeholder="输入姓名后按空格添加">
+                                    <input type="hidden" id="keepers">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-column right-column">
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label for="remark">备注信息</label>
+                                <textarea id="remark" rows="4" placeholder="请输入备注信息"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 图纸管理 -->
+                        <div class="form-row">
+                            <div class="form-item">
+                                <label>图纸管理</label>
+                                <div class="drawing-upload-section">
+                                    <div class="drawing-upload-area" id="drawing-upload-area">
+                                        <input type="file" id="drawing-upload" multiple accept=".jpg,.jpeg,.png,.pdf,.dwg,.dxf">
+                                        <div class="upload-text">
+                                            <p>点击或拖拽文件到此处上传</p>
+                                            <p class="upload-tip">支持JPG、PNG、PDF、DWG、DXF格式文件</p>
+                                        </div>
+                                    </div>
+                                    <div id="drawing-list" class="drawing-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="save-btn">保存</button>
+                    <?php if ($is_edit_mode) { ?>
+                        <button type="button" class="cancel-btn">取消</button>
+                    <?php } ?>
+                </div>
+            </form>
         </div>
-
-        <div class="form-group">
-            <label for="device-type">设备类型 <span class="required">*</span>：</label>
-            <div class="select-container">
-                <input type="text" id="device-type" name="device_type" readonly required placeholder="请选择设备类型">
-                <input type="hidden" id="device-type-id" name="device_type_id">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="device-station">所属站场 <span class="required">*</span>：</label>
-            <div class="select-container">
-                <input type="text" id="device-station" name="device_station" readonly required placeholder="请选择所属站场">
-                <input type="hidden" id="device-station-id" name="device_station_id">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="device-department">包保部门 <span class="required">*</span>：</label>
-            <div class="select-container">
-                <input type="text" id="device-department" name="device_department" readonly required placeholder="请选择包保部门">
-                <input type="hidden" id="device-department-id" name="device_department_id">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="device-keepers">包保人姓名 <span class="required">*</span>：</label>
-            <input type="text" id="device-keepers" name="device_keepers" required placeholder="多个人用||分隔">
-        </div>
-
-        <div class="form-group">
-            <label for="device-remark">备注：</label>
-            <textarea id="device-remark" name="device_remark" rows="4" placeholder="可以输入多行文本"></textarea>
-        </div>
-
-        <div class="drawings-section">
-            <h3>图纸管理</h3>
-
-            <div class="drawings-list">
-                <div class="loading">加载中...</div>
-            </div>
-
-            <div class="upload-section">
-                <h4>上传新图纸</h4>
-                <input type="file" id="drawing-upload" name="drawing_upload[]" multiple accept=".jpg,.jpeg,.png,.pdf,.dwg,.dxf">
-                <p class="upload-note">支持的文件格式：JPG、PNG、PDF、DWG、DXF</p>
-            </div>
-        </div>
-
-        <div class="form-buttons">
-            <button type="button" class="cancel-btn" onclick="window.location.href='/devices.php?did=' + deviceId">取消</button>
-            <button type="submit" class="save-btn">保存</button>
-        </div>
-    </form>
+    </div>
 </div>
 
-<!-- 多级选择菜单模态框 -->
+<!-- 选择模态框 -->
 <div id="select-modal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <div class="modal-header-left">
-                <button type="button" class="modal-btn reset-btn">重置</button>
-            </div>
-            <div class="modal-header-right">
-                <button type="button" class="modal-btn cancel-btn">取消</button>
-                <button type="button" class="modal-btn confirm-btn">确认</button>
-            </div>
+            <h3 id="select-modal-title">选择</h3>
+            <button type="button" class="close-btn" onclick="closeSelectModal()">×</button>
         </div>
         <div class="modal-body">
-            <div id="select-content"></div>
+            <div id="select-path" class="select-path"></div>
+            <div id="select-items" class="select-items"></div>
         </div>
     </div>
 </div>
 
+<!-- 等待提示框 -->
+<div id="loading-modal" class="modal loading-modal" style="display: none;">
+    <div class="modal-content loading-content">
+        <div class="loading-spinner"></div>
+        <p id="loading-text">处理中，请稍候...</p>
+    </div>
+</div>
+
 <script>
-    // 全局变量存储当前选择类型和路径
+    // 当前选中的类型
     let currentSelectType = '';
-    let currentSelectPath = [];
+    let currentPath = [];
 
-    // 初始化选择框点击事件
-    document.getElementById('device-type').addEventListener('click', function() {
-        openSelectModal('type', '设备类型');
-    });
+    // 初始化页面
+    window.onload = function() {
+        initWorkerTags();
+        initDrawingUpload();
 
-    document.getElementById('device-station').addEventListener('click', function() {
-        openSelectModal('station', '所属站场');
-    });
+        // 绑定选择器点击事件
+        document.getElementById('type').addEventListener('click', function() {
+            openSelectModal('type', '选择设备类型');
+        });
+        document.getElementById('station').addEventListener('click', function() {
+            openSelectModal('station', '选择所属站场');
+        });
+        document.getElementById('department').addEventListener('click', function() {
+            openSelectModal('department', '选择所属部门');
+        });
 
-    document.getElementById('device-department').addEventListener('click', function() {
-        openSelectModal('department', '包保部门');
-    });
+        // 绑定清除按钮事件
+        document.querySelectorAll('.clear-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const target = this.getAttribute('data-target');
+                document.getElementById(target).value = '';
+                document.getElementById(target + '-id').value = '';
+                this.style.display = 'none';
+            });
+        });
 
-    // 打开选择模态框
-    function openSelectModal(type, label) {
-        currentSelectType = type;
+        // 绑定表单提交事件
+        document.getElementById('device-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveDevice();
+        });
 
-        // 重置选择路径
-        currentSelectPath = [];
-
-        // 获取当前选中的值
-        let currentId = '';
-        if (type === 'type') {
-            currentId = document.getElementById('device-type-id').value;
-        } else if (type === 'station') {
-            currentId = document.getElementById('device-station-id').value;
-        } else if (type === 'department') {
-            currentId = document.getElementById('device-department-id').value;
+        // 绑定取消按钮事件
+        const cancelBtn = document.querySelector('.cancel-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                window.history.back();
+            });
         }
 
-        // 加载第一级数据
-        loadSelectData(0, currentId);
-
-        // 显示模态框
-        document.getElementById('select-modal').style.display = 'block';
-    }
-
-    // 加载选择数据
-    function loadSelectData(parentId, currentId) {
-        const type = currentSelectType;
-        const contentDiv = document.getElementById('select-content');
-
-        // 清空内容
-        contentDiv.innerHTML = '<div class="loading">加载中...</div>';
-
-        // 根据类型获取API URL
-        let apiUrl = '';
-        switch (type) {
-            case 'department':
-                apiUrl = `api.php?action=getDepartments&parentId=${parentId}`;
-                break;
-            case 'station':
-                apiUrl = `api.php?action=getStations&parentId=${parentId}`;
-                break;
-            case 'type':
-                apiUrl = `api.php?action=getTypes&parentId=${parentId}`;
-                break;
+        // 加载设备信息（如果是编辑模式）
+        const didElement = document.getElementById('did');
+        if (didElement && didElement.value) {
+            loadDeviceDetail();
         }
+    };
 
-        // 发送请求获取数据
-        fetch(apiUrl)
+    // 加载设备详情
+    function loadDeviceDetail() {
+        const did = document.getElementById('did').value;
+        showLoadingModal();
+
+        fetch(`api.php?action=getDeviceDetail&did=${did}`)
             .then(response => response.json())
             .then(data => {
-                if (data.length > 0) {
-                    let html = '';
+                hideLoadingModal();
 
-                    // 显示当前路径
-                    if (currentSelectPath.length > 0) {
-                        html += '<div class="select-path">';
-                        currentSelectPath.forEach((item, index) => {
-                            html += `<span class="path-item" data-id="${item.id}">${item.name}</span>`;
-                            if (index < currentSelectPath.length - 1) {
-                                html += ' / ';
-                            }
+                if (data.success && data.data) {
+                    const device = data.data;
+
+                    // 设置页面标题和H2标题，用[]括起设备名称
+                    const formattedTitle = `编辑[${device.device_name}]`;
+                    document.getElementById('page-title').textContent = formattedTitle;
+
+                    // 更新页面标题
+                    document.title = `${formattedTitle} - 个人设备信息管理平台`;
+
+                    // 填充表单数据
+                    document.getElementById('device_name').value = device.device_name || '';
+                    document.getElementById('type').value = device.type_name || '';
+                    document.getElementById('type-id').value = device.tid || '';
+                    document.getElementById('station').value = device.station_name || '';
+                    document.getElementById('station-id').value = device.sid || '';
+                    document.getElementById('department').value = device.department_name || '';
+                    document.getElementById('department-id').value = device.cid || '';
+                    document.getElementById('remark').value = device.remark || '';
+
+                    // 显示清除按钮
+                    updateClearButtonVisibility('type');
+                    updateClearButtonVisibility('station');
+                    updateClearButtonVisibility('department');
+
+                    // 设置包保人员
+                    if (device.keepers) {
+                        const keepers = device.keepers.split('||');
+                        document.getElementById('keepers').value = device.keepers;
+                        const tagsContainer = document.querySelector('.workers-tags');
+                        tagsContainer.innerHTML = '';
+
+                        keepers.forEach(name => {
+                            addKeeperTag(name);
                         });
-                        html += '</div>';
                     }
 
-                    // 显示选项列表
-                    html += '<div class="select-items">';
-                    data.forEach(item => {
-                        const isSelected = item.id == currentId ? 'selected' : '';
-                        html += `<div class="select-item ${isSelected}" data-id="${item.id}" data-name="${item.name}" data-shortname="${item.shortname || item.name}">${item.name}</div>`;
-                    });
-                    html += '</div>';
-
-                    contentDiv.innerHTML = html;
-
-                    // 添加选项点击事件
-                    document.querySelectorAll('.select-item').forEach(item => {
-                        item.addEventListener('click', function() {
-                            const id = this.getAttribute('data-id');
-                            const name = this.getAttribute('data-name');
-                            const shortname = this.getAttribute('data-shortname');
-
-                            // 添加到选择路径
-                            currentSelectPath.push({
-                                id,
-                                name,
-                                shortname
-                            });
-
-                            // 加载下一级数据
-                            loadSelectData(id, currentId);
-                        });
-                    });
-
-                    // 添加路径点击事件
-                    document.querySelectorAll('.path-item').forEach(item => {
-                        item.addEventListener('click', function() {
-                            const id = this.getAttribute('data-id');
-                            // 重置路径到点击的位置
-                            currentSelectPath = currentSelectPath.filter(item => item.id === id);
-                            // 加载对应级别的数据
-                            loadSelectData(id, currentId);
-                        });
-                    });
+                    // 加载图纸列表
+                    loadDrawingList(did);
                 } else {
-                    // 没有下一级数据，直接确认选择
-                    confirmSelect();
+                    // 如果设备不存在，切换为新增模式
+                    document.getElementById('page-title').textContent = '新增设备';
+                    document.getElementById('did').value = '';
+                    alert('设备不存在，切换为新增设备模式');
                 }
             })
             .catch(error => {
-                contentDiv.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+                hideLoadingModal();
+                alert('加载设备信息失败：' + error.message);
             });
     }
 
-    // 确认选择
-    function confirmSelect() {
-        if (currentSelectPath.length > 0) {
-            const type = currentSelectType;
-            const lastItem = currentSelectPath[currentSelectPath.length - 1];
+    // 加载图纸列表
+    function loadDrawingList(did) {
+        fetch(`api.php?action=getDeviceDrawings&did=${did}`)
+            .then(response => response.json())
+            .then(data => {
+                const drawingList = document.getElementById('drawing-list');
+                drawingList.innerHTML = '';
 
-            // 根据类型更新输入框
-            if (type === 'department') {
-                const pathStr = currentSelectPath.map(item => item.name).join('/');
-                document.getElementById('device-department').value = pathStr;
-                document.getElementById('device-department-id').value = lastItem.id;
-            } else if (type === 'station') {
-                const pathStr = currentSelectPath.map(item => item.name).join('/');
-                document.getElementById('device-station').value = pathStr;
-                document.getElementById('device-station-id').value = lastItem.id;
-            } else if (type === 'type') {
-                const pathStr = currentSelectPath.map(item => item.name).join('/');
-                document.getElementById('device-type').value = pathStr;
-                document.getElementById('device-type-id').value = lastItem.id;
-            }
+                if (data.success && data.data && data.data.length > 0) {
+                    data.data.forEach(drawing => {
+                        addDrawingItem(drawing);
+                    });
+                } else {
+                    drawingList.innerHTML = '<p class="no-drawing">暂无图纸</p>';
+                }
+            })
+            .catch(error => {
+                console.error('加载图纸列表失败：', error);
+            });
+    }
+
+    // 保存设备信息
+    function saveDevice() {
+        // 验证表单
+        const deviceName = document.getElementById('device_name').value.trim();
+        const typeId = document.getElementById('type-id').value;
+        const stationId = document.getElementById('station-id').value;
+        const departmentId = document.getElementById('department-id').value;
+        const keepers = document.getElementById('keepers').value;
+
+        if (!deviceName) {
+            alert('请输入设备名称');
+            return;
         }
 
-        // 关闭模态框
-        document.getElementById('select-modal').style.display = 'none';
-    }
-
-    // 重置选择
-    function resetSelect() {
-        currentSelectPath = [];
-        loadSelectData(0);
-    }
-
-    // 添加模态框按钮事件
-    document.querySelector('.confirm-btn').addEventListener('click', confirmSelect);
-    document.querySelector('.cancel-btn').addEventListener('click', function() {
-        document.getElementById('select-modal').style.display = 'none';
-    });
-    document.querySelector('.reset-btn').addEventListener('click', resetSelect);
-
-    // 删除图纸
-    function deleteDrawing(drawingId) {
-        if (confirm('确定要删除这个图纸吗？')) {
-            fetch(`api.php?action=deleteDrawing&id=${drawingId}`, {
-                    method: 'POST'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // 刷新页面
-                        location.reload();
-                    } else {
-                        alert('删除失败: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('删除失败: ' + error.message);
-                });
+        if (!typeId) {
+            alert('请选择设备类型');
+            return;
         }
-    }
 
-    // 提交表单
-    document.getElementById('edit-form').addEventListener('submit', function(e) {
-        e.preventDefault();
+        if (!stationId) {
+            alert('请选择所属站场');
+            return;
+        }
 
-        const formData = new FormData(this);
+        if (!departmentId) {
+            alert('请选择所属部门');
+            return;
+        }
 
+        if (!keepers) {
+            alert('请输入包保人员');
+            return;
+        }
+
+        // 准备表单数据
+        const formData = new FormData();
+        formData.append('did', document.getElementById('did').value);
+        formData.append('device_name', deviceName);
+        formData.append('device_type_id', typeId);
+        formData.append('device_station_id', stationId);
+        formData.append('device_department_id', departmentId);
+        formData.append('device_keepers', keepers);
+        formData.append('device_remark', document.getElementById('remark').value.trim());
+
+        // 添加上传的图纸文件
+        const drawingFiles = document.getElementById('drawing-upload').files;
+        for (let i = 0; i < drawingFiles.length; i++) {
+            formData.append('drawing_upload[]', drawingFiles[i]);
+        }
+
+        // 显示加载提示
+        showLoadingModal();
+
+        // 提交保存请求
         fetch('api.php?action=saveDevice', {
                 method: 'POST',
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
+                hideLoadingModal();
+
                 if (data.success) {
                     alert('保存成功');
-                    window.location.href = `/devices.php?did=${<?php echo $did; ?>}`;
+                    // 由于API返回中没有data.did，使用当前表单中的设备ID进行跳转
+                    window.location.href = `devices.php?did=${document.getElementById('did').value}`;
                 } else {
-                    alert('保存失败: ' + data.message);
+                    alert('保存失败：' + data.message);
                 }
             })
             .catch(error => {
-                alert('保存失败: ' + error.message);
+                hideLoadingModal();
+                alert('保存失败：' + error.message);
             });
-    });
+    }
+
+    // 初始化作业人员标签输入
+    function initWorkerTags() {
+        const inputWrapper = document.querySelector('.workers-input-wrapper');
+        const tagsContainer = document.querySelector('.workers-tags');
+        const input = document.querySelector('.workers-input');
+        const hiddenInput = document.getElementById('keepers');
+
+        // 支持的分隔符
+        const separators = [' ', '、', ',', '，', ';', '；', '\uff0c', '\uff1b'];
+
+        // 输入处理
+        input.addEventListener('input', function(e) {
+            const value = e.target.value.trim();
+
+            // 检查是否输入了任何分隔符
+            for (const separator of separators) {
+                if (value.includes(separator)) {
+                    // 处理输入框中的多个名字（可能包含各种分隔符）
+                    let names = [value.trim()];
+
+                    // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
+                    separators.forEach(sep => {
+                        // 转义特殊字符
+                        const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        names = names.flatMap(name => name.split(new RegExp(escapedSep)));
+                    });
+
+                    // 添加有效的姓名标签
+                    names.forEach(name => {
+                        if (name.trim()) {
+                            addKeeperTag(name.trim());
+                        }
+                    });
+
+                    this.value = '';
+                    updateHiddenInput();
+                    break;
+                }
+            }
+        });
+
+        // 回车添加
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+
+                if (value) {
+                    addKeeperTag(value);
+                    this.value = '';
+                    updateHiddenInput();
+                }
+            }
+        });
+
+        // 添加标签函数
+        function addKeeperTag(name) {
+            // 检查是否已存在
+            const existingTags = Array.from(tagsContainer.querySelectorAll('.keeper-tag'));
+            if (existingTags.some(tag => tag.dataset.name === name)) {
+                return;
+            }
+
+            const tag = document.createElement('div');
+            tag.className = 'keeper-tag';
+            tag.dataset.name = name;
+            tag.innerHTML = `${name} <span class="remove-tag">×</span>`;
+
+            // 删除标签事件
+            tag.querySelector('.remove-tag').addEventListener('click', function() {
+                tag.remove();
+                updateHiddenInput();
+            });
+
+            tagsContainer.appendChild(tag);
+        }
+
+        // 更新隐藏输入
+        function updateHiddenInput() {
+            const tags = Array.from(tagsContainer.querySelectorAll('.keeper-tag'));
+            const names = tags.map(tag => tag.dataset.name);
+            hiddenInput.value = names.join('||');
+
+            // 显示/隐藏错误状态
+            if (inputWrapper.classList.contains('error')) {
+                inputWrapper.classList.remove('error');
+            }
+        }
+
+        // 暴露给外部使用的方法
+        window.addKeeperTag = addKeeperTag;
+        window.updateHiddenInput = updateHiddenInput;
+    }
+
+    // 初始化图纸上传
+    function initDrawingUpload() {
+        const uploadArea = document.getElementById('drawing-upload-area');
+        const fileInput = document.getElementById('drawing-upload');
+        const drawingList = document.getElementById('drawing-list');
+
+        // 点击上传区域触发文件选择
+        uploadArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // 阻止事件冒泡，避免触发两次
+        fileInput.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        // 文件选择变化
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                // 清空"暂无图纸"提示
+                if (drawingList.querySelector('.no-drawing')) {
+                    drawingList.innerHTML = '';
+                }
+
+                // 添加新文件到列表
+                Array.from(this.files).forEach(file => {
+                    // 检查文件类型
+                    const validExtensions = ['.jpg', '.jpeg', '.png', '.pdf', '.dwg', '.dxf'];
+                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+                    if (validExtensions.includes(fileExtension)) {
+                        addDrawingItem({
+                            name: file.name,
+                            size: file.size,
+                            is_new: true
+                        });
+                    } else {
+                        alert(`文件类型不支持：${file.name}`);
+                    }
+                });
+            }
+        });
+
+        // 拖拽上传
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            uploadArea.classList.add('highlight');
+        }
+
+        function unhighlight() {
+            uploadArea.classList.remove('highlight');
+        }
+
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                // 设置文件到input
+                fileInput.files = files;
+                // 触发change事件
+                const event = new Event('change');
+                fileInput.dispatchEvent(event);
+            }
+        }
+    }
+
+    // 添加图纸项到列表
+    function addDrawingItem(drawing) {
+        const drawingList = document.getElementById('drawing-list');
+        const item = document.createElement('div');
+        item.className = 'drawing-item';
+        item.dataset.id = drawing.id;
+
+        // 文件大小格式化
+        let fileSize = '';
+        if (drawing.size) {
+            if (drawing.size < 1024) {
+                fileSize = `${drawing.size} B`;
+            } else if (drawing.size < 1024 * 1024) {
+                fileSize = `${(drawing.size / 1024).toFixed(2)} KB`;
+            } else {
+                fileSize = `${(drawing.size / (1024 * 1024)).toFixed(2)} MB`;
+            }
+        }
+
+        item.innerHTML = `
+        <div class="drawing-info">
+            <div class="drawing-name">${drawing.name}</div>
+            <div class="drawing-meta">${fileSize} ${drawing.is_new ? '<span class="new-tag">新上传</span>' : ''}</div>
+        </div>
+        <button type="button" class="delete-drawing-btn" title="删除">×</button>
+    `;
+
+        // 删除按钮事件
+        item.querySelector('.delete-drawing-btn').addEventListener('click', function() {
+            if (confirm(`确定要删除图纸 "${drawing.name}" 吗？`)) {
+                item.remove();
+
+                // 如果是新增的文件，从input中移除
+                if (drawing.is_new) {
+                    const fileInput = document.getElementById('drawing-upload');
+                    const files = Array.from(fileInput.files);
+                    const filteredFiles = files.filter(file => file.name !== drawing.name);
+
+                    // 创建新的FileList
+                    const dataTransfer = new DataTransfer();
+                    filteredFiles.forEach(file => dataTransfer.items.add(file));
+                    fileInput.files = dataTransfer.files;
+                } else {
+                    // 已存在的文件，发送删除请求
+                    deleteDrawing(drawing.id);
+                }
+
+                // 检查是否需要显示"暂无图纸"提示
+                if (drawingList.children.length === 0) {
+                    drawingList.innerHTML = '<p class="no-drawing">暂无图纸</p>';
+                }
+            }
+        });
+
+        drawingList.appendChild(item);
+    }
+
+    // 删除图纸
+    function deleteDrawing(drawingId) {
+        fetch(`api.php?action=deleteDrawing&id=${drawingId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('删除图纸失败：', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('删除图纸失败：', error);
+            });
+    }
+
+    // 打开选择模态框
+    function openSelectModal(type, title) {
+        currentSelectType = type;
+        currentPath = [];
+
+        const modal = document.getElementById('select-modal');
+        document.getElementById('select-modal-title').textContent = title;
+        document.getElementById('select-path').textContent = title;
+
+        // 加载选项数据
+        loadSelectItems(type);
+
+        modal.style.display = 'flex';
+    }
+
+    // 关闭选择模态框
+    function closeSelectModal() {
+        document.getElementById('select-modal').style.display = 'none';
+    }
+
+    // 加载选择项数据
+    function loadSelectItems(type) {
+        const selectItems = document.getElementById('select-items');
+        selectItems.innerHTML = '<div class="loading">加载中...</div>';
+
+        // 构建API参数
+        let actionName = '';
+        switch (type) {
+            case 'department':
+                actionName = 'getDepartments';
+                break;
+            case 'station':
+                actionName = 'getStations';
+                break;
+            case 'type':
+                actionName = 'getTypes';
+                break;
+            default:
+                actionName = `get${type.charAt(0).toUpperCase() + type.slice(1)}List`;
+        }
+        let apiParams = `action=${actionName}`;
+
+        // 如果有父级ID，添加到参数中
+        if (currentPath.length > 0) {
+            const lastPath = currentPath[currentPath.length - 1];
+            if (lastPath.id) {
+                apiParams += `&parentId=${lastPath.id}`;
+            }
+        }
+
+        fetch(`api.php?${apiParams}`)
+            .then(response => response.json())
+            .then(data => {
+                selectItems.innerHTML = '';
+
+                // 处理直接返回数组的情况
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'select-item';
+                        // 兼容不同字段名称
+                        itemDiv.textContent = item.name || item.type_name || item.station_name || item.full_name || item.short_name;
+                        itemDiv.dataset.id = item.id || item.tid || item.sid || item.cid;
+                        itemDiv.dataset.name = item.name || item.type_name || item.station_name || item.full_name || item.short_name;
+
+                        itemDiv.addEventListener('click', function() {
+                            // 检查是否有子项
+                            fetch(`api.php?action=${actionName}&parentId=${itemDiv.dataset.id}`)
+                                .then(response => response.json())
+                                .then(children => {
+                                    // 检查是否有子项，数组长度大于0或data.success为true且data.data长度大于0
+                                    const hasChildren = (Array.isArray(children) && children.length > 0) ||
+                                        (children.success && children.data && children.data.length > 0);
+
+                                    if (hasChildren) {
+                                        // 添加到路径
+                                        currentPath.push({
+                                            id: itemDiv.dataset.id,
+                                            name: itemDiv.dataset.name
+                                        });
+                                        updatePathDisplay();
+                                        loadSelectItems(type);
+                                    } else {
+                                        // 选择该项
+                                        selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('加载子项失败:', error);
+                                    // 发生错误时也选择该项
+                                    selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                });
+                        });
+
+                        selectItems.appendChild(itemDiv);
+                    });
+                }
+                // 处理带有success和data字段的情况
+                else if (data.success && data.data && data.data.length > 0) {
+                    data.data.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'select-item';
+                        // 兼容不同字段名称
+                        itemDiv.textContent = item.name || item.type_name || item.station_name || item.full_name || item.short_name;
+                        itemDiv.dataset.id = item.id || item.tid || item.sid || item.cid;
+                        itemDiv.dataset.name = item.name || item.type_name || item.station_name || item.full_name || item.short_name;
+
+                        itemDiv.addEventListener('click', function() {
+                            // 检查是否有子项
+                            fetch(`api.php?action=${actionName}&parentId=${itemDiv.dataset.id}`)
+                                .then(response => response.json())
+                                .then(children => {
+                                    // 检查是否有子项，数组长度大于0或data.success为true且data.data长度大于0
+                                    const hasChildren = (Array.isArray(children) && children.length > 0) ||
+                                        (children.success && children.data && children.data.length > 0);
+
+                                    if (hasChildren) {
+                                        // 添加到路径
+                                        currentPath.push({
+                                            id: itemDiv.dataset.id,
+                                            name: itemDiv.dataset.name
+                                        });
+                                        updatePathDisplay();
+                                        loadSelectItems(type);
+                                    } else {
+                                        // 选择该项
+                                        selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('加载子项失败:', error);
+                                    // 发生错误时也选择该项
+                                    selectItem(itemDiv.dataset.id, itemDiv.dataset.name);
+                                });
+                        });
+
+                        selectItems.appendChild(itemDiv);
+                    });
+                } else {
+                    selectItems.innerHTML = '<p class="no-data">暂无数据</p>';
+                }
+            })
+            .catch(error => {
+                console.error('加载数据失败:', error);
+                selectItems.innerHTML = '<p class="error">加载失败，请重试</p>';
+            });
+    }
+
+    // 更新路径显示
+    function updatePathDisplay() {
+        const pathContainer = document.getElementById('select-path');
+        pathContainer.innerHTML = '';
+
+        // 添加返回上级按钮（如果有路径）
+        if (currentPath.length > 0) {
+            const backButton = document.createElement('span');
+            backButton.className = 'path-item';
+            backButton.textContent = '返回上级';
+            backButton.addEventListener('click', function() {
+                currentPath.pop();
+                updatePathDisplay();
+                loadSelectItems(currentSelectType);
+            });
+            pathContainer.appendChild(backButton);
+            pathContainer.appendChild(document.createTextNode(' > '));
+        }
+
+        // 添加当前路径
+        currentPath.forEach((path, index) => {
+            const pathItem = document.createElement('span');
+            pathItem.className = 'path-item';
+            pathItem.textContent = path.name;
+            pathItem.addEventListener('click', function() {
+                // 跳转到指定路径
+                currentPath = currentPath.slice(0, index + 1);
+                updatePathDisplay();
+                loadSelectItems(currentSelectType);
+            });
+
+            pathContainer.appendChild(pathItem);
+
+            if (index < currentPath.length - 1) {
+                pathContainer.appendChild(document.createTextNode(' > '));
+            }
+        });
+    }
+
+    // 选择项处理
+    function selectItem(id, name) {
+        const input = document.getElementById(currentSelectType);
+        const hiddenInput = document.getElementById(currentSelectType + '-id');
+
+        input.value = name;
+        hiddenInput.value = id;
+
+        // 显示清除按钮
+        updateClearButtonVisibility(currentSelectType);
+    }
+
+    // 更新清除按钮可见性
+    function updateClearButtonVisibility(target) {
+        const input = document.getElementById(target);
+        const clearBtn = document.querySelector(`.clear-btn[data-target="${target}"]`);
+
+        if (input.value) {
+            clearBtn.style.display = 'flex';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+    }
+
+    // 显示加载模态框
+    function showLoadingModal(text = '处理中，请稍候...') {
+        const modal = document.getElementById('loading-modal');
+        document.getElementById('loading-text').textContent = text;
+        modal.style.display = 'flex';
+    }
+
+    // 隐藏加载模态框
+    function hideLoadingModal() {
+        document.getElementById('loading-modal').style.display = 'none';
+    }
 </script>
 
 <style>
-    .device-edit {
+    .devices-container {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         padding: 30px;
+        width: 100%;
+        max-width: 1200px;
+        margin: 20px auto;
+        box-sizing: border-box;
     }
 
-    .error-message {
+    .devices-container h2 {
+        margin-bottom: 20px;
+        color: #2c3e50;
         text-align: center;
-        padding: 50px 0;
-        color: #e74c3c;
     }
 
-    .error-message a {
-        color: #3498db;
-        text-decoration: none;
+    .devices-layout {
+        display: flex;
+        gap: 30px;
+        margin-top: 30px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
-    .error-message a:hover {
-        text-decoration: underline;
+    .devices-form {
+        flex: 1;
+        min-width: 0;
+        background: #f9f9f9;
+        border-radius: 8px;
+        padding: 20px;
+        height: fit-content;
+        box-sizing: border-box;
     }
 
-    .form-group {
+    /* 宽屏模式两栏布局 */
+    .form-layout {
+        display: flex;
+        gap: 20px;
+    }
+
+    .form-column {
+        flex: 1;
+    }
+
+    .left-column {
+        flex: 1;
+    }
+
+    .right-column {
+        flex: 1;
+    }
+
+    /* 在窄屏模式下恢复单列布局 */
+    @media (max-width: 768px) {
+        .form-layout {
+            flex-direction: column;
+            gap: 0;
+        }
+    }
+
+    .form-row {
         margin-bottom: 20px;
     }
 
-    .form-group label {
+    .form-item {
+        margin-bottom: 15px;
+    }
+
+    .form-item label {
         display: block;
         margin-bottom: 8px;
         font-weight: bold;
         color: #555;
     }
 
-    .required {
+    .form-item label .required {
         color: #e74c3c;
     }
 
-    .form-group input[type="text"],
-    .form-group textarea {
+    .form-item input[type="text"],
+    .form-item textarea {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         border: 1px solid #ddd;
         border-radius: 4px;
         font-size: 16px;
+        box-sizing: border-box;
     }
 
-    .form-group textarea {
+    .form-item textarea {
         resize: vertical;
-        min-height: 100px;
+        min-height: 80px;
     }
 
     .select-container {
@@ -502,6 +936,7 @@ include 'header.php';
     .select-container input[type="text"] {
         cursor: pointer;
         background-color: white;
+        padding-right: 40px;
     }
 
     .select-container input[type="text"]:focus {
@@ -509,121 +944,257 @@ include 'header.php';
         border-color: #3498db;
     }
 
-    .drawings-section {
-        margin-top: 30px;
-        padding: 20px;
-        background-color: #f9f9f9;
-        border-radius: 4px;
+    .clear-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border: none;
+        background: #ddd;
+        border-radius: 50%;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        line-height: 1;
+        color: #666;
     }
 
-    .drawings-section h3 {
-        margin-bottom: 20px;
-        color: #333;
-    }
-
-    .drawings-section h4 {
-        margin-bottom: 10px;
-        color: #555;
-    }
-
-    .drawings-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 20px;
-    }
-
-    .drawings-table th,
-    .drawings-table td {
-        padding: 10px;
-        text-align: left;
-        border-bottom: 1px solid #ddd;
-    }
-
-    .drawings-table th {
-        background-color: #f5f5f5;
+    .clear-btn:before {
+        content: '×';
         font-weight: bold;
     }
 
-    .drawings-table tr:hover {
-        background-color: #f0f0f0;
+    .clear-btn:hover {
+        background: #ccc;
+        color: #333;
     }
 
-    .drawings-table a {
-        color: #3498db;
-        text-decoration: none;
-    }
-
-    .drawings-table a:hover {
-        text-decoration: underline;
-    }
-
-    .delete-btn {
-        background-color: #e74c3c;
-        color: white;
-        border: none;
-        padding: 5px 15px;
+    /* 作业人员输入样式 */
+    .workers-input-wrapper {
+        display: block;
+        padding: 8px;
+        border: 1px solid #ddd;
         border-radius: 4px;
+        min-height: 38px;
+        transition: border-color 0.3s ease;
+        background-color: white;
+    }
+
+    /* 错误状态样式 */
+    .workers-input-wrapper.error {
+        border-color: #f44336;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* 摇摆动画 */
+    @keyframes shake {
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+            transform: translateX(-5px);
+        }
+
+        20%,
+        40%,
+        60%,
+        80% {
+            transform: translateX(5px);
+        }
+    }
+
+    .workers-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 8px;
+        min-height: 22px;
+    }
+
+    .keeper-tag {
+        background-color: #e0f2fe;
+        color: #1976d2;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 14px;
         cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .keeper-tag:hover {
+        background-color: #bae7ff;
+        color: #0d47a1;
+    }
+
+    .remove-tag {
+        margin-left: 6px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .workers-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 100px;
+        padding: 0;
         font-size: 14px;
     }
 
-    .delete-btn:hover {
+    /* 图纸管理样式 */
+    .drawing-upload-section {
+        margin-top: 10px;
+    }
+
+    .drawing-upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 4px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background-color: white;
+    }
+
+    .drawing-upload-area:hover,
+    .drawing-upload-area.highlight {
+        border-color: #3498db;
+        background-color: #f8f9fa;
+    }
+
+    .upload-text p {
+        margin: 5px 0;
+        color: #666;
+    }
+
+    .upload-tip {
+        font-size: 14px;
+        color: #999;
+    }
+
+    .drawing-list {
+        margin-top: 20px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .drawing-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        margin-bottom: 10px;
+        background-color: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+
+    .drawing-item:hover {
+        border-color: #3498db;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .drawing-info {
+        flex: 1;
+    }
+
+    .drawing-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+    }
+
+    .drawing-meta {
+        font-size: 14px;
+        color: #999;
+    }
+
+    .new-tag {
+        color: #27ae60;
+        font-size: 12px;
+        margin-left: 8px;
+    }
+
+    .delete-drawing-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background-color: #e74c3c;
+        color: white;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        transition: all 0.3s ease;
+    }
+
+    .delete-drawing-btn:hover {
         background-color: #c0392b;
     }
 
-    .no-drawings {
+    .no-drawing {
         text-align: center;
         color: #999;
-        padding: 20px 0;
+        padding: 30px 0;
     }
 
-    .upload-section {
-        margin-top: 20px;
-    }
-
-    #drawing-upload {
-        margin-bottom: 10px;
-    }
-
-    .upload-note {
-        font-size: 14px;
-        color: #666;
-        margin: 0;
-    }
-
-    .form-buttons {
+    /* 表单操作按钮 */
+    .form-actions {
+        margin-top: 30px;
         display: flex;
         justify-content: center;
-        margin-top: 40px;
         gap: 20px;
     }
 
-    .cancel-btn,
     .save-btn {
-        padding: 12px 30px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-        transition: background-color 0.3s;
+        order: 2;
     }
 
     .cancel-btn {
-        background-color: #95a5a6;
-        color: white;
+        order: 1;
     }
 
     .save-btn {
         background-color: #27ae60;
         color: white;
-    }
-
-    .cancel-btn:hover {
-        background-color: #7f8c8d;
+        border: none;
+        padding: 12px 30px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
     }
 
     .save-btn:hover {
         background-color: #229954;
+    }
+
+    .cancel-btn {
+        background-color: #95a5a6;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .cancel-btn:hover {
+        background-color: #7f8c8d;
     }
 
     /* 模态框样式 */
@@ -631,13 +1202,13 @@ include 'header.php';
         position: fixed;
         top: 0;
         left: 0;
-        right: 0;
-        bottom: 0;
+        width: 100%;
+        height: 100%;
         background-color: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 2000;
     }
 
     .modal-content {
@@ -651,115 +1222,221 @@ include 'header.php';
     }
 
     .modal-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #ddd;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 15px;
-        border-bottom: 1px solid #ddd;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: #333;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #999;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-btn:hover {
+        color: #333;
     }
 
     .modal-body {
-        padding: 15px;
+        padding: 20px;
         overflow-y: auto;
+        flex: 1;
     }
 
-    .modal-btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        margin-left: 5px;
-    }
-
-    .reset-btn,
-    .cancel-btn {
-        background-color: #95a5a6;
-        color: white;
-    }
-
-    .confirm-btn {
-        background-color: #4CAF50;
-        color: white;
-    }
-
-    .reset-btn:hover,
-    .cancel-btn:hover {
-        opacity: 0.9;
-    }
-    
-    .confirm-btn:hover {
-        background-color: #45a049;
-    }
-
+    /* 选择模态框样式 */
     .select-path {
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
+        padding: 10px 15px;
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 10px;
+        font-size: 14px;
     }
 
     .path-item {
-        cursor: pointer;
         color: #3498db;
-    }
-
-    .path-item:hover {
+        cursor: pointer;
         text-decoration: underline;
     }
 
+    .path-item:hover {
+        color: #2980b9;
+    }
+
     .select-items {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+        max-height: 400px;
+        overflow-y: auto;
     }
 
     .select-item {
-        padding: 10px 15px;
-        background-color: #f5f5f5;
-        border-radius: 4px;
+        padding: 12px 15px;
+        background-color: #f8f9fa;
+        color: #333;
         cursor: pointer;
-        transition: background-color 0.3s;
+        border: 1px solid transparent;
+        margin-bottom: 5px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
     }
 
-    .select-item.selected {
+    .select-item:hover {
         background-color: #3498db;
         color: white;
     }
 
-    .select-item:hover:not(.selected) {
-        background-color: #e0e0e0;
-    }
-
-    .loading,
-    .error {
+    /* 加载模态框样式 */
+    .loading-modal .modal-content {
+        width: 300px;
+        padding: 30px;
         text-align: center;
-        padding: 50px 0;
-        color: #999;
     }
 
-    .error {
-        color: #e74c3c;
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
     }
 
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* 基础样式确保移动设备兼容性 */
+    html, body {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    /* 响应式布局 */
     @media (max-width: 768px) {
-        .device-edit {
-            padding: 20px;
-        }
-
-        .form-buttons {
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .cancel-btn,
-        .save-btn {
+        /* 根容器设置 */
+        .devices-container {
+            background: none;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 0;
             width: 100%;
-            max-width: 300px;
+            box-sizing: border-box;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
+
+        .devices-container h2 {
+            padding: 0 10px;
+            font-size: 20px;
+        }
+
+        /* 布局容器设置 */
+        .devices-layout {
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            padding: 0 10px;
+            box-sizing: border-box;
+            max-width: 100%;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
+
+        /* 表单容器设置 */
+        .devices-form {
+            flex: none;
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            box-sizing: border-box;
+            max-width: 100%;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
+
+        /* 表单行和项目设置 */
+        .form-row {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        .form-item {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        /* 确保所有表单元素都不会超出容器 */
+        input, textarea, .select-container, .workers-input-wrapper {
+            max-width: 100% !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        /* 特定元素的额外控制 */
+        .select-container {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .select-container input[type="text"] {
+            padding-right: 35px;  /* 为清除按钮留出空间 */
+        }
+
+        .workers-input-wrapper {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 38px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .clear-btn {
+            right: 8px;
         }
 
         .modal-content {
             width: 95%;
             max-height: 90vh;
+            box-sizing: border-box;
+        }
+
+        .form-actions {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .save-btn {
+            width: 100%;
+            order: 1;
+        }
+
+        .cancel-btn {
+            width: 100%;
+            order: 2;
         }
     }
 </style>

@@ -87,6 +87,17 @@ if (!empty($base_title) && strpos($base_title, $site_suffix) === false) {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 移动端响应式 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+                width: 100%;
+                overflow-x: hidden;
+            }
         }
     </style>
 </head>
