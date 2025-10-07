@@ -1,6 +1,6 @@
 <?php
 // 检查是否被直接访问
-if (basename($_SERVER['PHP_SELF']) == 'devices_detail.php') {
+if (basename($_SERVER['PHP_SELF']) == 'devices_edit.php') {
     header('Location: /devices.php');
     exit();
 }
