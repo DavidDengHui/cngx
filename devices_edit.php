@@ -655,20 +655,35 @@ $is_edit_mode = !empty($did);
 
         if (input.value && hiddenInput.value) {
             // 尝试加载到已有路径，完成后显示模态框
-            navigateToExistingPath(type, hiddenInput.value, input.value).then(() => {
-                modal.style.display = 'flex';
-                hideLoadingModal();
-            }).catch(() => {
-                // 加载失败时也显示模态框
+                navigateToExistingPath(type, hiddenInput.value, input.value).then(() => {
+                    // 显示模态框
+                    modal.style.display = 'flex';
+                    // 设置背景禁止滚动
+                    document.documentElement.style.overflow = 'hidden';
+                    document.body.style.overflow = 'hidden';
+                    // 隐藏加载动画
+                    hideLoadingModal();
+                }).catch(() => {
+                    // 加载失败时也显示模态框
                 loadSelectItems(type);
+                // 显示模态框
                 modal.style.display = 'flex';
+                // 设置背景禁止滚动
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+                // 隐藏加载动画
                 hideLoadingModal();
-            });
-        } else {
-            // 直接加载顶级数据
-            loadSelectItems(type);
-            modal.style.display = 'flex';
-            hideLoadingModal();
+                });
+            } else {
+                // 直接加载顶级数据
+                loadSelectItems(type);
+                // 显示模态框
+                modal.style.display = 'flex';
+                // 设置背景禁止滚动
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+                // 隐藏加载动画
+                hideLoadingModal();
         }
 
         // 绑定重置和确认按钮事件
@@ -884,6 +899,9 @@ $is_edit_mode = !empty($did);
     // 关闭选择模态框
     function closeSelectModal() {
         document.getElementById('select-modal').style.display = 'none';
+        // 恢复背景页面滚动 - 同时控制html和body
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
     }
 
     // 加载选择项数据
@@ -1167,11 +1185,21 @@ $is_edit_mode = !empty($did);
         const modal = document.getElementById('loading-modal');
         document.getElementById('loading-text').textContent = text;
         modal.style.display = 'flex';
+        // 阻止背景页面滚动 - 同时控制html和body
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
     }
 
     // 隐藏加载模态框
     function hideLoadingModal() {
         document.getElementById('loading-modal').style.display = 'none';
+        // 检查是否有模态框正在显示
+        const selectModal = document.getElementById('select-modal');
+        if (selectModal && selectModal.style.display !== 'flex') {
+            // 如果没有模态框显示，恢复背景页面滚动
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+        }
     }
 
     // 加载选择项完成后的回调函数（默认不做任何事）
@@ -1364,7 +1392,7 @@ $is_edit_mode = !empty($did);
         flex-wrap: wrap;
         gap: 8px;
         margin-bottom: 8px;
-        min-height: 22px;
+        /* 移除min-height，当没有标签时不显示高度 */
     }
 
     .keeper-tag {
@@ -1395,8 +1423,10 @@ $is_edit_mode = !empty($did);
         outline: none;
         flex: 1;
         min-width: 100px;
-        padding: 0;
+        padding: 4px 8px;
         font-size: 14px;
+        /* 让输入框上下左右等宽 */
+        width: calc(100% - 16px);
     }
 
     /* 图纸管理样式 */
