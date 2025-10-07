@@ -145,6 +145,23 @@ $is_edit_mode = !empty($did);
     </div>
 </div>
 
+<!-- 确认保存模态框 -->
+<div id="confirm-save-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 400px;">
+        <div class="modal-header">
+            <h3>确认保存</h3>
+            <button type="button" class="close-btn" onclick="closeConfirmSaveModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="text-align: center; margin: 10px 0;">确认保存设备信息吗？</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="reset-btn" onclick="closeConfirmSaveModal()">取消</button>
+            <button type="button" class="confirm-btn" onclick="confirmSaveDevice()">确认</button>
+        </div>
+    </div>
+</div>
+
 <script>
     // 当前选中的类型
     let currentSelectType = '';
@@ -314,7 +331,7 @@ $is_edit_mode = !empty($did);
             });
     }
 
-    // 保存设备信息
+    // 保存设备信息 - 显示确认模态框
     function saveDevice() {
         // 先更新隐藏输入框，确保包含未被加标签的文本
         updateHiddenInput();
@@ -365,15 +382,51 @@ $is_edit_mode = !empty($did);
             return;
         }
 
+        // 显示自定义确认保存模态框
+        showConfirmSaveModal();
+    }
+
+    // 显示确认保存模态框
+    function showConfirmSaveModal() {
+        const modal = document.getElementById('confirm-save-modal');
+        modal.style.display = 'flex';
+        // 阻止背景页面滚动
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+    }
+
+    // 关闭确认保存模态框
+    function closeConfirmSaveModal() {
+        const modal = document.getElementById('confirm-save-modal');
+        modal.style.display = 'none';
+        // 恢复背景页面滚动
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+
+    // 确认保存设备信息
+    function confirmSaveDevice() {
+        // 关闭确认模态框
+        closeConfirmSaveModal();
+
+        // 获取表单数据
+        const deviceName = document.getElementById('device_name').value.trim();
+        const typeId = document.getElementById('type-id').value;
+        const stationId = document.getElementById('station-id').value;
+        const departmentId = document.getElementById('department-id').value;
+        const keepers = document.getElementById('keepers').value;
+        const remark = document.getElementById('remark').value.trim();
+        const did = document.getElementById('did').value;
+
         // 准备表单数据
         const formData = new FormData();
-        formData.append('did', document.getElementById('did').value);
+        formData.append('did', did);
         formData.append('device_name', deviceName);
         formData.append('device_type_id', typeId);
         formData.append('device_station_id', stationId);
         formData.append('device_department_id', departmentId);
         formData.append('device_keepers', keepers);
-        formData.append('device_remark', document.getElementById('remark').value.trim());
+        formData.append('device_remark', remark);
 
         // 添加上传的图纸文件
         const drawingFiles = document.getElementById('drawing-upload').files;
@@ -381,8 +434,8 @@ $is_edit_mode = !empty($did);
             formData.append('drawing_upload[]', drawingFiles[i]);
         }
 
-        // 显示加载提示
-        showLoadingModal();
+        // 显示加载提示，修改提示文本为"提交中，请稍后"
+        showLoadingModal('提交中，请稍后...');
 
         // 提交保存请求
         fetch('api.php?action=saveDevice', {
@@ -394,17 +447,87 @@ $is_edit_mode = !empty($did);
                 hideLoadingModal();
 
                 if (data.success) {
-                    alert('保存成功');
-                    // 由于API返回中没有data.did，使用当前表单中的设备ID进行跳转
-                    window.location.href = `devices.php?did=${document.getElementById('did').value}`;
+                    // 显示绿色横幅提示
+                    showNotification('设备信息编辑成功', 'success');
+                    // 延迟跳转，让用户看到成功提示
+                    setTimeout(() => {
+                        // 由于API返回中没有data.did，使用当前表单中的设备ID进行跳转
+                        window.location.href = `devices.php?did=${did}`;
+                    }, 2000);
                 } else {
-                    alert('保存失败：' + data.message);
+                    // 显示错误提示
+                    showNotification('保存失败：' + data.message, 'error');
                 }
             })
             .catch(error => {
                 hideLoadingModal();
-                alert('保存失败：' + error.message);
+                // 显示错误提示
+                showNotification('保存失败：' + error.message, 'error');
             });
+    }
+
+    // 显示通知提示
+    function showNotification(message, type = 'info') {
+        // 移除已存在的通知
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            document.body.removeChild(existingNotification);
+        }
+
+        // 创建通知元素
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+
+        // 设置样式 - 从右侧滑入且低于header导航栏
+        notification.style.position = 'fixed';
+        notification.style.top = '80px'; // 确保低于header导航栏的高度
+        notification.style.right = '-400px'; // 初始位置在右侧屏幕外
+
+        // 根据类型设置不同的背景色
+        if (type === 'success') {
+            notification.style.backgroundColor = '#27ae60'; // 绿色
+        } else if (type === 'error') {
+            notification.style.backgroundColor = '#e74c3c'; // 红色
+        } else {
+            notification.style.backgroundColor = '#3498db'; // 蓝色
+        }
+
+        notification.style.color = 'white';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '4px';
+        notification.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+        notification.style.zIndex = '10000';
+        notification.style.opacity = '0';
+        notification.style.fontSize = '14px';
+        notification.style.fontWeight = 'bold';
+        notification.style.minWidth = '200px';
+        notification.style.textAlign = 'center';
+        notification.style.transition = 'opacity 0.3s ease, right 0.5s ease';
+
+        // 设置消息内容
+        notification.textContent = message;
+
+        // 添加到页面
+        document.body.appendChild(notification);
+
+        // 显示通知 - 从右侧滑入
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.right = '20px'; // 最终位置
+        }, 10);
+
+        // 3秒后隐藏通知 - 滑回右侧
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.right = '-400px'; // 回到初始位置
+
+            // 动画结束后移除元素
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 500);
+        }, 3000);
     }
 
     // 显示错误状态
