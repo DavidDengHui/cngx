@@ -1,4 +1,9 @@
 <?php
+// 检查是否被直接访问
+if (basename($_SERVER['PHP_SELF']) == 'devices_detail.php') {
+    header('Location: /devices.php');
+    exit();
+}
 
 $nav_title = '设备信息编辑';
 $page_title = '设备信息编辑';
@@ -186,7 +191,7 @@ $is_edit_mode = !empty($did);
             deviceNameInput.addEventListener('input', function() {
                 updateClearButtonVisibility('device_name');
             });
-            
+
             // 初始化时检查值并更新清除按钮可见性
             updateClearButtonVisibility('device_name');
         }
@@ -290,13 +295,13 @@ $is_edit_mode = !empty($did);
 
     // 加载图纸列表
     function loadDrawingList(did) {
-        fetch(`api.php?action=getDrawings&did=${did}`)
+        fetch(`api.php?action=getDrawings&did=${did}&pageSize=0`)
             .then(response => response.json())
             .then(data => {
                 const drawingList = document.getElementById('drawing-list');
                 drawingList.innerHTML = '';
 
-                if (data.success && data.data && data.data.length > 0) {
+                if (data.data && data.data.length > 0) {
                     data.data.forEach(drawing => {
                         addDrawingItem(drawing);
                     });
@@ -313,49 +318,49 @@ $is_edit_mode = !empty($did);
     function saveDevice() {
         // 先更新隐藏输入框，确保包含未被加标签的文本
         updateHiddenInput();
-        
+
         // 验证表单
         const deviceName = document.getElementById('device_name').value.trim();
         const typeId = document.getElementById('type-id').value;
         const stationId = document.getElementById('station-id').value;
         const departmentId = document.getElementById('department-id').value;
         const keepers = document.getElementById('keepers').value;
-        
+
         // 重置所有错误状态
         resetAllErrorStates();
-        
+
         let hasError = false;
-        
+
         // 验证设备名称
         if (!deviceName) {
             showErrorState('device_name', '设备名称');
             hasError = true;
         }
-        
+
         // 验证设备类型
         if (!typeId) {
             showErrorState('type', '设备类型');
             hasError = true;
         }
-        
+
         // 验证所属站场
         if (!stationId) {
             showErrorState('station', '所属站场');
             hasError = true;
         }
-        
+
         // 验证包保部门
         if (!departmentId) {
             showErrorState('department', '包保部门');
             hasError = true;
         }
-        
+
         // 验证包保人员
         if (!keepers) {
             showErrorState('workers-input-wrapper', '包保人员');
             hasError = true;
         }
-        
+
         if (hasError) {
             return;
         }
@@ -411,11 +416,11 @@ $is_edit_mode = !empty($did);
         } else {
             formItem = document.getElementById(elementId).closest('.form-item');
         }
-        
+
         // 查找标签并改变颜色
         const label = formItem.querySelector('label');
         label.style.color = '#e74c3c';
-        
+
         // 根据元素类型查找输入框并添加错误样式
         if (elementId === 'workers-input-wrapper') {
             const wrapper = document.querySelector(`.${elementId}`);
@@ -426,32 +431,32 @@ $is_edit_mode = !empty($did);
             input.classList.add('error');
             // 添加动画类
             input.classList.add('shake-animation');
-            
+
             // 动画结束后移除动画类
             setTimeout(() => {
                 input.classList.remove('shake-animation');
             }, 500);
         }
     }
-    
+
     // 重置所有错误状态
     function resetAllErrorStates() {
         // 重置所有标签颜色
         document.querySelectorAll('.form-item label').forEach(label => {
             label.style.color = '#555';
         });
-        
+
         // 重置所有输入框样式
         document.querySelectorAll('.form-item input').forEach(input => {
             input.style.borderColor = '#ddd';
             input.classList.remove('error', 'shake-animation');
         });
-        
+
         // 重置workers-input-wrapper样式
         const workersWrapper = document.querySelector('.workers-input-wrapper');
         workersWrapper.classList.remove('error');
     }
-    
+
     // 添加输入事件监听器，在输入内容时恢复正常样式
     function initInputEventListeners() {
         // 设备名称输入框
@@ -463,7 +468,7 @@ $is_edit_mode = !empty($did);
                 label.style.color = '#555';
             }
         });
-        
+
         // 设备类型输入框
         document.getElementById('type').addEventListener('input', function() {
             if (this.value.trim()) {
@@ -473,7 +478,7 @@ $is_edit_mode = !empty($did);
                 label.style.color = '#555';
             }
         });
-        
+
         // 所属站场输入框
         document.getElementById('station').addEventListener('input', function() {
             if (this.value.trim()) {
@@ -483,7 +488,7 @@ $is_edit_mode = !empty($did);
                 label.style.color = '#555';
             }
         });
-        
+
         // 包保部门输入框
         document.getElementById('department').addEventListener('input', function() {
             if (this.value.trim()) {
@@ -493,12 +498,12 @@ $is_edit_mode = !empty($did);
                 label.style.color = '#555';
             }
         });
-        
+
         // 包保人员输入框
         const workersInput = document.querySelector('.workers-input');
         const workersWrapper = document.querySelector('.workers-input-wrapper');
         const hiddenInput = document.getElementById('keepers');
-        
+
         workersInput.addEventListener('input', function() {
             if (this.value.trim() || hiddenInput.value.trim()) {
                 workersWrapper.classList.remove('error');
@@ -507,17 +512,17 @@ $is_edit_mode = !empty($did);
             }
         });
     }
-    
+
     // 初始化作业人员标签输入
     function initWorkerTags() {
         const inputWrapper = document.querySelector('.workers-input-wrapper');
         const tagsContainer = document.querySelector('.workers-tags');
         const input = document.querySelector('.workers-input');
         const hiddenInput = document.getElementById('keepers');
-    
+
         // 支持的分隔符
         const separators = [' ', '、', ',', '，', ';', '；', '\uff0c', '\uff1b'];
-    
+
         // 输入处理
         input.addEventListener('input', function(e) {
             const originalValue = e.target.value;
@@ -550,13 +555,13 @@ $is_edit_mode = !empty($did);
                 }
             }
         });
-    
+
         // 回车添加
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const value = this.value.trim();
-    
+
                 if (value) {
                     addKeeperTag(value);
                     this.value = '';
@@ -591,14 +596,14 @@ $is_edit_mode = !empty($did);
         function updateHiddenInput() {
             const tags = Array.from(tagsContainer.querySelectorAll('.keeper-tag'));
             const names = tags.map(tag => tag.dataset.name);
-            
+
             // 获取输入框中未加标签的文本内容
             const inputText = input.value.trim();
             if (inputText) {
                 // 如果有未加标签的文本，也添加到名称数组中
                 names.push(inputText);
             }
-            
+
             hiddenInput.value = names.join('||');
 
             // 显示/隐藏错误状态
@@ -718,7 +723,7 @@ $is_edit_mode = !empty($did);
 
         item.innerHTML = `
         <div class="drawing-info">
-            <div class="drawing-name">${drawing.name}</div>
+            <div class="drawing-name">${drawing.original_name || drawing.name}</div>
             <div class="drawing-meta">${fileSize} ${drawing.is_new ? '<span class="new-tag">新上传</span>' : ''}</div>
         </div>
         <button type="button" class="delete-drawing-btn" title="删除">×</button>
@@ -792,16 +797,16 @@ $is_edit_mode = !empty($did);
 
         if (input.value && hiddenInput.value) {
             // 尝试加载到已有路径，完成后显示模态框
-                navigateToExistingPath(type, hiddenInput.value, input.value).then(() => {
-                    // 显示模态框
-                    modal.style.display = 'flex';
-                    // 设置背景禁止滚动
-                    document.documentElement.style.overflow = 'hidden';
-                    document.body.style.overflow = 'hidden';
-                    // 隐藏加载动画
-                    hideLoadingModal();
-                }).catch(() => {
-                    // 加载失败时也显示模态框
+            navigateToExistingPath(type, hiddenInput.value, input.value).then(() => {
+                // 显示模态框
+                modal.style.display = 'flex';
+                // 设置背景禁止滚动
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+                // 隐藏加载动画
+                hideLoadingModal();
+            }).catch(() => {
+                // 加载失败时也显示模态框
                 loadSelectItems(type);
                 // 显示模态框
                 modal.style.display = 'flex';
@@ -810,17 +815,17 @@ $is_edit_mode = !empty($did);
                 document.body.style.overflow = 'hidden';
                 // 隐藏加载动画
                 hideLoadingModal();
-                });
-            } else {
-                // 直接加载顶级数据
-                loadSelectItems(type);
-                // 显示模态框
-                modal.style.display = 'flex';
-                // 设置背景禁止滚动
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-                // 隐藏加载动画
-                hideLoadingModal();
+            });
+        } else {
+            // 直接加载顶级数据
+            loadSelectItems(type);
+            // 显示模态框
+            modal.style.display = 'flex';
+            // 设置背景禁止滚动
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+            // 隐藏加载动画
+            hideLoadingModal();
         }
 
         // 绑定重置和确认按钮事件
@@ -1256,7 +1261,7 @@ $is_edit_mode = !empty($did);
 
         // 显示清除按钮
         updateClearButtonVisibility(currentSelectType);
-        
+
         // 移除错误状态
         input.classList.remove('error');
         input.style.borderColor = '#ddd';
@@ -1272,11 +1277,11 @@ $is_edit_mode = !empty($did);
             // 不管是否选择到了最末端级别，都直接将当前已选的路径计入输入框
             selectItem(selectedItem.id, selectedItem.name);
             closeSelectModal();
-            
+
             // 确保移除错误状态
             const input = document.getElementById(currentSelectType);
             const hiddenInput = document.getElementById(currentSelectType + '-id');
-            
+
             // 强制移除错误状态
             if (input.classList.contains('error')) {
                 input.classList.remove('error');
@@ -1291,11 +1296,11 @@ $is_edit_mode = !empty($did);
             const lastPath = currentPath[currentPath.length - 1];
             selectItem(lastPath.id, lastPath.name);
             closeSelectModal();
-            
+
             // 确保移除错误状态
             const input = document.getElementById(currentSelectType);
             const hiddenInput = document.getElementById(currentSelectType + '-id');
-            
+
             // 强制移除错误状态
             if (input.classList.contains('error')) {
                 input.classList.remove('error');
@@ -1337,7 +1342,7 @@ $is_edit_mode = !empty($did);
 
         // 更新清除按钮可见性
         updateClearButtonVisibility(currentSelectType);
-        
+
         // 移除错误状态
         input.classList.remove('error');
         input.style.borderColor = '#ddd';
