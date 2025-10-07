@@ -162,6 +162,23 @@ $is_edit_mode = !empty($did);
     </div>
 </div>
 
+<!-- 确认删除图纸模态框 -->
+<div id="confirm-delete-drawing-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 400px;">
+        <div class="modal-header">
+            <h3>确认删除</h3>
+            <button type="button" class="close-btn" onclick="closeConfirmDeleteDrawingModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="text-align: left; margin: 10px 0;">确认要删除此图纸吗？</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="reset-btn" onclick="closeConfirmDeleteDrawingModal()">取消</button>
+            <button type="button" class="confirm-btn" onclick="confirmDeleteDrawing()" style="color: white; background-color: #e74c3c;">确认</button>
+        </div>
+    </div>
+</div>
+
 <script>
     // 当前选中的类型
     let currentSelectType = '';
@@ -402,6 +419,88 @@ $is_edit_mode = !empty($did);
         // 恢复背景页面滚动
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
+    }
+
+    // 显示确认删除图纸模态框
+    function showConfirmDeleteDrawingModal() {
+        const modal = document.getElementById('confirm-delete-drawing-modal');
+        modal.style.display = 'flex';
+        // 阻止背景页面滚动
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+
+        // 获取设备名称和图纸名称并更新提示信息
+        const deviceName = document.getElementById('device_name').value;
+        const drawing = window.currentDrawingData;
+
+        if (deviceName && drawing) {
+            const drawingName = drawing.original_name || drawing.name;
+            const confirmText = document.querySelector('#confirm-delete-drawing-modal .modal-body p');
+            confirmText.innerHTML = `确认删除${deviceName}的以下图纸吗？<br><br>` +
+                                   `<span style="color: #e74c3c;">[${drawingName}]</span><br><br>` +
+                                   `<span style="color: #e74c3c;">注意：会立即删除无法撤销！</span>`;
+        }
+    }
+
+    // 关闭确认删除图纸模态框
+    function closeConfirmDeleteDrawingModal() {
+        const modal = document.getElementById('confirm-delete-drawing-modal');
+        modal.style.display = 'none';
+        // 恢复背景页面滚动
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+
+        // 清除存储的当前图纸信息
+        window.currentDrawingItem = null;
+        window.currentDrawingData = null;
+    }
+
+    // 确认删除图纸
+    function confirmDeleteDrawing() {
+        // 先保存当前图纸信息到局部变量
+        const item = window.currentDrawingItem;
+        const drawing = window.currentDrawingData;
+        const drawingList = document.getElementById('drawing-list');
+
+        // 关闭确认模态框
+        closeConfirmDeleteDrawingModal();
+
+        if (item && drawing) {
+            // 显示加载动画，提示"删除中，请稍后"
+            showLoadingModal('删除中，请稍后...');
+
+            // 模拟异步操作，确保加载动画有足够时间显示
+            setTimeout(() => {
+                // 移除元素
+                item.remove();
+
+                // 如果是新增的文件，从input中移除
+                if (drawing.is_new) {
+                    const fileInput = document.getElementById('drawing-upload');
+                    const files = Array.from(fileInput.files);
+                    const filteredFiles = files.filter(file => file.name !== drawing.name);
+
+                    // 创建新的FileList
+                    const dataTransfer = new DataTransfer();
+                    filteredFiles.forEach(file => dataTransfer.items.add(file));
+                    fileInput.files = dataTransfer.files;
+                } else {
+                    // 已存在的文件，发送删除请求
+                    deleteDrawing(drawing.id);
+                }
+
+                // 检查是否需要显示"暂无图纸"提示
+                if (drawingList.children.length === 0) {
+                    drawingList.innerHTML = '<p class="no-drawing">暂无图纸</p>';
+                }
+
+                // 隐藏加载动画
+                hideLoadingModal();
+
+                // 在右上角浮窗提示"图纸已删除！"
+                showNotification('图纸已删除！', 'success');
+            }, 500); // 短暂延迟，确保用户能看到加载动画
+        }
     }
 
     // 确认保存设备信息
@@ -854,29 +953,12 @@ $is_edit_mode = !empty($did);
 
         // 删除按钮事件
         item.querySelector('.delete-drawing-btn').addEventListener('click', function() {
-            if (confirm(`确定要删除图纸 "${drawing.name}" 吗？`)) {
-                item.remove();
+            // 存储当前要删除的图纸信息
+            window.currentDrawingItem = item;
+            window.currentDrawingData = drawing;
 
-                // 如果是新增的文件，从input中移除
-                if (drawing.is_new) {
-                    const fileInput = document.getElementById('drawing-upload');
-                    const files = Array.from(fileInput.files);
-                    const filteredFiles = files.filter(file => file.name !== drawing.name);
-
-                    // 创建新的FileList
-                    const dataTransfer = new DataTransfer();
-                    filteredFiles.forEach(file => dataTransfer.items.add(file));
-                    fileInput.files = dataTransfer.files;
-                } else {
-                    // 已存在的文件，发送删除请求
-                    deleteDrawing(drawing.id);
-                }
-
-                // 检查是否需要显示"暂无图纸"提示
-                if (drawingList.children.length === 0) {
-                    drawingList.innerHTML = '<p class="no-drawing">暂无图纸</p>';
-                }
-            }
+            // 显示确认删除模态框
+            showConfirmDeleteDrawingModal();
         });
 
         drawingList.appendChild(item);
@@ -1815,6 +1897,9 @@ $is_edit_mode = !empty($did);
     .drawing-name {
         font-weight: bold;
         margin-bottom: 4px;
+        word-break: break-all; /* 确保过长的文件名能够换行 */
+        white-space: normal; /* 允许文本换行 */
+        max-width: 100%; /* 限制最大宽度，防止撑出容器 */
     }
 
     .drawing-meta {
