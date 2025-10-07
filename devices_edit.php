@@ -1,17 +1,5 @@
 <?php
-// 检查是否被直接访问
-if (basename($_SERVER['PHP_SELF']) == 'devices_edit.php') {
-    header('Location: /devices.php');
-    exit();
-}
 
-// 确保did参数存在
-if (!isset($_GET['did'])) {
-    header('Location: /devices.php');
-    exit();
-}
-
-// 设置导航标题和页面标题
 $nav_title = '设备信息编辑';
 $page_title = '设备信息编辑';
 
@@ -36,7 +24,10 @@ $is_edit_mode = !empty($did);
                         <div class="form-row">
                             <div class="form-item">
                                 <label for="device_name">设备名称 <span class="required">*</span></label>
-                                <input type="text" id="device_name" placeholder="请输入设备名称" required>
+                                <div class="select-container">
+                                    <input type="text" id="device_name" placeholder="请输入设备名称" required>
+                                    <button type="button" class="clear-btn" data-target="device_name"></button>
+                                </div>
                             </div>
                         </div>
 
@@ -163,6 +154,7 @@ $is_edit_mode = !empty($did);
     window.onload = function() {
         initWorkerTags();
         initDrawingUpload();
+        initInputEventListeners();
 
         // 绑定选择器点击事件
         document.getElementById('type').addEventListener('click', function() {
@@ -181,10 +173,23 @@ $is_edit_mode = !empty($did);
                 e.stopPropagation();
                 const target = this.getAttribute('data-target');
                 document.getElementById(target).value = '';
-                document.getElementById(target + '-id').value = '';
+                if (document.getElementById(target + '-id')) {
+                    document.getElementById(target + '-id').value = '';
+                }
                 this.style.display = 'none';
             });
         });
+
+        // 为设备名称输入框添加input事件监听器，显示/隐藏清除按钮
+        const deviceNameInput = document.getElementById('device_name');
+        if (deviceNameInput) {
+            deviceNameInput.addEventListener('input', function() {
+                updateClearButtonVisibility('device_name');
+            });
+            
+            // 初始化时检查值并更新清除按钮可见性
+            updateClearButtonVisibility('device_name');
+        }
 
         // 绑定表单提交事件
         document.getElementById('device-form').addEventListener('submit', function(e) {
@@ -254,6 +259,7 @@ $is_edit_mode = !empty($did);
                     updateClearButtonVisibility('type');
                     updateClearButtonVisibility('station');
                     updateClearButtonVisibility('department');
+                    updateClearButtonVisibility('device_name');
 
                     // 设置包保人员
                     if (device.keepers) {
@@ -305,35 +311,52 @@ $is_edit_mode = !empty($did);
 
     // 保存设备信息
     function saveDevice() {
+        // 先更新隐藏输入框，确保包含未被加标签的文本
+        updateHiddenInput();
+        
         // 验证表单
         const deviceName = document.getElementById('device_name').value.trim();
         const typeId = document.getElementById('type-id').value;
         const stationId = document.getElementById('station-id').value;
         const departmentId = document.getElementById('department-id').value;
         const keepers = document.getElementById('keepers').value;
-
+        
+        // 重置所有错误状态
+        resetAllErrorStates();
+        
+        let hasError = false;
+        
+        // 验证设备名称
         if (!deviceName) {
-            alert('请输入设备名称');
-            return;
+            showErrorState('device_name', '设备名称');
+            hasError = true;
         }
-
+        
+        // 验证设备类型
         if (!typeId) {
-            alert('请选择设备类型');
-            return;
+            showErrorState('type', '设备类型');
+            hasError = true;
         }
-
+        
+        // 验证所属站场
         if (!stationId) {
-            alert('请选择所属站场');
-            return;
+            showErrorState('station', '所属站场');
+            hasError = true;
         }
-
+        
+        // 验证包保部门
         if (!departmentId) {
-            alert('请选择包保部门');
-            return;
+            showErrorState('department', '包保部门');
+            hasError = true;
         }
-
+        
+        // 验证包保人员
         if (!keepers) {
-            alert('请输入包保人员');
+            showErrorState('workers-input-wrapper', '包保人员');
+            hasError = true;
+        }
+        
+        if (hasError) {
             return;
         }
 
@@ -379,6 +402,112 @@ $is_edit_mode = !empty($did);
             });
     }
 
+    // 显示错误状态
+    function showErrorState(elementId, labelText) {
+        // 查找对应的表单项目容器
+        let formItem;
+        if (elementId === 'workers-input-wrapper') {
+            formItem = document.querySelector(`.${elementId}`).closest('.form-item');
+        } else {
+            formItem = document.getElementById(elementId).closest('.form-item');
+        }
+        
+        // 查找标签并改变颜色
+        const label = formItem.querySelector('label');
+        label.style.color = '#e74c3c';
+        
+        // 根据元素类型查找输入框并添加错误样式
+        if (elementId === 'workers-input-wrapper') {
+            const wrapper = document.querySelector(`.${elementId}`);
+            wrapper.classList.add('error');
+        } else {
+            const input = document.getElementById(elementId);
+            input.style.borderColor = '#e74c3c';
+            input.classList.add('error');
+            // 添加动画类
+            input.classList.add('shake-animation');
+            
+            // 动画结束后移除动画类
+            setTimeout(() => {
+                input.classList.remove('shake-animation');
+            }, 500);
+        }
+    }
+    
+    // 重置所有错误状态
+    function resetAllErrorStates() {
+        // 重置所有标签颜色
+        document.querySelectorAll('.form-item label').forEach(label => {
+            label.style.color = '#555';
+        });
+        
+        // 重置所有输入框样式
+        document.querySelectorAll('.form-item input').forEach(input => {
+            input.style.borderColor = '#ddd';
+            input.classList.remove('error', 'shake-animation');
+        });
+        
+        // 重置workers-input-wrapper样式
+        const workersWrapper = document.querySelector('.workers-input-wrapper');
+        workersWrapper.classList.remove('error');
+    }
+    
+    // 添加输入事件监听器，在输入内容时恢复正常样式
+    function initInputEventListeners() {
+        // 设备名称输入框
+        document.getElementById('device_name').addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.style.borderColor = '#ddd';
+                this.classList.remove('error');
+                const label = this.closest('.form-item').querySelector('label');
+                label.style.color = '#555';
+            }
+        });
+        
+        // 设备类型输入框
+        document.getElementById('type').addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.style.borderColor = '#ddd';
+                this.classList.remove('error');
+                const label = this.closest('.form-item').querySelector('label');
+                label.style.color = '#555';
+            }
+        });
+        
+        // 所属站场输入框
+        document.getElementById('station').addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.style.borderColor = '#ddd';
+                this.classList.remove('error');
+                const label = this.closest('.form-item').querySelector('label');
+                label.style.color = '#555';
+            }
+        });
+        
+        // 包保部门输入框
+        document.getElementById('department').addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.style.borderColor = '#ddd';
+                this.classList.remove('error');
+                const label = this.closest('.form-item').querySelector('label');
+                label.style.color = '#555';
+            }
+        });
+        
+        // 包保人员输入框
+        const workersInput = document.querySelector('.workers-input');
+        const workersWrapper = document.querySelector('.workers-input-wrapper');
+        const hiddenInput = document.getElementById('keepers');
+        
+        workersInput.addEventListener('input', function() {
+            if (this.value.trim() || hiddenInput.value.trim()) {
+                workersWrapper.classList.remove('error');
+                const label = workersWrapper.closest('.form-item').querySelector('label');
+                label.style.color = '#555';
+            }
+        });
+    }
+    
     // 初始化作业人员标签输入
     function initWorkerTags() {
         const inputWrapper = document.querySelector('.workers-input-wrapper');
@@ -393,20 +522,20 @@ $is_edit_mode = !empty($did);
         input.addEventListener('input', function(e) {
             const originalValue = e.target.value;
             const trimmedValue = originalValue.trim();
-    
+
             // 检查是否输入了任何分隔符（使用原始值检测分隔符）
             for (const separator of separators) {
                 if (originalValue.includes(separator)) {
                     // 处理输入框中的多个名字（可能包含各种分隔符）
                     let names = [originalValue];
-    
+
                     // 使用正则表达式替换所有分隔符为统一的分隔符，然后拆分
                     separators.forEach(sep => {
                         // 转义特殊字符
                         const escapedSep = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                         names = names.flatMap(name => name.split(new RegExp(escapedSep)));
                     });
-    
+
                     // 添加有效的姓名标签
                     names.forEach(name => {
                         const trimmedName = name.trim();
@@ -414,7 +543,7 @@ $is_edit_mode = !empty($did);
                             addKeeperTag(trimmedName);
                         }
                     });
-    
+
                     this.value = '';
                     updateHiddenInput();
                     break;
@@ -462,6 +591,14 @@ $is_edit_mode = !empty($did);
         function updateHiddenInput() {
             const tags = Array.from(tagsContainer.querySelectorAll('.keeper-tag'));
             const names = tags.map(tag => tag.dataset.name);
+            
+            // 获取输入框中未加标签的文本内容
+            const inputText = input.value.trim();
+            if (inputText) {
+                // 如果有未加标签的文本，也添加到名称数组中
+                names.push(inputText);
+            }
+            
             hiddenInput.value = names.join('||');
 
             // 显示/隐藏错误状态
@@ -794,14 +931,14 @@ $is_edit_mode = !empty($did);
 
     // 递归加载完整路径
     function loadFullPath(type, actionName, targetId, targetName) {
-        // 先加载顶层数据
+        // 先加载顶级数据
         fetch(`api.php?action=${actionName}`)
             .then(response => response.json())
             .then(data => {
                 // 处理数据
                 const items = Array.isArray(data) ? data : (data.success ? data.data : []);
 
-                // 检查顶层数据中是否有目标ID
+                // 检查顶级数据中是否有目标ID
                 const targetItem = items.find(item => {
                     // 对于部门类型，优先使用cid字段
                     const itemId = type === 'department' ? (item.cid || item.id) : (item.id || item.tid || item.sid || item.cid);
@@ -809,7 +946,7 @@ $is_edit_mode = !empty($did);
                 });
 
                 if (targetItem) {
-                    // 如果在顶层找到目标项，直接添加到路径
+                    // 如果在顶级找到目标项，直接添加到路径
                     currentPath.push({
                         id: type === 'department' ? (targetItem.cid || targetItem.id) : (targetItem.id || targetItem.tid || targetItem.sid || targetItem.cid),
                         name: targetItem.name || targetItem.full_name || targetItem.short_name || targetItem.type_name || targetItem.station_name
@@ -819,7 +956,7 @@ $is_edit_mode = !empty($did);
                     return;
                 }
 
-                // 如果顶层没找到，查找目标ID所在的路径
+                // 如果顶级没找到，查找目标ID所在的路径
                 findPathInItems(items, type, actionName, targetId, targetName);
             })
             .catch(error => {
@@ -832,7 +969,7 @@ $is_edit_mode = !empty($did);
     // 在项目列表中查找路径
     function findPathInItems(items, type, actionName, targetId, targetName) {
         if (!items || items.length === 0) {
-            // 如果没有数据，加载顶层数据
+            // 如果没有数据，加载顶级数据
             if (currentPath.length === 0) {
                 loadSelectItems(type);
             }
@@ -888,7 +1025,7 @@ $is_edit_mode = !empty($did);
                 });
         }
 
-        // 如果没有找到路径，加载顶层数据
+        // 如果没有找到路径，加载顶级数据
         setTimeout(() => {
             if (currentPath.length === 0) {
                 loadSelectItems(type);
@@ -1113,11 +1250,20 @@ $is_edit_mode = !empty($did);
         const input = document.getElementById(currentSelectType);
         const hiddenInput = document.getElementById(currentSelectType + '-id');
 
+        // 设置值
         input.value = name;
         hiddenInput.value = id;
 
         // 显示清除按钮
         updateClearButtonVisibility(currentSelectType);
+        
+        // 移除错误状态
+        input.classList.remove('error');
+        input.style.borderColor = '#ddd';
+        const label = input.closest('.form-item').querySelector('label');
+        if (label) {
+            label.style.color = '#555';
+        }
     }
 
     // 确认选择
@@ -1126,11 +1272,39 @@ $is_edit_mode = !empty($did);
             // 不管是否选择到了最末端级别，都直接将当前已选的路径计入输入框
             selectItem(selectedItem.id, selectedItem.name);
             closeSelectModal();
+            
+            // 确保移除错误状态
+            const input = document.getElementById(currentSelectType);
+            const hiddenInput = document.getElementById(currentSelectType + '-id');
+            
+            // 强制移除错误状态
+            if (input.classList.contains('error')) {
+                input.classList.remove('error');
+                input.style.borderColor = '#ddd';
+                const label = input.closest('.form-item').querySelector('label');
+                if (label) {
+                    label.style.color = '#555';
+                }
+            }
         } else if (currentPath.length > 0) {
             // 如果有当前路径但没有selectedItem，使用当前路径的最后一项
             const lastPath = currentPath[currentPath.length - 1];
             selectItem(lastPath.id, lastPath.name);
             closeSelectModal();
+            
+            // 确保移除错误状态
+            const input = document.getElementById(currentSelectType);
+            const hiddenInput = document.getElementById(currentSelectType + '-id');
+            
+            // 强制移除错误状态
+            if (input.classList.contains('error')) {
+                input.classList.remove('error');
+                input.style.borderColor = '#ddd';
+                const label = input.closest('.form-item').querySelector('label');
+                if (label) {
+                    label.style.color = '#555';
+                }
+            }
         }
     }
 
@@ -1163,6 +1337,14 @@ $is_edit_mode = !empty($did);
 
         // 更新清除按钮可见性
         updateClearButtonVisibility(currentSelectType);
+        
+        // 移除错误状态
+        input.classList.remove('error');
+        input.style.borderColor = '#ddd';
+        const label = input.closest('.form-item').querySelector('label');
+        if (label) {
+            label.style.color = '#555';
+        }
 
         // 关闭模态框
         closeSelectModal();
@@ -1312,6 +1494,11 @@ $is_edit_mode = !empty($did);
         padding-right: 40px;
     }
 
+    /* 为设备名称输入框设置默认的文本输入光标 */
+    .select-container input#device_name {
+        cursor: text;
+    }
+
     .select-container input[type="text"]:focus {
         outline: none;
         border-color: #3498db;
@@ -1363,6 +1550,11 @@ $is_edit_mode = !empty($did);
         animation: shake 0.5s ease-in-out;
     }
 
+    /* 输入框错误状态 */
+    .form-item input.error {
+        border-color: #f44336;
+    }
+
     /* 摇摆动画 */
     @keyframes shake {
 
@@ -1385,6 +1577,11 @@ $is_edit_mode = !empty($did);
         80% {
             transform: translateX(5px);
         }
+    }
+
+    /* 错误输入框摇摆动画类 */
+    .shake-animation {
+        animation: shake 0.5s ease-in-out;
     }
 
     .workers-tags {
