@@ -162,7 +162,11 @@ include 'header.php';
         });
     </script>
     
-
+    <!-- 引入二维码识别库 -->
+    <script src="files/js/qrcode.min.js"></script>
+    
+    <!-- 使用本地jsQR库用于二维码识别 -->
+    <script src="files/js/jsQR.min.js"></script>
     
     <style>
         .dashboard {
@@ -394,6 +398,51 @@ include 'header.php';
             background-color: #2980b9;
         }
         
+        /* 文件上传按钮样式 */
+        #image-upload-button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        #image-upload-button:hover {
+            background-color: #27ae60;
+        }
+
+        #qr-image-input {
+            display: none;
+        }
+
+        #qr-preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        #use-camera-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+            display: none;
+        }
+
+        #use-camera-button:hover {
+            background-color: #2980b9;
+        }
+        
         /* 手动输入模态框样式 */
         #manual-input-modal {
             display: none;
@@ -472,6 +521,10 @@ include 'header.php';
         <div id="qr-scanner-content">
             <h3>扫码查验设备</h3>
             <video id="qr-scanner-video" autoplay></video>
+            <img id="qr-preview-image" alt="二维码预览" />
+            <button id="image-upload-button">选择本地图片扫码</button>
+            <input type="file" id="qr-image-input" accept="image/*" />
+            <button id="use-camera-button">使用摄像头扫码</button>
             <button id="qr-scanner-close">关闭</button>
         </div>
     </div>
@@ -507,6 +560,12 @@ include 'header.php';
             const problemCount = document.getElementById('problem-count');
             const deviceCountMobile = document.getElementById('device-count-mobile');
             const problemCountMobile = document.getElementById('problem-count-mobile');
+            
+            // 图片上传相关元素
+            const imageUploadButton = document.getElementById('image-upload-button');
+            const qrImageInput = document.getElementById('qr-image-input');
+            const qrPreviewImage = document.getElementById('qr-preview-image');
+            const useCameraButton = document.getElementById('use-camera-button');
             
             // 变量用于存储媒体流
             let stream = null;
@@ -605,6 +664,111 @@ include 'header.php';
                 }
             });
             
+            // 为图片上传按钮添加点击事件
+            imageUploadButton.addEventListener('click', function() {
+                qrImageInput.click();
+            });
+            
+            // 为文件输入框添加change事件
+            qrImageInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    
+                    // 检查文件类型是否为图片
+                    if (!file.type.match('image.*')) {
+                        alert('请选择图片文件');
+                        return;
+                    }
+                    
+                    // 停止摄像头扫码
+                    stopQRScanner();
+                    
+                    // 创建文件读取器
+                    const reader = new FileReader();
+                    
+                    // 设置读取完成后的回调
+                    reader.onload = function(e) {
+                        // 显示图片预览
+                        qrPreviewImage.src = e.target.result;
+                        qrPreviewImage.style.display = 'block';
+                        qrScannerVideo.style.display = 'none';
+                        
+                        // 隐藏上传按钮，显示切换回摄像头的按钮
+                        imageUploadButton.style.display = 'none';
+                        useCameraButton.style.display = 'inline-block';
+                        
+                        // 延迟识别，确保图片已加载
+                        setTimeout(function() {
+                            scanQRCodeFromImage(qrPreviewImage);
+                        }, 500);
+                    }
+                    
+                    // 读取文件
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 为使用摄像头按钮添加点击事件
+            useCameraButton.addEventListener('click', function() {
+                // 隐藏图片预览，显示视频
+                qrPreviewImage.style.display = 'none';
+                qrScannerVideo.style.display = 'block';
+                
+                // 隐藏切换按钮，显示上传按钮
+                useCameraButton.style.display = 'none';
+                imageUploadButton.style.display = 'inline-block';
+                
+                // 重启摄像头扫码
+                startQRScanner();
+            });
+            
+            // 从图片中识别二维码
+            function scanQRCodeFromImage(imageElement) {
+                try {
+                    // 创建canvas用于处理图片
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    
+                    // 设置canvas大小与图片相同
+                    canvas.width = imageElement.width;
+                    canvas.height = imageElement.height;
+                    
+                    // 绘制图片到canvas
+                    context.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+                    
+                    // 获取图像数据
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // 尝试使用jsQR库识别二维码
+                    if (typeof jsQR !== 'undefined') {
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        if (code) {
+                            console.log('识别到二维码内容:', code.data);
+                            
+                            // 检查是否包含设备编号
+                            const didMatch = code.data.match(/did=([^&]+)/);
+                            if (didMatch && didMatch[1]) {
+                                window.location.href = `/devices.php?did=${didMatch[1]}`;
+                            } else {
+                                // 如果没有did参数，直接使用识别到的内容
+                                window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
+                            }
+                        }
+                    } else {
+                        // 备用识别方法 - 使用模拟的识别函数
+                        const did = tryRecognizeQRCode(imageData);
+                        if (did) {
+                            window.location.href = `/devices.php?did=${did}`;
+                        } else {
+                            alert('未能识别图片中的二维码，请尝试其他图片或使用摄像头扫码');
+                        }
+                    }
+                } catch (error) {
+                    console.error('图片二维码识别出错:', error);
+                    alert('图片二维码识别出错');
+                }
+            }
+            
             // 开始扫码
             function startQRScanner() {
                 // 检查浏览器是否支持getUserMedia
@@ -641,14 +805,35 @@ include 'header.php';
                                 // 获取图像数据
                                 const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
                                 
-                                // 尝试识别QR码（这里使用简化的识别逻辑，实际项目中可以使用jsQR等库）
+                                // 尝试识别QR码
                                 try {
-                                    // 这里是简化的模拟代码，实际项目中应该使用专门的QR码识别库
-                                    const did = tryRecognizeQRCode(imageData);
-                                    if (did) {
-                                        stopQRScanner();
-                                        qrScannerModal.style.display = 'none';
-                                        window.location.href = `/devices.php?did=${did}`;
+                                    // 优先使用jsQR库
+                                    if (typeof jsQR !== 'undefined') {
+                                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                                        if (code) {
+                                            console.log('识别到二维码内容:', code.data);
+                                            
+                                            // 检查是否包含设备编号
+                                            const didMatch = code.data.match(/did=([^&]+)/);
+                                            if (didMatch && didMatch[1]) {
+                                                stopQRScanner();
+                                                qrScannerModal.style.display = 'none';
+                                                window.location.href = `/devices.php?did=${didMatch[1]}`;
+                                            } else {
+                                                // 如果没有did参数，直接使用识别到的内容
+                                                stopQRScanner();
+                                                qrScannerModal.style.display = 'none';
+                                                window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
+                                            }
+                                        }
+                                    } else {
+                                        // 备用方案 - 使用模拟的识别函数
+                                        const did = tryRecognizeQRCode(imageData);
+                                        if (did) {
+                                            stopQRScanner();
+                                            qrScannerModal.style.display = 'none';
+                                            window.location.href = `/devices.php?did=${did}`;
+                                        }
                                     }
                                 } catch (error) {
                                     console.error('QR码识别出错:', error);
