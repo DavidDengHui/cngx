@@ -316,9 +316,9 @@ $is_edit_mode = !empty($did);
                     loadDrawingList(did);
                 } else {
                     // 如果设备不存在，切换为新增模式
-                    document.getElementById('page-title').textContent = '新增设备';
-                    document.getElementById('did').value = '';
-                    // alert('设备不存在，切换为新增设备模式');
+                    document.getElementById('page-title').textContent = `新增[${did}]`;
+                    // 更新浏览器标签标题
+                    document.title = `新增[${did}] - 个人设备信息管理平台`;
                 }
             })
             .catch(error => {
@@ -519,7 +519,10 @@ $is_edit_mode = !empty($did);
 
         // 准备表单数据
         const formData = new FormData();
-        formData.append('did', did);
+        // 只有在编辑模式下（did不为空）才添加did字段
+        if (did) {
+            formData.append('did', did);
+        }
         formData.append('device_name', deviceName);
         formData.append('device_type_id', typeId);
         formData.append('device_station_id', stationId);
