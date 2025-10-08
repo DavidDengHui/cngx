@@ -118,6 +118,9 @@ switch ($action) {
     case 'uploadProblemPhoto':
         uploadProblemPhoto();
         break;
+    case 'saveQRCodeImage':
+        saveQRCodeImage();
+        break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
         break;
@@ -1512,5 +1515,57 @@ function uploadProblemPhoto()
     } catch (Exception $e) {
         logError('上传问题照片失败: ' . $e->getMessage(), 'uploadProblemPhoto');
         echo json_encode(['success' => false, 'message' => '上传文件失败: ' . $e->getMessage()]);
+    }
+}
+
+// 保存二维码图片
+function saveQRCodeImage()
+{
+    try {
+        // 获取POST参数
+        $did = isset($_POST['did']) ? $_POST['did'] : '';
+        $deviceName = isset($_POST['deviceName']) ? $_POST['deviceName'] : '';
+        $imageData = isset($_POST['imageData']) ? $_POST['imageData'] : '';
+        
+        // 验证参数
+        if (empty($did) || empty($imageData)) {
+            echo json_encode(['success' => false, 'message' => '参数不完整']);
+            return;
+        }
+        
+        // 设置保存目录
+        $uploadDir = __DIR__ . '/uploads/qrcode/';
+        
+        // 创建目录（如果不存在）
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        // 格式化文件名：qr_did_name.png，移除可能的特殊字符
+        $safeName = preg_replace('/[^a-zA-Z0-9一-龥]/u', '_', $deviceName);
+        $fileName = 'qr_' . $did . '_' . $safeName . '.png';
+        
+        // 处理base64图片数据
+        $imageData = str_replace('data:image/png;base64,', '', $imageData);
+        $imageData = str_replace(' ', '+', $imageData);
+        $imageData = base64_decode($imageData);
+        
+        // 保存文件
+        $filePath = $uploadDir . $fileName;
+        $relativePath = '/uploads/qrcode/' . $fileName; // 确保返回正确的相对路径（带前导斜杠）
+        
+        if (!file_put_contents($filePath, $imageData)) {
+            echo json_encode(['success' => false, 'message' => '保存图片失败']);
+            return;
+        }
+        
+        // 返回成功信息和文件路径
+        echo json_encode([
+            'success' => true,
+            'filePath' => $relativePath,
+            'fileName' => $fileName
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '保存图片失败: ' . $e->getMessage()]);
     }
 }
