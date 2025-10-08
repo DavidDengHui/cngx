@@ -14,6 +14,12 @@ include 'header.php';
 // 获取设备ID
 $did = isset($_GET['did']) ? $_GET['did'] : '';
 $is_edit_mode = !empty($did);
+
+// 如果did为空，跳转到设备搜索页面
+if (empty(trim($did))) {
+    header('Location: /devices.php');
+    exit();
+}
 ?>
 
 <div class="devices-container">

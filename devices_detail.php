@@ -5,8 +5,8 @@ if (basename($_SERVER['PHP_SELF']) == 'devices_detail.php') {
     exit();
 }
 
-// 确保did参数存在
-if (!isset($did)) {
+// 确保did参数存在且不为空
+if (!isset($did) || empty(trim($did))) {
     header('Location: /devices.php');
     exit();
 }
@@ -38,9 +38,9 @@ include 'header.php';
                 if (result.success && result.data) {
                     displayDeviceDetail(result.data);
                 } else if (!result.success && result.message) {
-                    // 如果设备不存在，跳转到编辑页面
+                    // 如果设备不存在，跳转到设备搜索页面
                     if (result.message === '设备不存在') {
-                        window.location.href = `/devices.php?did=${deviceId}&mode=edit`;
+                        window.location.href = `/devices.php`;
                     } else {
                         document.querySelector('.device-detail').innerHTML = `<p class="error">获取设备详情失败: ${result.message}</p>`;
                     }
