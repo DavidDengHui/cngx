@@ -513,7 +513,58 @@ include 'header.php';
             background-color: #7f8c8d;
         }
         
-
+        .buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        #image-upload-button,
+        #use-camera-button,
+        #qr-scanner-close {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #image-upload-button,
+        #use-camera-button {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        #image-upload-button:hover,
+        #use-camera-button:hover {
+            background-color: #2980b9;
+        }
+        
+        #qr-scanner-close {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        #qr-scanner-close:hover {
+            background-color: #7f8c8d;
+        }
+        
+        #qr-scanner-video,
+        #qr-preview-image {
+            margin: 20px auto; /* 水平居中 */
+            max-width: 100%; /* 最大宽度不超过父容器 */
+            height: auto; /* 保持宽高比 */
+            max-height: 300px; /* 限制最大高度 */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: block; /* 确保块级元素以便居中 */
+        }
+        
+        #qr-preview-image {
+            display: none; /* 默认隐藏 */
+        }
+        
     </style>
 
     <!-- 扫码查验模态框 -->
@@ -522,10 +573,12 @@ include 'header.php';
             <h3>扫码查验设备</h3>
             <video id="qr-scanner-video" autoplay></video>
             <img id="qr-preview-image" alt="二维码预览" />
-            <button id="image-upload-button">选择本地图片扫码</button>
-            <input type="file" id="qr-image-input" accept="image/*" />
-            <button id="use-camera-button">使用摄像头扫码</button>
-            <button id="qr-scanner-close">关闭</button>
+            <div class="buttons-container">
+                <button id="image-upload-button">选择本地图片扫码</button>
+                <input type="file" id="qr-image-input" accept="image/*" />
+                <button id="use-camera-button">使用摄像头扫码</button>
+                <button id="qr-scanner-close">关闭</button>
+            </div>
         </div>
     </div>
     
@@ -575,6 +628,8 @@ include 'header.php';
             function handleScanVerification() {
                 // 显示模态框
                 qrScannerModal.style.display = 'flex';
+                // 阻止背景页面滚动
+                document.body.style.overflow = 'hidden';
                 
                 // 获取摄像头权限并开始扫码
                 startQRScanner();
@@ -586,6 +641,8 @@ include 'header.php';
                 deviceIdInput.value = '';
                 // 显示模态框
                 manualInputModal.style.display = 'flex';
+                // 阻止背景页面滚动
+                document.body.style.overflow = 'hidden';
                 // 聚焦输入框
                 setTimeout(() => deviceIdInput.focus(), 100);
             }
@@ -625,11 +682,15 @@ include 'header.php';
             qrScannerClose.addEventListener('click', function() {
                 stopQRScanner();
                 qrScannerModal.style.display = 'none';
+                // 恢复背景页面滚动
+                document.body.style.overflow = '';
             });
             
             // 手动输入取消
             manualInputCancel.addEventListener('click', function() {
                 manualInputModal.style.display = 'none';
+                // 恢复背景页面滚动
+                document.body.style.overflow = '';
             });
             
             // 手动输入确认
@@ -655,12 +716,16 @@ include 'header.php';
                 if (e.target === qrScannerModal) {
                     stopQRScanner();
                     qrScannerModal.style.display = 'none';
+                    // 恢复背景页面滚动
+                    document.body.style.overflow = '';
                 }
             });
             
             manualInputModal.addEventListener('click', function(e) {
                 if (e.target === manualInputModal) {
                     manualInputModal.style.display = 'none';
+                    // 恢复背景页面滚动
+                    document.body.style.overflow = '';
                 }
             });
             
@@ -817,13 +882,17 @@ include 'header.php';
                                             const didMatch = code.data.match(/did=([^&]+)/);
                                             if (didMatch && didMatch[1]) {
                                                 stopQRScanner();
-                                                qrScannerModal.style.display = 'none';
-                                                window.location.href = `/devices.php?did=${didMatch[1]}`;
+                                            qrScannerModal.style.display = 'none';
+                                            // 恢复背景页面滚动
+                                            document.body.style.overflow = '';
+                                            window.location.href = `/devices.php?did=${didMatch[1]}`;
                                             } else {
                                                 // 如果没有did参数，直接使用识别到的内容
                                                 stopQRScanner();
-                                                qrScannerModal.style.display = 'none';
-                                                window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
+                                            qrScannerModal.style.display = 'none';
+                                            // 恢复背景页面滚动
+                                            document.body.style.overflow = '';
+                                            window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
                                             }
                                         }
                                     } else {
@@ -832,6 +901,8 @@ include 'header.php';
                                         if (did) {
                                             stopQRScanner();
                                             qrScannerModal.style.display = 'none';
+                                            // 恢复背景页面滚动
+                                            document.body.style.overflow = '';
                                             window.location.href = `/devices.php?did=${did}`;
                                         }
                                     }
@@ -845,6 +916,8 @@ include 'header.php';
                         console.error('获取摄像头权限失败:', error);
                         alert('获取摄像头权限失败，请确保您已授予浏览器访问摄像头的权限');
                         qrScannerModal.style.display = 'none';
+                        // 恢复背景页面滚动
+                        document.body.style.overflow = '';
                     });
             }
             
