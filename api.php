@@ -1550,10 +1550,16 @@ function saveQRCodeImage()
         $imageData = str_replace(' ', '+', $imageData);
         $imageData = base64_decode($imageData);
         
-        // 保存文件
+        // 保存文件（自动覆盖已存在的文件）
         $filePath = $uploadDir . $fileName;
         $relativePath = '/uploads/qrcode/' . $fileName; // 确保返回正确的相对路径（带前导斜杠）
         
+        // 检查文件是否存在，如果存在则记录日志
+        if (file_exists($filePath)) {
+            error_log("QR Code file already exists, replacing it: $filePath");
+        }
+        
+        // 直接保存，file_put_contents默认会覆盖已存在的文件
         if (!file_put_contents($filePath, $imageData)) {
             echo json_encode(['success' => false, 'message' => '保存图片失败']);
             return;

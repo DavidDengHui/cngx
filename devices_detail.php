@@ -5724,9 +5724,9 @@ include 'header.php';
                     const mainCanvas = document.getElementById('qrcode-combined');
                     const ctx = mainCanvas.getContext('2d');
 
-                    // 计算主canvas的尺寸（调整为紧凑布局）
+                    // 计算主canvas的尺寸（调整为合理布局）
                     const qrCodeSize = 200;
-                    const lineSpacing = 25; // 行间距，确保三行间隔相等
+                    const lineSpacing = 20; // 增加行间距，避免编号和名称重叠
                     const padding = 10;
 
                     mainCanvas.width = qrCodeSize + padding * 2;
@@ -5740,11 +5740,31 @@ include 'header.php';
                     // 绘制二维码
                     ctx.drawImage(tempCanvas, padding, padding, qrCodeSize, qrCodeSize);
 
+                    // 在二维码正中间绘制logo图标
+                    const logoImg = new Image();
+                    logoImg.src = '/files/logo.svg';
+                    logoImg.onload = function() {
+                        // 计算logo大小（不超过二维码的20%，避免影响识别）
+                        const logoSize = qrCodeSize * 0.2;
+                        const logoX = padding + (qrCodeSize - logoSize) / 2;
+                        const logoY = padding + (qrCodeSize - logoSize) / 2;
+
+                        // 添加一个小的白色背景，让logo更清晰可见
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
+                        
+                        // 绘制logo
+                        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+                    };
+                    logoImg.onerror = function() {
+                        console.error('无法加载logo图标');
+                    };
+
                     // 绘制设备ID（靠近二维码）
                     ctx.font = 'bold 16px Arial';
                     ctx.fillStyle = '#333333';
                     ctx.textAlign = 'center';
-                    ctx.fillText(did, mainCanvas.width / 2, qrCodeSize + padding + 15);
+                    ctx.fillText(did, mainCanvas.width / 2, qrCodeSize + padding + 10);
 
                     // 绘制设备名称（可能需要处理多行）
                     ctx.font = '14px Arial';
@@ -5754,7 +5774,7 @@ include 'header.php';
                     const maxWidth = mainCanvas.width - padding * 4;
                     const words = deviceName.split(' ');
                     let line = '';
-                    let y = qrCodeSize + padding + lineSpacing + 15;
+                    let y = qrCodeSize + padding + lineSpacing + 8;
 
                     for (let n = 0; n < words.length; n++) {
                         const testLine = line + words[n] + ' ';
