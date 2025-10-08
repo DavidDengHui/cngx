@@ -5914,7 +5914,7 @@ include 'header.php';
         // 设置样式
         notification.style.position = 'fixed';
         notification.style.top = '80px'; // 再次下移提示框，使其远离导航栏，看起来更美观
-        notification.style.right = '20px';
+        notification.style.right = '-300px'; // 初始位置在屏幕右侧外
         notification.style.backgroundColor = '#1677ff';
         notification.style.color = 'white';
         notification.style.padding = '10px 20px';
@@ -5922,9 +5922,15 @@ include 'header.php';
         notification.style.zIndex = '9999';
         notification.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
         notification.style.fontSize = '14px';
+        notification.style.transition = 'right 0.5s ease'; // 添加向右滑动的过渡效果
         
         // 添加到文档
         document.body.appendChild(notification);
+        
+        // 触发滑入动画
+        setTimeout(function() {
+            notification.style.right = '20px';
+        }, 10);
         
         // 3秒后自动移除
         setTimeout(function() {
