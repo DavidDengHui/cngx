@@ -5740,26 +5740,6 @@ include 'header.php';
                     // 绘制二维码
                     ctx.drawImage(tempCanvas, padding, padding, qrCodeSize, qrCodeSize);
 
-                    // 在二维码正中间绘制logo图标
-                    const logoImg = new Image();
-                    logoImg.src = '/files/logo.svg';
-                    logoImg.onload = function() {
-                        // 计算logo大小（不超过二维码的20%，避免影响识别）
-                        const logoSize = qrCodeSize * 0.2;
-                        const logoX = padding + (qrCodeSize - logoSize) / 2;
-                        const logoY = padding + (qrCodeSize - logoSize) / 2;
-
-                        // 添加一个小的白色背景，让logo更清晰可见
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
-                        
-                        // 绘制logo
-                        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
-                    };
-                    logoImg.onerror = function() {
-                        console.error('无法加载logo图标');
-                    };
-
                     // 绘制设备ID（靠近二维码）
                     ctx.font = 'bold 16px Arial';
                     ctx.fillStyle = '#333333';
@@ -5815,8 +5795,30 @@ include 'header.php';
                         console.log('未找到下载按钮');
                     }
                     
-                    // 自动保存二维码到服务器
-                    saveQRCodeToServer(did, deviceName);
+                    // 在二维码正中间绘制logo图标
+                    const logoImg = new Image();
+                    logoImg.src = '/files/logo.svg';
+                    logoImg.onload = function() {
+                        // 计算logo大小（不超过二维码的20%，避免影响识别）
+                        const logoSize = qrCodeSize * 0.2;
+                        const logoX = padding + (qrCodeSize - logoSize) / 2;
+                        const logoY = padding + (qrCodeSize - logoSize) / 2;
+
+                        // 添加一个小的白色背景，让logo更清晰可见
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
+                        
+                        // 绘制logo
+                        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+                        
+                        // logo绘制完成后再保存到服务器
+                        saveQRCodeToServer(did, deviceName);
+                    };
+                    logoImg.onerror = function() {
+                        console.error('无法加载logo图标');
+                        // 即使logo加载失败，也保存二维码（不含logo）
+                        saveQRCodeToServer(did, deviceName);
+                    };
                 });
             } catch (error) {
                 document.getElementById('qrcode-loading').textContent = '二维码生成失败';

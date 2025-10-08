@@ -1541,9 +1541,8 @@ function saveQRCodeImage()
             mkdir($uploadDir, 0755, true);
         }
         
-        // 格式化文件名：qr_did_name.png，移除可能的特殊字符
-        $safeName = preg_replace('/[^a-zA-Z0-9一-龥]/u', '_', $deviceName);
-        $fileName = 'qr_' . $did . '_' . $safeName . '.png';
+        // 格式化文件名：qr_did.png（仅包含设备ID，不包含设备名称）
+        $fileName = 'qr_' . $did . '.png';
         
         // 处理base64图片数据
         $imageData = str_replace('data:image/png;base64,', '', $imageData);
