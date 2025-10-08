@@ -565,6 +565,12 @@ include 'header.php';
             display: none; /* 默认隐藏 */
         }
         
+        /* 加载动画旋转效果 */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
     </style>
 
     <!-- 扫码查验模态框 -->
@@ -573,6 +579,20 @@ include 'header.php';
             <h3>扫码查验设备</h3>
             <video id="qr-scanner-video" autoplay></video>
             <img id="qr-preview-image" alt="二维码预览" />
+            
+            <!-- 用于显示识别的二维码内容 -->
+            <div id="qr-content-display" style="display: none; margin: 10px 0; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">
+                <p style="margin: 0; color: #333;">识别内容: <span id="qr-content-text"></span></p>
+            </div>
+            
+            <!-- 加载动画 -->
+            <div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center;">
+                <div style="background: white; padding: 30px; border-radius: 12px; text-align: center;">
+                    <div style="width: 40px; height: 40px; margin: 0 auto 15px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin: 0; color: #333;">设备信息加载中...</p>
+                </div>
+            </div>
+            
             <div class="buttons-container">
                 <button id="image-upload-button">选择本地图片扫码</button>
                 <input type="file" id="qr-image-input" accept="image/*" />
@@ -808,17 +828,33 @@ include 'header.php';
                     if (typeof jsQR !== 'undefined') {
                         const code = jsQR(imageData.data, imageData.width, imageData.height);
                         if (code) {
-                            console.log('识别到二维码内容:', code.data);
-                            
-                            // 检查是否包含设备编号
-                            const didMatch = code.data.match(/did=([^&]+)/);
-                            if (didMatch && didMatch[1]) {
-                                window.location.href = `/devices.php?did=${didMatch[1]}`;
-                            } else {
-                                // 如果没有did参数，直接使用识别到的内容
-                                window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
+                                console.log('识别到二维码内容:', code.data);
+                                 
+                                // 显示识别到的内容
+                                const qrContentDisplay = document.getElementById('qr-content-display');
+                                const qrContentText = document.getElementById('qr-content-text');
+                                qrContentText.textContent = code.data;
+                                qrContentDisplay.style.display = 'block';
+                                 
+                                // 显示加载动画
+                                const loadingOverlay = document.getElementById('loading-overlay');
+                                loadingOverlay.style.display = 'flex';
+                                 
+                                // 检查是否包含设备编号
+                                const didMatch = code.data.match(/did=([^&]+)/);
+                                if (didMatch && didMatch[1]) {
+                                    // 延迟跳转，让用户看到识别内容和加载动画
+                                    setTimeout(() => {
+                                        window.location.href = `/devices.php?did=${didMatch[1]}`;
+                                    }, 1000);
+                                } else {
+                                    // 如果没有did参数，直接使用识别到的内容
+                                    // 延迟跳转，让用户看到识别内容和加载动画
+                                    setTimeout(() => {
+                                        window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
+                                    }, 1000);
+                                }
                             }
-                        }
                     } else {
                         // 备用识别方法 - 使用模拟的识别函数
                         const did = tryRecognizeQRCode(imageData);
@@ -876,34 +912,66 @@ include 'header.php';
                                     if (typeof jsQR !== 'undefined') {
                                         const code = jsQR(imageData.data, imageData.width, imageData.height);
                                         if (code) {
-                                            console.log('识别到二维码内容:', code.data);
-                                            
-                                            // 检查是否包含设备编号
-                                            const didMatch = code.data.match(/did=([^&]+)/);
-                                            if (didMatch && didMatch[1]) {
-                                                stopQRScanner();
-                                            qrScannerModal.style.display = 'none';
-                                            // 恢复背景页面滚动
-                                            document.body.style.overflow = '';
-                                            window.location.href = `/devices.php?did=${didMatch[1]}`;
-                                            } else {
-                                                // 如果没有did参数，直接使用识别到的内容
-                                                stopQRScanner();
-                                            qrScannerModal.style.display = 'none';
-                                            // 恢复背景页面滚动
-                                            document.body.style.overflow = '';
-                                            window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
-                                            }
+                                        console.log('识别到二维码内容:', code.data);
+                                         
+                                        // 显示识别到的内容
+                                        const qrContentDisplay = document.getElementById('qr-content-display');
+                                        const qrContentText = document.getElementById('qr-content-text');
+                                        qrContentText.textContent = code.data;
+                                        qrContentDisplay.style.display = 'block';
+                                         
+                                        // 显示加载动画
+                                        const loadingOverlay = document.getElementById('loading-overlay');
+                                        loadingOverlay.style.display = 'flex';
+                                         
+                                        // 检查是否包含设备编号
+                                        const didMatch = code.data.match(/did=([^&]+)/);
+                                        if (didMatch && didMatch[1]) {
+                                            stopQRScanner();
+                                            // 延迟跳转，让用户看到识别内容和加载动画
+                                            setTimeout(() => {
+                                                qrScannerModal.style.display = 'none';
+                                                loadingOverlay.style.display = 'none';
+                                                // 恢复背景页面滚动
+                                                document.body.style.overflow = '';
+                                                window.location.href = `/devices.php?did=${didMatch[1]}`;
+                                            }, 1000);
+                                        } else {
+                                            // 如果没有did参数，直接使用识别到的内容
+                                            stopQRScanner();
+                                            // 延迟跳转，让用户看到识别内容和加载动画
+                                            setTimeout(() => {
+                                                qrScannerModal.style.display = 'none';
+                                                loadingOverlay.style.display = 'none';
+                                                // 恢复背景页面滚动
+                                                document.body.style.overflow = '';
+                                                window.location.href = `/devices.php?did=${encodeURIComponent(code.data)}`;
+                                            }, 1000);
                                         }
+                                    }
                                     } else {
                                         // 备用方案 - 使用模拟的识别函数
                                         const did = tryRecognizeQRCode(imageData);
                                         if (did) {
+                                            // 显示识别到的内容
+                                            const qrContentDisplay = document.getElementById('qr-content-display');
+                                            const qrContentText = document.getElementById('qr-content-text');
+                                            qrContentText.textContent = did;
+                                            qrContentDisplay.style.display = 'block';
+                                             
+                                            // 显示加载动画
+                                            const loadingOverlay = document.getElementById('loading-overlay');
+                                            loadingOverlay.style.display = 'flex';
+                                             
                                             stopQRScanner();
-                                            qrScannerModal.style.display = 'none';
-                                            // 恢复背景页面滚动
-                                            document.body.style.overflow = '';
-                                            window.location.href = `/devices.php?did=${did}`;
+                                            // 延迟跳转，让用户看到识别内容和加载动画
+                                            setTimeout(() => {
+                                                qrScannerModal.style.display = 'none';
+                                                loadingOverlay.style.display = 'none';
+                                                // 恢复背景页面滚动
+                                                document.body.style.overflow = '';
+                                                window.location.href = `/devices.php?did=${did}`;
+                                            }, 1000);
                                         }
                                     }
                                 } catch (error) {
