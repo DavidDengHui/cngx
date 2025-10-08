@@ -21,7 +21,7 @@ $is_edit_mode = !empty($did);
 
     <div class="devices-layout">
         <div class="devices-form">
-            <form id="device-form">
+            <form id="device-form" novalidate>
                 <input type="hidden" id="did" value="<?php echo $did; ?>">
 
                 <div class="form-layout">
@@ -318,7 +318,7 @@ $is_edit_mode = !empty($did);
                     // 如果设备不存在，切换为新增模式
                     document.getElementById('page-title').textContent = '新增设备';
                     document.getElementById('did').value = '';
-                    alert('设备不存在，切换为新增设备模式');
+                    // alert('设备不存在，切换为新增设备模式');
                 }
             })
             .catch(error => {
@@ -437,8 +437,8 @@ $is_edit_mode = !empty($did);
             const drawingName = drawing.original_name || drawing.name;
             const confirmText = document.querySelector('#confirm-delete-drawing-modal .modal-body p');
             confirmText.innerHTML = `确认删除${deviceName}的以下图纸吗？<br><br>` +
-                                   `<span style="color: #e74c3c;">[${drawingName}]</span><br><br>` +
-                                   `<span style="color: #e74c3c;">注意：会立即删除无法撤销！</span>`;
+                `<span style="color: #e74c3c;">[${drawingName}]</span><br><br>` +
+                `<span style="color: #e74c3c;">注意：会立即删除无法撤销！</span>`;
         }
     }
 
@@ -663,6 +663,13 @@ $is_edit_mode = !empty($did);
         if (elementId === 'workers-input-wrapper') {
             const wrapper = document.querySelector(`.${elementId}`);
             wrapper.classList.add('error');
+            // 添加动画类
+            wrapper.classList.add('shake-animation');
+
+            // 动画结束后移除动画类
+            setTimeout(() => {
+                wrapper.classList.remove('shake-animation');
+            }, 500);
         } else {
             const input = document.getElementById(elementId);
             input.style.borderColor = '#e74c3c';
@@ -692,7 +699,7 @@ $is_edit_mode = !empty($did);
 
         // 重置workers-input-wrapper样式
         const workersWrapper = document.querySelector('.workers-input-wrapper');
-        workersWrapper.classList.remove('error');
+        workersWrapper.classList.remove('error', 'shake-animation');
     }
 
     // 添加输入事件监听器，在输入内容时恢复正常样式
@@ -744,7 +751,7 @@ $is_edit_mode = !empty($did);
 
         workersInput.addEventListener('input', function() {
             if (this.value.trim() || hiddenInput.value.trim()) {
-                workersWrapper.classList.remove('error');
+                workersWrapper.classList.remove('error', 'shake-animation');
                 const label = workersWrapper.closest('.form-item').querySelector('label');
                 label.style.color = '#555';
             }
@@ -846,7 +853,7 @@ $is_edit_mode = !empty($did);
 
             // 显示/隐藏错误状态
             if (inputWrapper.classList.contains('error')) {
-                inputWrapper.classList.remove('error');
+                inputWrapper.classList.remove('error', 'shake-animation');
             }
         }
 
@@ -1773,7 +1780,6 @@ $is_edit_mode = !empty($did);
     /* 错误状态样式 */
     .workers-input-wrapper.error {
         border-color: #f44336;
-        animation: shake 0.5s ease-in-out;
     }
 
     /* 输入框错误状态 */
@@ -1913,9 +1919,12 @@ $is_edit_mode = !empty($did);
     .drawing-name {
         font-weight: bold;
         margin-bottom: 4px;
-        word-break: break-all; /* 确保过长的文件名能够换行 */
-        white-space: normal; /* 允许文本换行 */
-        max-width: 100%; /* 限制最大宽度，防止撑出容器 */
+        word-break: break-all;
+        /* 确保过长的文件名能够换行 */
+        white-space: normal;
+        /* 允许文本换行 */
+        max-width: 100%;
+        /* 限制最大宽度，防止撑出容器 */
     }
 
     .drawing-meta {
