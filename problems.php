@@ -529,7 +529,7 @@ if (isset($_GET['pid'])) {
                             const resolutionTime = problem.resolution_time || '';
                             html += `<tr data-report-time="${reportTime}" data-resolution-time="${resolutionTime}" data-status="${problem.process}">
                                 <td>${serialNumber}</td>
-                                <td><a href="devices.php?did=${problem.did}">${getDeviceName(problem)}</a></td>
+                                <td><span class="device-link-btn" data-did="${problem.did}">${getDeviceName(problem)}</span></td>
                                 <td><a href="problems.php?pid=${problem.pid}" title="${reportTime}">${problem.description}</a></td>
                                 <td><span class="status-tag ${statusClass}">${statusText}</span></td>
                             </tr>`;
@@ -931,6 +931,106 @@ if (isset($_GET['pid'])) {
         // 页面加载完成后初始化悬浮提示功能
         document.addEventListener('DOMContentLoaded', initProblemTooltip);
 
+        // 处理设备名称按钮点击事件
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('device-link-btn')) {
+                const deviceId = e.target.getAttribute('data-did');
+                if (deviceId) {
+                    openDeviceDetailModal(deviceId);
+                }
+            }
+        });
+
+        // 绑定设备名称点击事件
+        function bindDeviceLinkEvents() {
+            const deviceLinks = document.querySelectorAll('.device-link-btn');
+            deviceLinks.forEach(function(link) {
+                // 确保每个元素只绑定一次事件
+                if (!link.hasAttribute('data-event-bound')) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault(); // 阻止默认行为
+                        const deviceId = this.getAttribute('data-did');
+                        if (deviceId) {
+                            openDeviceDetailModal(deviceId);
+                        }
+                    });
+                    link.setAttribute('data-event-bound', 'true');
+                }
+            });
+        }
+
+        // 打开设备详情模态框
+        function openDeviceDetailModal(deviceId) {
+            const modal = document.getElementById('device-detail-modal');
+            const iframe = document.getElementById('device-detail-iframe');
+            
+            // 设置iframe的src
+            iframe.src = `devices.php?did=${deviceId}`;
+            
+            // 显示模态框
+            modal.style.display = 'flex';
+            
+            // 阻止背景滚动
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 关闭设备详情模态框
+        function closeDeviceDetailModal() {
+            const modal = document.getElementById('device-detail-modal');
+            const iframe = document.getElementById('device-detail-iframe');
+            
+            // 隐藏模态框
+            modal.style.display = 'none';
+            
+            // 清空iframe的src
+            iframe.src = '';
+            
+            // 恢复背景滚动
+            document.body.style.overflow = '';
+        }
+
+        // 最大化/还原模态框
+        function toggleModalMaximize() {
+            const modal = document.getElementById('device-detail-modal');
+            const maximizeBtn = document.getElementById('maximize-modal-btn');
+            
+            if (modal.classList.contains('maximized')) {
+                // 还原
+                modal.classList.remove('maximized');
+                maximizeBtn.textContent = '□';
+            } else {
+                // 最大化
+                modal.classList.add('maximized');
+                maximizeBtn.textContent = '❐';
+            }
+        }
+
+        // 等待DOM加载完成后绑定模态框按钮事件
+        document.addEventListener('DOMContentLoaded', function() {
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const maximizeModalBtn = document.getElementById('maximize-modal-btn');
+            const deviceDetailModal = document.getElementById('device-detail-modal');
+            
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', closeDeviceDetailModal);
+            }
+            
+            if (maximizeModalBtn) {
+                maximizeModalBtn.addEventListener('click', toggleModalMaximize);
+            }
+            
+            if (deviceDetailModal) {
+                deviceDetailModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeDeviceDetailModal();
+                    }
+                });
+            }
+            
+            // 初始绑定设备名称点击事件
+            bindDeviceLinkEvents();
+        });
+
         // 使用当前分页参数搜索问题
         function searchProblemsWithPagination() {
             const {
@@ -962,7 +1062,7 @@ if (isset($_GET['pid'])) {
                             // 添加data属性用于悬浮提示
                             html += `<tr data-report-time="${problem.report_time}" data-resolution-time="${problem.resolution_time || ''}" data-status="${problem.process}">
                                 <td>${serialNumber}</td>
-                                <td><a href="devices.php?did=${problem.did}">${getDeviceName(problem)}</a></td>
+                                <td><span class="device-link-btn" data-did="${problem.did}">${getDeviceName(problem)}</span></td>
                                 <td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td>
                                 <td><span class="status-tag ${statusClass}">${statusText}</span></td>
                             </tr>`;
@@ -975,6 +1075,9 @@ if (isset($_GET['pid'])) {
                         if (typeof window.clearProblemTooltips === 'function') {
                             window.clearProblemTooltips();
                         }
+                        
+                        // 重新绑定设备名称点击事件
+                        bindDeviceLinkEvents();
                         
                         // 更新分页控件
                         addPaginationControls(data.total, currentPage, currentPageSize);
@@ -1372,6 +1475,7 @@ if (isset($_GET['pid'])) {
 
         .pagination-btn:hover:not(:disabled) {
             background: #f5f5f5;
+            color: #333;
         }
 
         .pagination-btn:disabled {
@@ -1488,6 +1592,102 @@ if (isset($_GET['pid'])) {
             padding: 20px;
             overflow-y: auto;
             flex: 1;
+        }
+
+        /* 设备详情模态框样式 */
+        #device-detail-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #device-detail-modal .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1200px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #device-detail-modal.maximized .modal-content {
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            border-radius: 0;
+        }
+
+        #device-detail-modal .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            background: #f9f9f9;
+        }
+
+        #device-detail-modal .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        #device-detail-modal .maximize-btn,
+        #device-detail-modal .close-btn {
+            background: none;
+            border: 1px solid #ddd;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+        }
+
+        #device-detail-modal .maximize-btn:hover,
+        #device-detail-modal .close-btn:hover {
+            background: #f5f5f5;
+        }
+
+        #device-detail-modal .modal-body {
+            flex: 1;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #device-detail-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .device-link-btn {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            color: #3498db;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 12px;
+            border-radius: 4px;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .device-link-btn:hover,
+        .device-link-btn:active {
+            background: #1d6fa5;
+            color: white;
+            border-color: #1d6fa5;
         }
 
         .select-path {
@@ -1623,6 +1823,22 @@ if (isset($_GET['pid'])) {
             }
         }
     </style>
+
+    <!-- 设备详情模态框 -->
+    <div id="device-detail-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>设备详情</h3>
+                <div class="modal-buttons">
+                    <button type="button" class="maximize-btn" id="maximize-modal-btn">□</button>
+                    <button type="button" class="close-btn" id="close-modal-btn">×</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <iframe id="device-detail-iframe" src="" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
 
 <?php
 }
