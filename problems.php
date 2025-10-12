@@ -195,7 +195,7 @@ if (isset($_GET['pid'])) {
                     const typeId = document.getElementById('type-id').value;
                     // 获取关键字
                     const keywords = document.getElementById('keywords').value;
-                    
+
                     // 构建查询参数
                     let params = [];
                     if (departmentId) params.push(`departmentId=${encodeURIComponent(departmentId)}`);
@@ -203,7 +203,7 @@ if (isset($_GET['pid'])) {
                     if (typeId) params.push(`typeId=${encodeURIComponent(typeId)}`);
                     if (keywords) params.push(`keywords=${encodeURIComponent(keywords)}`);
                     params.push('pageSize=0');
-                    
+
                     apiUrl = `api.php?action=searchDevices&${params.join('&')}`;
                     break;
             }
@@ -476,7 +476,7 @@ if (isset($_GET['pid'])) {
             // 显示加载提示框
             const loadingModal = document.getElementById('loading-modal');
             loadingModal.style.display = 'flex';
-            
+
             // 禁止背景页面滚动
             document.body.style.overflow = 'hidden';
 
@@ -505,7 +505,7 @@ if (isset($_GET['pid'])) {
                     // 隐藏加载提示框
                     const loadingModal = document.getElementById('loading-modal');
                     loadingModal.style.display = 'none';
-                    
+
                     // 恢复背景页面滚动
                     document.body.style.overflow = '';
 
@@ -544,7 +544,7 @@ if (isset($_GET['pid'])) {
                         // 移除分页控件
                         removePaginationControls();
                     }
-                    
+
                     // 只在手机窄屏设备上滑动页面到查询按钮上方
                     if (isMobileDevice()) {
                         // 使用setTimeout确保表格完全渲染后再滚动
@@ -553,7 +553,7 @@ if (isset($_GET['pid'])) {
                             const headerHeight = 60; // 导航栏高度
                             const elementPosition = searchButton.getBoundingClientRect().top;
                             const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
-                            
+
                             window.scrollTo({
                                 top: offsetPosition,
                                 behavior: 'smooth'
@@ -565,13 +565,13 @@ if (isset($_GET['pid'])) {
                     // 隐藏加载提示框
                     const loadingModal = document.getElementById('loading-modal');
                     loadingModal.style.display = 'none';
-                    
+
                     // 恢复背景页面滚动
                     document.body.style.overflow = '';
-                    
+
                     const resultDiv = document.getElementById('search-result');
                     resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
-                    
+
                     // 只在手机窄屏设备上滑动页面到查询按钮上方
                     if (isMobileDevice()) {
                         // 使用setTimeout确保页面元素完全渲染后再滚动
@@ -580,7 +580,7 @@ if (isset($_GET['pid'])) {
                             const headerHeight = 60; // 导航栏高度
                             const elementPosition = searchButton.getBoundingClientRect().top;
                             const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
-                            
+
                             window.scrollTo({
                                 top: offsetPosition,
                                 behavior: 'smooth'
@@ -963,13 +963,13 @@ if (isset($_GET['pid'])) {
         function openDeviceDetailModal(deviceId) {
             const modal = document.getElementById('device-detail-modal');
             const iframe = document.getElementById('device-detail-iframe');
-            
+
             // 设置iframe的src
             iframe.src = `devices.php?did=${deviceId}`;
-            
+
             // 显示模态框
             modal.style.display = 'flex';
-            
+
             // 阻止背景滚动
             document.body.style.overflow = 'hidden';
         }
@@ -978,13 +978,13 @@ if (isset($_GET['pid'])) {
         function closeDeviceDetailModal() {
             const modal = document.getElementById('device-detail-modal');
             const iframe = document.getElementById('device-detail-iframe');
-            
+
             // 隐藏模态框
             modal.style.display = 'none';
-            
+
             // 清空iframe的src
             iframe.src = '';
-            
+
             // 恢复背景滚动
             document.body.style.overflow = '';
         }
@@ -993,7 +993,7 @@ if (isset($_GET['pid'])) {
         function toggleModalMaximize() {
             const modal = document.getElementById('device-detail-modal');
             const maximizeBtn = document.getElementById('maximize-modal-btn');
-            
+
             if (modal.classList.contains('maximized')) {
                 // 还原
                 modal.classList.remove('maximized');
@@ -1010,15 +1010,15 @@ if (isset($_GET['pid'])) {
             const closeModalBtn = document.getElementById('close-modal-btn');
             const maximizeModalBtn = document.getElementById('maximize-modal-btn');
             const deviceDetailModal = document.getElementById('device-detail-modal');
-            
+
             if (closeModalBtn) {
                 closeModalBtn.addEventListener('click', closeDeviceDetailModal);
             }
-            
+
             if (maximizeModalBtn) {
                 maximizeModalBtn.addEventListener('click', toggleModalMaximize);
             }
-            
+
             if (deviceDetailModal) {
                 deviceDetailModal.addEventListener('click', function(e) {
                     if (e.target === this) {
@@ -1026,7 +1026,7 @@ if (isset($_GET['pid'])) {
                     }
                 });
             }
-            
+
             // 初始绑定设备名称点击事件
             bindDeviceLinkEvents();
         });
@@ -1035,7 +1035,7 @@ if (isset($_GET['pid'])) {
         function searchProblemsWithPagination() {
             // 显示加载框
             showLoadingModal('加载中，请稍候...');
-            
+
             const {
                 departmentId,
                 stationId,
@@ -1073,15 +1073,15 @@ if (isset($_GET['pid'])) {
 
                         html += '</tbody></table>';
                         resultDiv.innerHTML = html;
-                        
+
                         // 重新初始化悬浮提示功能
                         if (typeof window.clearProblemTooltips === 'function') {
                             window.clearProblemTooltips();
                         }
-                        
+
                         // 重新绑定设备名称点击事件
                         bindDeviceLinkEvents();
-                        
+
                         // 更新分页控件
                         addPaginationControls(data.total, currentPage, currentPageSize);
                     } else {
@@ -1089,7 +1089,7 @@ if (isset($_GET['pid'])) {
                         // 移除分页控件
                         removePaginationControls();
                     }
-                    
+
                     // 隐藏加载框
                     hideLoadingModal();
                 })
@@ -1098,7 +1098,7 @@ if (isset($_GET['pid'])) {
                     resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
                     // 移除分页控件
                     removePaginationControls();
-                    
+
                     // 隐藏加载框
                     hideLoadingModal();
                 });
@@ -1313,7 +1313,8 @@ if (isset($_GET['pid'])) {
         .problems-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed; /* 固定表格布局，防止内容撑开 */
+            table-layout: fixed;
+            /* 固定表格布局，防止内容撑开 */
         }
 
         .problems-table th,
@@ -1322,7 +1323,7 @@ if (isset($_GET['pid'])) {
             text-align: center;
             border-bottom: 1px solid #ddd;
         }
-        
+
         /* 设置序号列固定宽度（两个字符宽度） */
         .problems-table th:nth-child(1),
         .problems-table td:nth-child(1) {
@@ -1330,20 +1331,20 @@ if (isset($_GET['pid'])) {
             min-width: 40px;
             max-width: 40px;
         }
-        
+
         /* 设置设备名称列固定宽度（至少4个字符宽度） */
         .problems-table th:nth-child(2),
         .problems-table td:nth-child(2) {
             width: 120px;
             min-width: 120px;
         }
-        
+
         /* 设置问题描述列占据剩余空间 */
         .problems-table th:nth-child(3),
         .problems-table td:nth-child(3) {
             width: auto;
         }
-        
+
         /* 设置状态列固定宽度（刚好显示状态内容） */
         .problems-table th:nth-child(4),
         .problems-table td:nth-child(4) {
@@ -1351,12 +1352,12 @@ if (isset($_GET['pid'])) {
             min-width: 60px;
             max-width: 60px;
         }
-        
+
         /* 问题描述列左对齐 */
         .problems-table td:nth-child(3) {
             text-align: left;
         }
-        
+
         /* 问题描述链接样式 - 限制行数并显示省略号 */
         .problems-table td:nth-child(3) a {
             display: -webkit-box;
@@ -1365,15 +1366,19 @@ if (isset($_GET['pid'])) {
             text-overflow: ellipsis;
             /* 电脑上最多显示三行 */
             -webkit-line-clamp: 3;
+            /* 添加标准的 line-clamp 属性，提升兼容性 */
+            line-clamp: 3;
         }
-        
+
         /* 手机上最多显示五行 */
         @media (max-width: 768px) {
             .problems-table td:nth-child(3) a {
                 -webkit-line-clamp: 5;
+                /* 添加标准的 line-clamp 属性，提升兼容性 */
+                line-clamp: 5;
             }
         }
-        
+
         /* 悬浮提示样式 */
         .problem-tooltip-container {
             position: fixed;
@@ -1428,12 +1433,12 @@ if (isset($_GET['pid'])) {
         .problems-table td a:hover {
             text-decoration: underline;
         }
-        
+
         /* 表格行悬停效果 */
         .problems-table tr:hover {
             background-color: #f9f9f9;
         }
-        
+
         /* 表格行点击效果（用于触摸设备） */
         .problems-table tr:active {
             background-color: #f0f0f0;
@@ -1575,8 +1580,13 @@ if (isset($_GET['pid'])) {
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .modal-content {
@@ -1789,7 +1799,7 @@ if (isset($_GET['pid'])) {
                 box-shadow: none;
                 border-radius: 0;
             }
-            
+
             .problems-layout {
                 flex-direction: column;
                 gap: 0;
@@ -1829,14 +1839,14 @@ if (isset($_GET['pid'])) {
             .pagination-pageSize {
                 justify-content: center;
             }
-            
+
             /* 设置设备名称列在移动端的宽度为三个字符 */
             .problems-table th:nth-child(2),
             .problems-table td:nth-child(2) {
                 width: 60px;
                 min-width: 60px;
             }
-            
+
             /* 设置状态列在移动端的固定宽度 */
             .problems-table th:nth-child(4),
             .problems-table td:nth-child(4) {
@@ -1844,7 +1854,7 @@ if (isset($_GET['pid'])) {
                 min-width: 60px;
                 max-width: 60px;
             }
-            
+
             /* 确保分页控件在移动端居中显示 */
             .pagination-btn,
             .pagination-ellipsis {
