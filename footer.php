@@ -7,8 +7,10 @@ if (basename($_SERVER['PHP_SELF']) == 'footer.php') {
 
 $banquan = "<img src='./files/logo.svg'><a href='/about.php'>csngx.cn</a> © 2025" . (date('Y') > 2025 ? ' - ' . date('Y') : '') . " 版权所有";
 $upyun = "<a href='https://www.upyun.com/?utm_source=lianmeng&amp;utm_medium=referral' title='加入又拍云联盟！' target='_blank'><img src='./files/upyun_logo.svg' style='margin-right: 0;'></a>提供CDN加速/云储存服务";
-$icpbeian = "<img src='./files/icpba.ico' ><a href='https://beian.miit.gov.cn/' target='_blank' rel='noreferrer'>湘ICP备17019987号</a>";
-$gaba = "<img src='./files/gaba.png'><a href='https://beian.mps.gov.cn/#/query/webSearch?code=43020002000058' target='_blank' rel='noreferrer'>湘公网安备43020002000058号</a>";
+$icpbeian = "<img src='./files/icpba.ico' ><a href='https://beian.miit.gov.cn/' target='_blank' rel='noreferrer'>湘ICP备17019987号" . 
+            (strpos($_SERVER['SERVER_NAME'], 'csngx.cn') !== false ? "-2" : (strpos($_SERVER['SERVER_NAME'], 'covear.top') !== false ? "-1" : "")) . 
+            "</a>";
+$gaba = "<img src='./files/gaba.png'><a href='https://beian.mps.gov.cn/#/query/webSearch?code=43020002000338' target='_blank' rel='noreferrer'>湘公网安备43020002000338号</a>";
 
 ?>
 </div>
