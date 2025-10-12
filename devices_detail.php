@@ -174,14 +174,22 @@ include 'header.php';
                 </div>
             </div>
 
+            <!-- 二维码图片显示区域 -->
+            <div id="qrcode-display-area" style="text-align: center; margin-bottom: 20px; display: none;">
+                <img id="device-qrcode-image" src="" alt="设备二维码" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+
             <div class="action-buttons">
                 <button class="edit-btn" onclick="window.location.href='/devices.php?did=${deviceId}&mode=edit'">修改</button>
-                <button class="qrcode-btn" onclick="showDeviceQRCode()">设备码</button>
+                <button id="qrcode-button" class="qrcode-btn" onclick="showDeviceQRCode()">设备码</button>
             </div>
         `;
 
         // 更新设备详情内容
         document.querySelector('.device-detail').innerHTML = deviceDetailHTML;
+
+        // 检查设备二维码图片是否存在
+        checkDeviceQRCodeExists(deviceId);
 
         // 更新新增记录模态框中的部门信息
         const workDepartment = document.getElementById('work-department');
@@ -206,6 +214,42 @@ include 'header.php';
         });
 
         return formattedKeepers.join('');
+    }
+
+    // 检查设备二维码图片是否存在
+    function checkDeviceQRCodeExists(did) {
+        // 构建二维码图片的URL路径
+        const qrcodeUrl = `/uploads/qrcode/qr_${did}.png`;
+
+        // 检查图片是否存在的函数
+        function imageExists(url, callback) {
+            const img = new Image();
+            img.onload = function() {
+                callback(true);
+            };
+            img.onerror = function() {
+                callback(false);
+            };
+            img.src = url + '?' + new Date().getTime(); // 添加时间戳避免缓存
+        }
+
+        // 检查图片是否存在
+        imageExists(qrcodeUrl, function(exists) {
+            const qrcodeDisplayArea = document.getElementById('qrcode-display-area');
+            const deviceQrcodeImage = document.getElementById('device-qrcode-image');
+            const qrcodeButton = document.getElementById('qrcode-button');
+
+            if (exists && qrcodeDisplayArea && deviceQrcodeImage && qrcodeButton) {
+                // 如果图片存在，显示图片并更改按钮文本
+                deviceQrcodeImage.src = qrcodeUrl;
+                qrcodeDisplayArea.style.display = 'block';
+                qrcodeButton.textContent = '重新生成设备码';
+            } else {
+                // 如果图片不存在，隐藏图片并更改按钮文本
+                qrcodeDisplayArea.style.display = 'none';
+                qrcodeButton.textContent = '生成设备码';
+            }
+        });
     }
 </script>
 
@@ -3963,6 +4007,27 @@ include 'header.php';
         transition: background-color 0.3s;
     }
 
+    /* 窄屏设备（手机）上的按钮垂直排列 */
+    @media (max-width: 768px) {
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .edit-btn {
+            margin-right: 0;
+            order: 2;
+            /* 修改按钮在下方 */
+        }
+
+        .qrcode-btn {
+            order: 1;
+            /* 设备码按钮在上方 */
+        }
+    }
+
     .edit-btn:hover {
         background-color: #e67e22;
     }
@@ -5785,7 +5850,7 @@ include 'header.php';
                             break;
                         }
                     }
-                    
+
                     // 如果找到了下载按钮，设置样式
                     if (downloadBtn) {
                         downloadBtn.style.backgroundColor = '#1677ff';
@@ -5794,7 +5859,7 @@ include 'header.php';
                     } else {
                         console.log('未找到下载按钮');
                     }
-                    
+
                     // 在二维码正中间绘制logo图标
                     const logoImg = new Image();
                     logoImg.src = '/files/logo.svg';
@@ -5807,10 +5872,10 @@ include 'header.php';
                         // 添加一个小的白色背景，让logo更清晰可见
                         ctx.fillStyle = '#ffffff';
                         ctx.fillRect(logoX - 2, logoY - 2, logoSize + 4, logoSize + 4);
-                        
+
                         // 绘制logo
                         ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
-                        
+
                         // logo绘制完成后再保存到服务器
                         saveQRCodeToServer(did, deviceName);
                     };
@@ -5838,7 +5903,7 @@ include 'header.php';
                 }
             };
         }
-        
+
         // 为canvas添加点击事件
         const qrCodeCanvas = document.getElementById('qrcode-combined');
         if (qrCodeCanvas) {
@@ -5849,19 +5914,21 @@ include 'header.php';
             qrCodeCanvas.style.cursor = 'pointer';
         }
     });
-    
+
     // 复制二维码图片链接
     function copyQRCodeImageLink() {
-        const { did } = currentDeviceInfo;
+        const {
+            did
+        } = currentDeviceInfo;
         const filePath = localStorage.getItem(`qrCodePath_${did}`);
-        
+
         // 如果有服务器保存的文件路径，优先使用该路径
         if (filePath) {
             // 获取当前网站域名
             const domain = window.location.origin;
             // 组合成完整的URL：网站域名/uploads/qrcode/qr_did_name.png
             const fullUrl = domain + filePath;
-            
+
             // 使用Clipboard API复制链接
             navigator.clipboard.writeText(fullUrl).then(function() {
                 showNotification('二维码链接已复制！');
@@ -5877,11 +5944,11 @@ include 'header.php';
                 console.error('未找到二维码canvas元素');
                 return;
             }
-            
+
             try {
                 // 将canvas转换为DataURL
                 const imageUrl = canvas.toDataURL('image/png');
-                
+
                 // 使用Clipboard API复制链接
                 navigator.clipboard.writeText(imageUrl).then(function() {
                     showNotification('二维码链接已复制！');
@@ -5895,31 +5962,31 @@ include 'header.php';
             }
         }
     }
-    
+
     // 降级方案：使用传统方法复制文本
     function fallbackCopyTextToClipboard(text) {
         const textArea = document.createElement('textarea');
         textArea.value = text;
-        
+
         // 隐藏textarea
         textArea.style.position = 'fixed';
         textArea.style.top = '-999999px';
         textArea.style.left = '-999999px';
-        
+
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        
+
         try {
             document.execCommand('copy');
             showNotification('二维码链接已复制！');
         } catch (err) {
             console.error('降级复制方法也失败了:', err);
         }
-        
+
         document.body.removeChild(textArea);
     }
-    
+
     // 显示右上角提示信息
     function showNotification(message) {
         // 检查是否已存在提示框，如果存在则移除
@@ -5927,12 +5994,12 @@ include 'header.php';
         if (notification) {
             document.body.removeChild(notification);
         }
-        
+
         // 创建新的提示框
         notification = document.createElement('div');
         notification.id = 'qr-code-notification';
         notification.textContent = message;
-        
+
         // 设置样式
         notification.style.position = 'fixed';
         notification.style.top = '80px'; // 再次下移提示框，使其远离导航栏，看起来更美观
@@ -5945,21 +6012,21 @@ include 'header.php';
         notification.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
         notification.style.fontSize = '14px';
         notification.style.transition = 'right 0.5s ease'; // 添加向右滑动的过渡效果
-        
+
         // 添加到文档
         document.body.appendChild(notification);
-        
+
         // 触发滑入动画
         setTimeout(function() {
             notification.style.right = '20px';
         }, 10);
-        
+
         // 3秒后自动移除
         setTimeout(function() {
             // 添加淡出动画
             notification.style.transition = 'opacity 0.5s ease';
             notification.style.opacity = '0';
-            
+
             // 动画结束后移除元素
             setTimeout(function() {
                 if (document.body.contains(notification)) {
@@ -5968,7 +6035,7 @@ include 'header.php';
             }, 500);
         }, 3000);
     }
-    
+
     // 保存二维码到服务器
     function saveQRCodeToServer(did, deviceName) {
         const canvas = document.getElementById('qrcode-combined');
@@ -5976,74 +6043,80 @@ include 'header.php';
             console.error('未找到二维码canvas元素');
             return;
         }
-        
+
         try {
             // 获取canvas的base64数据
             const imageData = canvas.toDataURL('image/png');
-            
+
             // 发送AJAX请求保存到服务器
             fetch('api.php?action=saveQRCodeImage', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: new URLSearchParams({
-                    'did': did,
-                    'deviceName': deviceName,
-                    'imageData': imageData
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        'did': did,
+                        'deviceName': deviceName,
+                        'imageData': imageData
+                    })
                 })
-            })
-            .then(response => {
-                // 先检查响应状态
-                if (!response.ok) {
-                    throw new Error(`服务器响应错误: ${response.status}`);
-                }
-                
-                // 尝试解析为JSON，但添加错误处理
-                return response.text().then(text => {
-                    try {
-                        return JSON.parse(text);
-                    } catch (jsonError) {
-                        // 如果解析失败，记录原始响应内容便于调试
-                        console.error('服务器返回非JSON内容:', text);
-                        throw new Error('服务器返回格式错误，无法解析为JSON');
+                .then(response => {
+                    // 先检查响应状态
+                    if (!response.ok) {
+                        throw new Error(`服务器响应错误: ${response.status}`);
                     }
+
+                    // 尝试解析为JSON，但添加错误处理
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (jsonError) {
+                            // 如果解析失败，记录原始响应内容便于调试
+                            console.error('服务器返回非JSON内容:', text);
+                            throw new Error('服务器返回格式错误，无法解析为JSON');
+                        }
+                    });
+                })
+                .then(result => {
+                    if (result.success) {
+                        console.log('二维码成功保存到服务器:', result.filePath);
+                        // 保存文件路径到localStorage，供下载时使用
+                        localStorage.setItem(`qrCodePath_${did}`, result.filePath);
+
+                        // 刷新页面上显示的二维码图片（清除缓存）
+                        refreshDeviceQRCodeImage(did);
+                    } else {
+                        console.error('保存二维码到服务器失败:', result.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('保存二维码到服务器时发生网络错误:', error);
                 });
-            })
-            .then(result => {
-                if (result.success) {
-                    console.log('二维码成功保存到服务器:', result.filePath);
-                    // 保存文件路径到localStorage，供下载时使用
-                    localStorage.setItem(`qrCodePath_${did}`, result.filePath);
-                } else {
-                    console.error('保存二维码到服务器失败:', result.message);
-                }
-            })
-            .catch(error => {
-                console.error('保存二维码到服务器时发生网络错误:', error);
-            });
         } catch (error) {
             console.error('获取二维码数据失败:', error);
         }
     }
-    
+
     // 修改下载二维码函数，从服务器下载图片
     function downloadQRCode() {
         // 从localStorage获取文件路径
-        const { did, name } = currentDeviceInfo;
+        const {
+            did,
+            name
+        } = currentDeviceInfo;
         const filePath = localStorage.getItem(`qrCodePath_${did}`);
-        
+
         if (filePath) {
             // 直接从服务器下载
             const link = document.createElement('a');
-            
+
             // 格式化文件名：qr_did_name.png
             const safeName = name.replace(/[^a-zA-Z0-9一-龥]/g, '_');
             const fileName = `qr_${did}_${safeName}.png`;
-            
+
             link.download = fileName;
             link.href = filePath;
-            
+
             // 模拟点击下载
             document.body.appendChild(link);
             link.click();
@@ -6052,24 +6125,56 @@ include 'header.php';
             // 降级方案：如果没有服务器保存的文件，使用canvas生成
             console.log('使用降级方案下载二维码');
             const canvas = document.getElementById('qrcode-combined');
-            
+
             if (!canvas || canvas.style.display === 'none') {
                 return;
             }
-            
+
             // 格式化文件名：qr_did_name.png
             const safeName = name.replace(/[^a-zA-Z0-9一-龥]/g, '_');
             const fileName = `qr_${did}_${safeName}.png`;
-            
+
             // 创建下载链接
             const link = document.createElement('a');
             link.download = fileName;
             link.href = canvas.toDataURL('image/png');
-            
+
             // 模拟点击下载
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+    }
+
+    // 刷新页面上显示的二维码图片（清除缓存）
+    function refreshDeviceQRCodeImage(did) {
+        // 获取页面上的二维码图片元素
+        const qrcodeImage = document.getElementById('device-qrcode-image');
+        const qrcodeDisplayArea = document.getElementById('qrcode-display-area');
+        const qrcodeButton = document.getElementById('qrcode-button');
+
+        if (qrcodeImage && qrcodeDisplayArea) {
+            // 构建新的图片URL，添加时间戳来清除缓存
+            const timestamp = new Date().getTime();
+            const newImgUrl = `/uploads/qrcode/qr_${did}.png?${timestamp}`;
+
+            // 创建新的图片对象来预加载，避免页面闪烁
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                // 预加载完成后更新实际显示的图片
+                qrcodeImage.src = newImgUrl;
+                
+                // 显示二维码区域
+                qrcodeDisplayArea.style.display = 'block';
+                
+                // 更新按钮文本
+                if (qrcodeButton) {
+                    qrcodeButton.textContent = '重新生成设备码';
+                }
+                
+                console.log('二维码图片缓存已刷新并显示');
+            };
+            tempImg.src = newImgUrl;
         }
     }
 </script>
