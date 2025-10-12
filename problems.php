@@ -85,6 +85,14 @@ if (isset($_GET['pid'])) {
         </div>
     </div>
 
+    <!-- 加载提示框 -->
+    <div id="loading-modal" class="modal" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>查询中，请稍候...</p>
+        </div>
+    </div>
+
     <!-- 多级选择菜单模态框 -->
     <div id="select-modal" class="modal" style="display: none;">
         <div class="modal-content">
@@ -457,6 +465,13 @@ if (isset($_GET['pid'])) {
 
         // 查询按钮事件
         document.getElementById('search-button').addEventListener('click', function() {
+            // 显示加载提示框
+            const loadingModal = document.getElementById('loading-modal');
+            loadingModal.style.display = 'flex';
+            
+            // 禁止背景页面滚动
+            document.body.style.overflow = 'hidden';
+
             const departmentId = document.getElementById('department-id').value;
             const stationId = document.getElementById('station-id').value;
             const typeId = document.getElementById('type-id').value;
@@ -479,6 +494,13 @@ if (isset($_GET['pid'])) {
             fetch(`api.php?action=getProblems&cid=${departmentId}&sid=${stationId}&tid=${typeId}&did=${deviceId}&keyword=${encodeURIComponent(keywords)}&page=${currentPage}&pageSize=${currentPageSize}`)
                 .then(response => response.json())
                 .then(data => {
+                    // 隐藏加载提示框
+                    const loadingModal = document.getElementById('loading-modal');
+                    loadingModal.style.display = 'none';
+                    
+                    // 恢复背景页面滚动
+                    document.body.style.overflow = '';
+
                     const resultDiv = document.getElementById('search-result');
 
                     if (data.success && data.data && data.data.length > 0) {
@@ -514,12 +536,56 @@ if (isset($_GET['pid'])) {
                         // 移除分页控件
                         removePaginationControls();
                     }
+                    
+                    // 只在手机窄屏设备上滑动页面到查询按钮上方
+                    if (isMobileDevice()) {
+                        // 使用setTimeout确保表格完全渲染后再滚动
+                        setTimeout(function() {
+                            const searchButton = document.getElementById('search-button');
+                            const headerHeight = 60; // 导航栏高度
+                            const elementPosition = searchButton.getBoundingClientRect().top;
+                            const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
+                            
+                            window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                            });
+                        }, 100);
+                    }
                 })
                 .catch(error => {
+                    // 隐藏加载提示框
+                    const loadingModal = document.getElementById('loading-modal');
+                    loadingModal.style.display = 'none';
+                    
+                    // 恢复背景页面滚动
+                    document.body.style.overflow = '';
+                    
                     const resultDiv = document.getElementById('search-result');
                     resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
+                    
+                    // 只在手机窄屏设备上滑动页面到查询按钮上方
+                    if (isMobileDevice()) {
+                        // 使用setTimeout确保页面元素完全渲染后再滚动
+                        setTimeout(function() {
+                            const searchButton = document.getElementById('search-button');
+                            const headerHeight = 60; // 导航栏高度
+                            const elementPosition = searchButton.getBoundingClientRect().top;
+                            const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
+                            
+                            window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                            });
+                        }, 100);
+                    }
                 });
         });
+
+        // 检测是否为窄屏设备（手机）
+        function isMobileDevice() {
+            return window.matchMedia("(max-width: 768px)").matches;
+        }
 
         // 获取设备名称（使用真实的设备名称）
         function getDeviceName(problem) {
@@ -1222,6 +1288,16 @@ if (isset($_GET['pid'])) {
         .problems-table td a:hover {
             text-decoration: underline;
         }
+        
+        /* 表格行悬停效果 */
+        .problems-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        /* 表格行点击效果（用于触摸设备） */
+        .problems-table tr:active {
+            background-color: #f0f0f0;
+        }
 
         .status-tag {
             padding: 2px 6px;
@@ -1330,6 +1406,36 @@ if (isset($_GET['pid'])) {
             height: 100%;
             background: rgba(0, 0, 0, 0.5);
             z-index: 1000;
+        }
+
+        /* 加载提示框样式 */
+        #loading-modal {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px 40px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .modal-content {
