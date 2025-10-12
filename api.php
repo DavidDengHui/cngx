@@ -1002,60 +1002,60 @@ function getProblems()
         $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 5;
 
         // 构建查询条件
-        $conditions = "status = 1";
+        $conditions = "problems.status = 1";  // 修改：添加problems.前缀
         $params = [];
         
         // did精准匹配
         if (!empty($did)) {
-            $conditions .= " AND did = :did";
+            $conditions .= " AND problems.did = :did";  // 修改：添加problems.前缀
             $params[':did'] = $did;
         }
         
         // cid精准匹配
         if (!empty($cid)) {
-            $conditions .= " AND cid = :cid";
+            $conditions .= " AND problems.cid = :cid";  // 修改：添加problems.前缀
             $params[':cid'] = $cid;
         }
         
         // reporter包含字符串
         if (!empty($reporter)) {
-            $conditions .= " AND reporter LIKE CONCAT('%', :reporter, '%')";
+            $conditions .= " AND problems.reporter LIKE CONCAT('%', :reporter, '%')";  // 修改：添加problems.前缀
             $params[':reporter'] = $reporter;
         }
         
         // resolver包含字符串
         if (!empty($resolver)) {
-            $conditions .= " AND resolver LIKE CONCAT('%', :resolver, '%')";
+            $conditions .= " AND problems.resolver LIKE CONCAT('%', :resolver, '%')";  // 修改：添加problems.前缀
             $params[':resolver'] = $resolver;
         }
         
         // keyword在description和resolution_content中包含
         if (!empty($keyword)) {
-            $conditions .= " AND (description LIKE CONCAT('%', :keyword, '%') OR resolution_content LIKE CONCAT('%', :keyword, '%'))";
+            $conditions .= " AND (problems.description LIKE CONCAT('%', :keyword, '%') OR problems.resolution_content LIKE CONCAT('%', :keyword, '%'))";  // 修改：添加problems.前缀
             $params[':keyword'] = $keyword;
         }
         
         // create_time时间范围（该时间至今）
         if (!empty($create_time)) {
-            $conditions .= " AND report_time >= :create_time";
+            $conditions .= " AND problems.report_time >= :create_time";  // 修改：添加problems.前缀
             $params[':create_time'] = $create_time;
         }
         
         // create_time_end时间范围（create_time至该时间）
         if (!empty($create_time_end)) {
-            $conditions .= " AND report_time <= :create_time_end";
+            $conditions .= " AND problems.report_time <= :create_time_end";  // 修改：添加problems.前缀
             $params[':create_time_end'] = $create_time_end;
         }
         
         // resolution_time时间范围（该时间至今）
         if (!empty($resolution_time)) {
-            $conditions .= " AND resolution_time >= :resolution_time";
+            $conditions .= " AND problems.resolution_time >= :resolution_time";  // 修改：添加problems.前缀
             $params[':resolution_time'] = $resolution_time;
         }
         
         // resolution_time_end时间范围（resolution_time至该时间）
         if (!empty($resolution_time_end)) {
-            $conditions .= " AND resolution_time <= :resolution_time_end";
+            $conditions .= " AND problems.resolution_time <= :resolution_time_end";  // 修改：添加problems.前缀
             $params[':resolution_time_end'] = $resolution_time_end;
         }
 
@@ -1073,7 +1073,8 @@ function getProblems()
         }
 
         // 查询当前页数据，按用户要求的字段结构
-        $sql = "SELECT pid, did, cid, reporter, report_time, description, resolver, resolution_time, resolution_content FROM problems WHERE $conditions ORDER BY $sortField $sortOrder $limitClause";
+        // 修改：使用INNER JOIN连接devices表获取设备名称
+        $sql = "SELECT problems.pid, problems.did, problems.cid, problems.reporter, problems.report_time, problems.description, problems.resolver, problems.resolution_time, problems.resolution_content, devices.device_name FROM problems INNER JOIN devices ON problems.did = devices.did WHERE $conditions ORDER BY problems.$sortField $sortOrder $limitClause";
         $stmt = $pdo->prepare($sql);
         
         // 绑定参数
@@ -1103,6 +1104,7 @@ function getProblems()
                 'resolver' => $problem['resolver'],
                 'resolution_time' => $problem['resolution_time'],
                 'resolution_content' => $problem['resolution_content'],
+                'device_name' => $problem['device_name'],  // 新增：设备名称
                 'process' => !empty($problem['resolver']) ? 1 : 0 // resolver非空则为1表示已闭环，否则为0已创建
             ];
         }
@@ -1330,7 +1332,7 @@ function getProblemList()
         $total = $stmt->fetchColumn();
 
         // 查询当前页数据，按用户要求的字段结构
-        $sql = "SELECT 
+        $sql = "
                     problems.pid, 
                     problems.did, 
                     problems.cid, 

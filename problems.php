@@ -1,690 +1,1516 @@
 <?php
-// 引入配置文件
+// 设置导航标题和页面标题
+$nav_title = '问题信息查询';
+$page_title = '问题信息查询 - 个人设备信息管理平台';
+
+// 引入配置文件和页眉
 include 'config.php';
-
-// 页面标题
-$page_title = "问题管理";
-$nav_title = "问题管理";
-
-// 获取当前页面类型
-$pid = isset($_GET['pid']) ? $_GET['pid'] : '';
-$view = isset($_GET['view']) ? $_GET['view'] : '';
-
-// 获取部门、站场、设备类型等信息，用于筛选
-$filterOptions = [];
-
-// 保存查询参数到JS变量
-$jsParams = [
-    'pid' => $pid,
-    'view' => $view,
-    'department' => isset($_GET['department']) ? $_GET['department'] : '',
-    'station' => isset($_GET['station']) ? $_GET['station'] : '',
-    'type' => isset($_GET['type']) ? $_GET['type'] : '',
-    'status' => isset($_GET['status']) ? $_GET['status'] : '',
-    'keyword' => isset($_GET['keyword']) ? $_GET['keyword'] : ''
-];
-
 include 'header.php';
+
+// 判断是否为问题详情页面
+if (isset($_GET['pid'])) {
+    // 问题详情页面逻辑（暂时留空，后续可添加）
+    echo "<div class='container'><h1>问题详情页面正在开发中...</h1></div>";
+} else {
+    // 问题查询页面逻辑
 ?>
-<style>
-/* 问题状态标签样式 */
-.status-tag {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-}
+    <div class="problems-container">
 
-.status-red {
-    background-color: #fee;
-    color: #e74c3c;
-    transition: all 0.3s ease;
-}
-
-.status-red:hover {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.status-green {
-    background-color: #efe;
-    color: #27ae60;
-    transition: all 0.3s ease;
-}
-
-.status-green:hover {
-    background-color: #27ae60;
-    color: white;
-}
-
-/* 表格行悬浮或点击时状态标签变色 */
-.data-table tr:hover .status-red,
-.data-table tr:active .status-red {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.data-table tr:hover .status-green,
-.data-table tr:active .status-green {
-    background-color: #27ae60;
-    color: white;
-}
-</style>
-    
-    <div class="container">
-        <div class="content">
-            <?php if ($pid && $view === 'detail'): ?>
-                <!-- 问题详情视图 -->
-                <div class="detail-header">
-                    <h2>问题详情</h2>
-                    <button class="btn btn-primary" onclick="window.history.back()">返回列表</button>
-                </div>
-                <div id="problem-detail-container" class="detail-container">
-                    <!-- 问题详情内容将由JavaScript动态加载 -->
-                    <div class="loading">加载中...</div>
-                </div>
-            <?php else: ?>
-                <!-- 问题列表视图 -->
-                <div class="header">
-                    <h2>问题列表</h2>
-                    <a href="problem_add.php" class="btn btn-primary">添加问题</a>
-                </div>
-                
-                <!-- 筛选面板 -->
-                <div class="filter-panel">
-                    <div class="filter-row">
-                        <div class="filter-item">
-                            <label for="department">所属部门:</label>
-                            <select id="department" class="form-control">
-                                <option value="">全部</option>
-                                <!-- 部门选项将由JavaScript动态加载 -->
-                            </select>
-                        </div>
-                        <div class="filter-item">
-                            <label for="station">所属站场:</label>
-                            <select id="station" class="form-control">
-                                <option value="">全部</option>
-                                <!-- 站场选项将由JavaScript动态加载 -->
-                            </select>
-                        </div>
-                        <div class="filter-item">
-                            <label for="type">设备类型:</label>
-                            <select id="type" class="form-control">
-                                <option value="">全部</option>
-                                <!-- 设备类型选项将由JavaScript动态加载 -->
-                            </select>
-                        </div>
-                        <div class="filter-item">
-                            <label for="status">问题状态:</label>
-                            <select id="status" class="form-control">
-                                <option value="">全部</option>
-                                <option value="0">已录入</option>
-                                <option value="1">已闭环</option>
-                            </select>
+        <div class="problems-layout">
+            <div class="problems-search">
+                <form id="search-form">
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label>请选择部门</label>
+                            <div class="select-container">
+                                <input type="text" id="department" readonly placeholder="请选择部门">
+                                <input type="hidden" id="department-id">
+                                <button type="button" class="clear-btn" data-target="department"></button>
+                            </div>
                         </div>
                     </div>
-                    <div class="filter-row">
-                        <div class="filter-item search-box">
-                            <input type="text" id="keyword" placeholder="搜索设备名称/问题编号/问题描述" class="form-control">
-                            <button id="search-btn" class="btn btn-primary">搜索</button>
-                            <button id="reset-btn" class="btn btn-default">重置</button>
+
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label>请选择站场</label>
+                            <div class="select-container">
+                                <input type="text" id="station" readonly placeholder="请选择站场">
+                                <input type="hidden" id="station-id">
+                                <button type="button" class="clear-btn" data-target="station"></button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- 问题列表 -->
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>问题编号</th>
-                                <th>所属部门</th>
-                                <th>所属站场</th>
-                                <th>设备名称</th>
-                                <th>设备类型</th>
-                                <th style="width: auto;">问题描述</th>
-                                <th>紧急程度</th>
-                                <th>问题状态</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="problem-list-body">
-                            <!-- 问题列表将由JavaScript动态加载 -->
-                            <tr>
-                                <td colspan="10" class="loading">加载中...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- 分页控件 -->
-                <div class="pagination" id="pagination">
-                    <!-- 分页控件将由JavaScript动态加载 -->
-                </div>
-            <?php endif; ?>
+
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label>请选择类型</label>
+                            <div class="select-container">
+                                <input type="text" id="type" readonly placeholder="请选择类型">
+                                <input type="hidden" id="type-id">
+                                <button type="button" class="clear-btn" data-target="type"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label>请选择设备</label>
+                            <div class="select-container">
+                                <input type="text" id="device" readonly placeholder="请选择设备">
+                                <input type="hidden" id="device-id">
+                                <button type="button" class="clear-btn" data-target="device"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label>请输入关键字词<span class="remark-badge" data-remark="与问题描述/解决说明有关的关键字词">!</span></label>
+                            <div class="select-container">
+                                <input type="text" id="keywords" placeholder="请输入关键字词">
+                                <button type="button" class="clear-btn" data-target="keywords"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="search-button-container">
+                        <button type="button" id="search-button">查询</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="search-result" class="search-result">
+                <p class="no-result">请选择分类后点击按钮查询问题</p>
+            </div>
         </div>
     </div>
-    
-    <?php include 'footer.php'; ?>
-    
-    <script>
-        // 保存PHP传递的参数
-        const params = <?php echo json_encode($jsParams); ?>;
-        
-        // 初始化时设置筛选条件的值
-        document.addEventListener('DOMContentLoaded', function() {
-            // 根据当前页面类型执行不同的初始化操作
-            if (params.pid && params.view === 'detail') {
-                loadProblemDetail(params.pid);
-            } else {
-                // 加载筛选选项
-                loadFilterOptions();
-                
-                // 设置筛选条件的默认值
-                if (params.department) document.getElementById('department').value = params.department;
-                if (params.station) document.getElementById('station').value = params.station;
-                if (params.type) document.getElementById('type').value = params.type;
-                if (params.status) document.getElementById('status').value = params.status;
-                if (params.keyword) document.getElementById('keyword').value = params.keyword;
-                
-                // 加载问题列表
-                loadProblemList(1);
-                
-                // 绑定搜索和重置按钮事件
-                document.getElementById('search-btn').addEventListener('click', function() {
-                    loadProblemList(1);
-                });
-                
-                document.getElementById('reset-btn').addEventListener('click', function() {
-                    document.getElementById('department').value = '';
-                    document.getElementById('station').value = '';
-                    document.getElementById('type').value = '';
-                    document.getElementById('status').value = '';
-                    document.getElementById('keyword').value = '';
-                    loadProblemList(1);
-                });
 
-                // 初始化问题记录行的悬浮提示功能
-                initProblemTooltip();
-                
-                // 绑定回车键搜索
-                document.getElementById('keyword').addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        loadProblemList(1);
-                    }
-                });
-            }
-        });
-        
-        // 加载问题详情
-        function loadProblemDetail(pid) {
-            fetch('api.php?action=getProblemDetail&pid=' + pid)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayProblemDetail(data.data);
-                    } else {
-                        document.getElementById('problem-detail-container').innerHTML = '<div class="error">' + data.message + '</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('获取问题详情失败:', error);
-                    document.getElementById('problem-detail-container').innerHTML = '<div class="error">获取问题详情失败，请刷新页面重试</div>';
-                });
-        }
-        
-        // 显示问题详情
-        function displayProblemDetail(problem) {
-            const container = document.getElementById('problem-detail-container');
-            
-            // 格式化日期
-            const formatDate = (dateStr) => {
-                if (!dateStr) return '';
-                return new Date(dateStr).toLocaleString('zh-CN');
-            };
-            
-            // 构建附件列表HTML
-            let attachmentsHtml = '';
-            if (problem.attachments && problem.attachments.length > 0) {
-                attachmentsHtml = '<div class="attachment-list">';
-                problem.attachments.forEach(attachment => {
-                    const fileUrl = attachment.root_dir + attachment.link_name;
-                    attachmentsHtml += `
-                        <div class="attachment-item">
-                            <a href="${fileUrl}" target="_blank" class="attachment-link">
-                                <span class="attachment-name">${attachment.original_name}</span>
-                                <span class="attachment-size">(${(attachment.file_size / 1024).toFixed(2)}KB)</span>
-                            </a>
-                        </div>
-                    `;
-                });
-                attachmentsHtml += '</div>';
-            } else {
-                attachmentsHtml = '<p>无附件</p>';
-            }
-            
-            // 构建处理记录HTML
-            let processRecordsHtml = '';
-            if (problem.process_records && problem.process_records.length > 0) {
-                processRecordsHtml = '<div class="process-records">';
-                problem.process_records.forEach(record => {
-                    processRecordsHtml += `
-                        <div class="process-record">
-                            <div class="process-header">
-                                <span class="process-operator">${record.operator}</span>
-                                <span class="process-time">${formatDate(record.process_time)}</span>
-                            </div>
-                            <div class="process-content">${record.content}</div>
-                        </div>
-                    `;
-                });
-                processRecordsHtml += '</div>';
-            } else {
-                processRecordsHtml = '<p>暂无处理记录</p>';
-            }
-            
-            // 构建问题详情HTML
-            const html = `
-                <div class="detail-content">
-                    <div class="detail-info">
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label>问题编号:</label>
-                                <span>${problem.pid}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>所属部门:</label>
-                                <span>${problem.department_name}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>所属站场:</label>
-                                <span>${problem.station_name}</span>
-                            </div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label>设备名称:</label>
-                                <span>${problem.device_name}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>设备类型:</label>
-                                <span>${problem.type_name}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>问题状态:</label>
-                                <span class="status-tag status-${problem.status}">${problem.status_text}</span>
-                            </div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label>报告人:</label>
-                                <span>${problem.reporter}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>报告时间:</label>
-                                <span>${formatDate(problem.report_time)}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>紧急程度:</label>
-                                <span class="urgency-tag urgency-${problem.urgency}">${problem.urgency_text}</span>
-                            </div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-item full-width">
-                                <label>问题描述:</label>
-                                <p>${problem.description}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 问题附件 -->
-                    <div class="section">
-                        <h3>问题附件</h3>
-                        ${attachmentsHtml}
-                    </div>
-                    
-                    <!-- 处理记录 -->
-                    <div class="section">
-                        <h3>处理记录</h3>
-                        ${processRecordsHtml}
-                    </div>
+    <!-- 多级选择菜单模态框 -->
+    <div id="select-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <button type="button" class="modal-btn reset-btn">重置</button>
+                    <button type="button" class="modal-btn default-btn" style="display: none;">默认</button>
                 </div>
-            `;
-            
-            container.innerHTML = html;
-        }
-        
-        // 加载筛选选项
-        function loadFilterOptions() {
-            fetch('api.php?action=getFilterOptions')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const filterOptions = data.data;
-                        
-                        // 填充部门下拉框
-                        const departmentSelect = document.getElementById('department');
-                        filterOptions.departments.forEach(dept => {
-                            const option = document.createElement('option');
-                            option.value = dept.cid;
-                            option.textContent = dept.full_name;
-                            departmentSelect.appendChild(option);
-                        });
-                        
-                        // 填充站场下拉框
-                        const stationSelect = document.getElementById('station');
-                        filterOptions.stations.forEach(station => {
-                            const option = document.createElement('option');
-                            option.value = station.sid;
-                            option.textContent = station.station_name;
-                            stationSelect.appendChild(option);
-                        });
-                        
-                        // 填充设备类型下拉框
-                        const typeSelect = document.getElementById('type');
-                        filterOptions.types.forEach(type => {
-                            const option = document.createElement('option');
-                            option.value = type.tid;
-                            option.textContent = type.type_name;
-                            typeSelect.appendChild(option);
-                        });
-                        
-                        // 如果预设的筛选值，重新应用它们
-                        if (params.department) document.getElementById('department').value = params.department;
-                        if (params.station) document.getElementById('station').value = params.station;
-                        if (params.type) document.getElementById('type').value = params.type;
-                    } else {
-                        console.error('获取筛选选项失败:', data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('获取筛选选项失败:', error);
-                });
-        }
-        
-        // 加载问题列表
-        function loadProblemList(page) {
-            // 获取筛选条件
-            const department = document.getElementById('department').value;
-            const station = document.getElementById('station').value;
-            const type = document.getElementById('type').value;
-            const status = document.getElementById('status').value;
-            const keyword = document.getElementById('keyword').value;
-            
-            // 构建查询参数
-            const queryParams = new URLSearchParams({
-                action: 'getProblemList',
-                page: page,
-                pageSize: 10,
-                department: department,
-                station: station,
-                type: type,
-                status: status,
-                keyword: keyword
-            });
-            
-            fetch('api.php?' + queryParams)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayProblemList(data.data, data.total, data.page, data.pageSize);
-                    } else {
-                        document.getElementById('problem-list-body').innerHTML = '<tr><td colspan="10" class="error">' + data.message + '</td></tr>';
-                        document.getElementById('pagination').innerHTML = '';
-                    }
-                })
-                .catch(error => {
-                    console.error('获取问题列表失败:', error);
-                    document.getElementById('problem-list-body').innerHTML = '<tr><td colspan="10" class="error">获取问题列表失败，请刷新页面重试</td></tr>';
-                    document.getElementById('pagination').innerHTML = '';
-                });
-        }
-        
-        // 显示问题列表
-        function displayProblemList(problems, total, currentPage, pageSize) {
-            const tbody = document.getElementById('problem-list-body');
-            
-            if (problems.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无问题记录</td></tr>';
-                document.getElementById('pagination').innerHTML = '';
+                <div class="modal-header-right">
+                    <button type="button" class="modal-btn cancel-btn">取消</button>
+                    <button type="button" class="modal-btn confirm-btn">确认</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="select-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量存储当前选择类型和路径
+        let currentSelectType = '';
+        let currentSelectPath = [];
+
+        // 初始化选择框点击事件
+        document.getElementById('department').addEventListener('click', function() {
+            openSelectModal('department', '部门');
+        });
+
+        document.getElementById('station').addEventListener('click', function() {
+            openSelectModal('station', '站场');
+        });
+
+        document.getElementById('type').addEventListener('click', function() {
+            openSelectModal('type', '类型');
+        });
+
+        document.getElementById('device').addEventListener('click', function() {
+            const departmentId = document.getElementById('department-id').value;
+            const stationId = document.getElementById('station-id').value;
+            const typeId = document.getElementById('type-id').value;
+
+            // 必须先选择部门、站场、类型才能选择设备
+            if (!departmentId || !stationId || !typeId) {
+                alert('请先选择部门、站场和类型');
                 return;
             }
-            
-            // 格式化日期
-            const formatDate = (dateStr) => {
-                if (!dateStr) return '';
-                return new Date(dateStr).toLocaleDateString('zh-CN');
-            };
-            
-            let html = '';
-            problems.forEach(problem => {
-                html += `
-                    <tr data-report-time="${problem.report_time}">
-                        <td>${problem.pid}</td>
-                        <td>${problem.department_name}</td>
-                        <td>${problem.station_name}</td>
-                        <td>${problem.device_name}</td>
-                        <td>${problem.type_name}</td>
-                        <td class="description-cell">${problem.description}</td>
-                        <td><span class="urgency-tag urgency-${problem.urgency}">${problem.urgency_text}</span></td>
-                        <td><span class="status-tag status-${problem.status}">${problem.status_text}</span></td>
-                        <td>
-                            <a href="problems.php?pid=${problem.pid}&view=detail" class="btn btn-sm btn-primary">查看</a>
-                        </td>
-                    </tr>
-                `;
+
+            openSelectModal('device', '设备');
+        });
+
+        // 打开选择模态框
+        function openSelectModal(type, label) {
+            currentSelectType = type;
+
+            // 根据类型决定是否显示默认按钮
+            if (type === 'department') {
+                document.querySelector('.default-btn').style.display = 'inline-block';
+            } else {
+                document.querySelector('.default-btn').style.display = 'none';
+            }
+
+            // 重置选择路径
+            currentSelectPath = [];
+
+            // 加载第一级数据
+            loadSelectData(0);
+
+            // 显示模态框并确保居中
+            const modal = document.getElementById('select-modal');
+            modal.style.display = 'block';
+
+            // 确保模态框容器居中
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+
+            // 确保模态框内容居中
+            const modalContent = document.querySelector('.modal-content');
+            modalContent.style.margin = 'auto';
+        }
+
+        // 加载选择数据
+        function loadSelectData(parentId) {
+            const type = currentSelectType;
+            const contentDiv = document.getElementById('select-content');
+
+            // 清空内容
+            contentDiv.innerHTML = '<div class="loading">加载中...</div>';
+
+            // 根据类型获取API URL
+            let apiUrl = '';
+            switch (type) {
+                case 'department':
+                    apiUrl = `api.php?action=getDepartments&parentId=${parentId}`;
+                    break;
+                case 'station':
+                    apiUrl = `api.php?action=getStations&parentId=${parentId}`;
+                    break;
+                case 'type':
+                    apiUrl = `api.php?action=getTypes&parentId=${parentId}`;
+                    break;
+                case 'device':
+                    // 获取设备需要传入部门、站场、类型参数
+                    const departmentId = document.getElementById('department-id').value;
+                    const stationId = document.getElementById('station-id').value;
+                    const typeId = document.getElementById('type-id').value;
+                    apiUrl = `api.php?action=searchDevices&departmentId=${departmentId}&stationId=${stationId}&typeId=${typeId}&pageSize=0`;
+                    break;
+            }
+
+            // 发送请求获取数据
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // 处理设备数据的特殊情况
+                    if (type === 'device') {
+                        // 设备数据在data.data中
+                        data = data.data || [];
+                    }
+
+                    if (data.length > 0) {
+                        let html = '';
+
+                        // 显示当前路径（仅对部门、站场、类型有效）
+                        if (type !== 'device' && currentSelectPath.length > 0) {
+                            html += '<div class="select-path">';
+                            currentSelectPath.forEach((item, index) => {
+                                html += `<span class="path-item" data-id="${item.id}">${item.name}</span>`;
+                                if (index < currentSelectPath.length - 1) {
+                                    html += ' / ';
+                                }
+                            });
+                            html += '</div>';
+                        }
+
+                        // 显示选项列表
+                        html += '<div class="select-items">';
+                        data.forEach(item => {
+                            // 设备数据的字段不同
+                            if (type === 'device') {
+                                html += `<div class="select-item" data-id="${item.did}" data-name="${item.device_name}">${item.device_name}</div>`;
+                            } else {
+                                html += `<div class="select-item" data-id="${item.id}" data-name="${item.name}" data-shortname="${item.shortname || item.name}">${item.name}</div>`;
+                            }
+                        });
+                        html += '</div>';
+
+                        contentDiv.innerHTML = html;
+
+                        // 添加选项点击事件
+                        document.querySelectorAll('.select-item').forEach(item => {
+                            item.addEventListener('click', function() {
+                                const id = this.getAttribute('data-id');
+                                const name = this.getAttribute('data-name');
+                                const shortname = this.getAttribute('data-shortname') || name;
+
+                                if (type === 'device') {
+                                    // 设备选择直接确认
+                                    currentSelectPath = [{
+                                        id,
+                                        name,
+                                        shortname
+                                    }];
+                                    confirmSelect();
+                                } else {
+                                    // 添加到选择路径
+                                    currentSelectPath.push({
+                                        id,
+                                        name,
+                                        shortname
+                                    });
+                                    // 加载下一级数据
+                                    loadSelectData(id);
+                                }
+                            });
+                        });
+
+                        // 添加路径点击事件（仅对部门、站场、类型有效）
+                        if (type !== 'device') {
+                            document.querySelectorAll('.path-item').forEach(item => {
+                                item.addEventListener('click', function() {
+                                    const id = this.getAttribute('data-id');
+                                    // 找到点击项在路径中的索引
+                                    const clickedIndex = currentSelectPath.findIndex(item => item.id === id);
+                                    // 如果找到了对应项，则重置路径到该位置
+                                    if (clickedIndex !== -1) {
+                                        currentSelectPath = currentSelectPath.slice(0, clickedIndex + 1);
+                                        // 加载对应级别的数据
+                                        loadSelectData(id);
+                                    }
+                                });
+                            });
+                        }
+                    } else {
+                        // 没有下一级数据，直接确认选择（仅对部门、站场、类型有效）
+                        if (type !== 'device') {
+                            confirmSelect();
+                        } else {
+                            contentDiv.innerHTML = '<div class="no-data">没有找到符合条件的设备</div>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    contentDiv.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+                });
+        }
+
+        // 确认选择
+        function confirmSelect() {
+            if (currentSelectPath.length > 0) {
+                const type = currentSelectType;
+                const lastItem = currentSelectPath[currentSelectPath.length - 1];
+
+                // 根据类型更新输入框
+                if (type === 'department') {
+                    const pathStr = currentSelectPath.map(item => item.shortname).join('/');
+                    document.getElementById('department').value = pathStr;
+                    document.getElementById('department-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="department"]');
+                    updateClearButtonVisibility(document.getElementById('department'), btn);
+                    // 清空后续选择
+                    clearInput('station');
+                    clearInput('type');
+                    clearInput('device');
+                } else if (type === 'station') {
+                    const pathStr = currentSelectPath.map(item => item.name).join('/');
+                    document.getElementById('station').value = pathStr;
+                    document.getElementById('station-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="station"]');
+                    updateClearButtonVisibility(document.getElementById('station'), btn);
+                    // 清空后续选择
+                    clearInput('type');
+                    clearInput('device');
+                } else if (type === 'type') {
+                    const pathStr = currentSelectPath.map(item => item.name).join('/');
+                    document.getElementById('type').value = pathStr;
+                    document.getElementById('type-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="type"]');
+                    updateClearButtonVisibility(document.getElementById('type'), btn);
+                    // 清空后续选择
+                    clearInput('device');
+                } else if (type === 'device') {
+                    document.getElementById('device').value = lastItem.name;
+                    document.getElementById('device-id').value = lastItem.id;
+                    // 更新删除按钮可见性
+                    const btn = document.querySelector('.clear-btn[data-target="device"]');
+                    updateClearButtonVisibility(document.getElementById('device'), btn);
+                }
+            }
+
+            // 关闭模态框
+            document.getElementById('select-modal').style.display = 'none';
+        }
+
+        // 重置选择
+        function resetSelect() {
+            currentSelectPath = [];
+            loadSelectData(0);
+
+            // 清空对应的输入框值
+            if (currentSelectType === 'department') {
+                document.getElementById('department').value = '';
+                document.getElementById('department-id').value = '';
+            } else if (currentSelectType === 'station') {
+                document.getElementById('station').value = '';
+                document.getElementById('station-id').value = '';
+            } else if (currentSelectType === 'type') {
+                document.getElementById('type').value = '';
+                document.getElementById('type-id').value = '';
+            } else if (currentSelectType === 'device') {
+                document.getElementById('device').value = '';
+                document.getElementById('device-id').value = '';
+            }
+        }
+
+        // 设置默认部门
+        function setDefaultDepartment() {
+            currentSelectPath = [{
+                    id: '100001',
+                    name: '中国铁路',
+                    shortname: '国铁'
+                },
+                {
+                    id: '100002',
+                    name: '中国铁路广州局集团有限公司',
+                    shortname: '广州局'
+                },
+                {
+                    id: '100003',
+                    name: '长沙电务段',
+                    shortname: '长电段'
+                },
+                {
+                    id: '100004',
+                    name: '长沙南高铁信号车间',
+                    shortname: '长南高信车间'
+                }
+            ];
+            confirmSelect();
+        }
+
+        // 添加模态框按钮事件
+        document.querySelector('.confirm-btn').addEventListener('click', confirmSelect);
+        document.querySelector('.cancel-btn').addEventListener('click', function() {
+            document.getElementById('select-modal').style.display = 'none';
+        });
+        document.querySelector('.reset-btn').addEventListener('click', resetSelect);
+        document.querySelector('.default-btn').addEventListener('click', setDefaultDepartment);
+
+        // 初始化删除按钮功能
+        function initClearButtons() {
+            // 为所有删除按钮添加点击事件
+            document.querySelectorAll('.clear-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // 阻止事件冒泡，避免触发输入框的点击事件
+                    const target = this.getAttribute('data-target');
+                    clearInput(target);
+                });
             });
-            
-            tbody.innerHTML = html;
-            
-            // 更新分页控件
-            buildPagination(total, currentPage, pageSize);
+
+            // 监听输入框内容变化，控制删除按钮的显示/隐藏
+            ['department', 'station', 'type', 'device', 'keywords'].forEach(type => {
+                const input = document.getElementById(type);
+                const btn = document.querySelector(`.clear-btn[data-target="${type}"]`);
+
+                // 初始化检查
+                updateClearButtonVisibility(input, btn);
+
+                // 添加事件监听
+                input.addEventListener('input', function() {
+                    updateClearButtonVisibility(this, btn);
+                });
+            });
         }
-        
-        // 构建分页控件
-        function buildPagination(total, currentPage, pageSize) {
-            const pagination = document.getElementById('pagination');
-            const totalPages = Math.ceil(total / pageSize);
-            
-            // 构建分页参数（包含筛选条件）
-            const buildPaginationParams = () => {
-                const department = document.getElementById('department').value;
-                const station = document.getElementById('station').value;
-                const type = document.getElementById('type').value;
-                const status = document.getElementById('status').value;
-                const keyword = document.getElementById('keyword').value;
-                
-                let params = '';
-                if (department) params += '&department=' + department;
-                if (station) params += '&station=' + station;
-                if (type) params += '&type=' + type;
-                if (status) params += '&status=' + status;
-                if (keyword) params += '&keyword=' + encodeURIComponent(keyword);
-                
-                return params;
+
+        // 更新删除按钮的可见性
+        function updateClearButtonVisibility(input, btn) {
+            if (input.value.trim() !== '') {
+                btn.style.display = 'flex';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        // 清空输入框内容
+        function clearInput(type) {
+            document.getElementById(type).value = '';
+
+            // 对于带ID的输入框，也清空对应的ID值
+            if (type === 'department' || type === 'station' || type === 'type' || type === 'device') {
+                document.getElementById(`${type}-id`).value = '';
+            }
+
+            // 隐藏对应的删除按钮
+            const btn = document.querySelector(`.clear-btn[data-target="${type}"]`);
+            btn.style.display = 'none';
+        }
+
+        // 页面加载完成后初始化删除按钮功能
+        window.addEventListener('DOMContentLoaded', initClearButtons);
+
+        // 全局变量存储当前分页状态
+        let currentPage = 1;
+        let currentPageSize = 10;
+        let currentSearchParams = {};
+
+        // 查询按钮事件
+        document.getElementById('search-button').addEventListener('click', function() {
+            const departmentId = document.getElementById('department-id').value;
+            const stationId = document.getElementById('station-id').value;
+            const typeId = document.getElementById('type-id').value;
+            const deviceId = document.getElementById('device-id').value;
+            const keywords = document.getElementById('keywords').value;
+
+            // 保存当前搜索参数
+            currentSearchParams = {
+                departmentId,
+                stationId,
+                typeId,
+                deviceId,
+                keywords
             };
-            
-            let html = '';
-            
-            // 上一页
-            const prevDisabled = currentPage <= 1 ? 'disabled' : '';
-            const prevPage = currentPage - 1;
-            html += `<a href="javascript:void(0)" class="page-btn prev ${prevDisabled}" onclick="loadProblemList(${prevPage})">上一页</a>`;
-            
-            // 页码
-            const startPage = Math.max(1, currentPage - 2);
+
+            // 重置为第一页
+            currentPage = 1;
+
+            // 发送查询请求
+            fetch(`api.php?action=getProblems&cid=${departmentId}&sid=${stationId}&tid=${typeId}&did=${deviceId}&keyword=${encodeURIComponent(keywords)}&page=${currentPage}&pageSize=${currentPageSize}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('search-result');
+
+                    if (data.success && data.data && data.data.length > 0) {
+                        let html = '<table class="problems-table">';
+                        html += '<thead><tr><th>序号</th><th>设备名称</th><th>问题描述</th><th>状态</th></tr></thead>';
+                        html += '<tbody>';
+
+                        data.data.forEach((problem, index) => {
+                            // 计算正确的序号
+                            const serialNumber = (currentPage - 1) * currentPageSize + index + 1;
+
+                            // 状态显示
+                            const statusClass = problem.process === 0 ? 'status-red' : 'status-green';
+                            const statusText = problem.process === 0 ? '已创建' : '已闭环';
+
+                            // 将发现时间和解决时间作为数据属性存储，用于悬浮提示
+                            const reportTime = problem.report_time || '';
+                            const resolutionTime = problem.resolution_time || '';
+                            html += `<tr data-report-time="${reportTime}" data-resolution-time="${resolutionTime}" data-status="${problem.process}">
+                                <td>${serialNumber}</td>
+                                <td><a href="devices.php?did=${problem.did}">${getDeviceName(problem)}</a></td>
+                                <td><a href="problems.php?pid=${problem.pid}" title="${reportTime}">${problem.description}</a></td>
+                                <td><span class="status-tag ${statusClass}">${statusText}</span></td>
+                            </tr>`;
+                        });
+
+                        html += '</tbody></table>';
+                        resultDiv.innerHTML = html;
+                        // 更新分页控件
+                        addPaginationControls(data.total, currentPage, currentPageSize);
+                    } else {
+                        resultDiv.innerHTML = '<p class="no-result">没有查询到问题</p>';
+                        // 移除分页控件
+                        removePaginationControls();
+                    }
+                })
+                .catch(error => {
+                    const resultDiv = document.getElementById('search-result');
+                    resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
+                });
+        });
+
+        // 获取设备名称（使用真实的设备名称）
+        function getDeviceName(problem) {
+            // 如果有设备名称字段，则使用设备名称，否则使用默认格式
+            return problem.device_name || ('设备' + problem.did);
+        }
+
+        // 添加分页控件
+        function addPaginationControls(total, page, pageSize) {
+            // 移除可能存在的分页控件
+            removePaginationControls();
+
+            // 计算总页数
+            const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 1;
+
+            // 创建分页容器
+            const paginationContainer = document.createElement('div');
+            paginationContainer.className = 'pagination-container';
+
+            // 左侧：显示页码信息
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'pagination-info';
+            infoDiv.textContent = `共 ${total} 条记录，第 ${page} / ${totalPages} 页`;
+            paginationContainer.appendChild(infoDiv);
+
+            // 中间：页码导航
+            const navigationDiv = document.createElement('div');
+            navigationDiv.className = 'pagination-navigation';
+
+            // 上一页按钮
+            const prevButton = document.createElement('button');
+            prevButton.className = 'pagination-btn';
+            prevButton.textContent = '上一页';
+            prevButton.disabled = page <= 1;
+            prevButton.addEventListener('click', function() {
+                if (page > 1) {
+                    currentPage = page - 1;
+                    searchProblemsWithPagination();
+                }
+            });
+            navigationDiv.appendChild(prevButton);
+
+            // 页码按钮
+            const startPage = Math.max(1, page - 2);
             const endPage = Math.min(totalPages, startPage + 4);
-            
+
+            // 如果开始页码大于1，显示第一页按钮
+            if (startPage > 1) {
+                addPageButton(navigationDiv, 1);
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'pagination-ellipsis';
+                    ellipsis.textContent = '...';
+                    navigationDiv.appendChild(ellipsis);
+                }
+            }
+
+            // 添加连续的页码按钮
             for (let i = startPage; i <= endPage; i++) {
-                const active = currentPage === i ? 'active' : '';
-                html += `<a href="javascript:void(0)" class="page-btn ${active}" onclick="loadProblemList(${i})">${i}</a>`;
+                addPageButton(navigationDiv, i);
             }
-            
-            // 下一页
-            const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
-            const nextPage = currentPage + 1;
-            html += `<a href="javascript:void(0)" class="page-btn next ${nextDisabled}" onclick="loadProblemList(${nextPage})">下一页</a>`;
-            
-            // 页码跳转
-            html += `
-                <div class="page-jump">
-                    <span>共 ${totalPages} 页</span>
-                    <input type="number" id="page-input" min="1" max="${totalPages}" value="${currentPage}">
-                    <button onclick="jumpToPage(${totalPages})">GO</button>
-                </div>
-            `;
-            
-            pagination.innerHTML = html;
-        }
-        
-        // 跳转到指定页码
-        function jumpToPage(totalPages) {
-            const pageInput = document.getElementById('page-input');
-            let page = parseInt(pageInput.value);
-            
-            // 验证页码范围
-            if (isNaN(page) || page < 1) {
-                page = 1;
-            } else if (page > totalPages) {
-                page = totalPages;
+
+            // 如果结束页码小于总页数，显示最后一页按钮
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'pagination-ellipsis';
+                    ellipsis.textContent = '...';
+                    navigationDiv.appendChild(ellipsis);
+                }
+                addPageButton(navigationDiv, totalPages);
             }
-            
-            pageInput.value = page;
-            loadProblemList(page);
+
+            // 下一页按钮
+            const nextButton = document.createElement('button');
+            nextButton.className = 'pagination-btn';
+            nextButton.textContent = '下一页';
+            nextButton.disabled = page >= totalPages;
+            nextButton.addEventListener('click', function() {
+                if (page < totalPages) {
+                    currentPage = page + 1;
+                    searchProblemsWithPagination();
+                }
+            });
+            navigationDiv.appendChild(nextButton);
+
+            paginationContainer.appendChild(navigationDiv);
+
+            // 右侧：每页显示数量选择器
+            const pageSizeDiv = document.createElement('div');
+            pageSizeDiv.className = 'pagination-pageSize';
+
+            const pageSizeLabel = document.createElement('span');
+            pageSizeLabel.textContent = '每页显示：';
+            pageSizeDiv.appendChild(pageSizeLabel);
+
+            const pageSizeSelect = document.createElement('select');
+
+            // 添加选项
+            const options = [5, 10, 20, 50, 100, 0];
+            const labels = [5, 10, 20, 50, 100, '全部'];
+
+            for (let i = 0; i < options.length; i++) {
+                const option = document.createElement('option');
+                option.value = options[i];
+                option.textContent = labels[i];
+                // 根据当前pageSize设置选中值
+                if (options[i] === pageSize) {
+                    option.selected = true;
+                }
+                pageSizeSelect.appendChild(option);
+            }
+
+            // 监听每页显示数量变化
+            pageSizeSelect.addEventListener('change', function() {
+                currentPageSize = parseInt(this.value);
+                currentPage = 1; // 重置为第一页
+                searchProblemsWithPagination();
+            });
+
+            pageSizeDiv.appendChild(pageSizeSelect);
+            paginationContainer.appendChild(pageSizeDiv);
+
+            // 添加到结果区域内部下方
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.appendChild(paginationContainer);
         }
-        
+
+        // 添加页码按钮
+        function addPageButton(container, pageNum) {
+            const button = document.createElement('button');
+            button.className = 'pagination-btn' + (pageNum === currentPage ? ' active' : '');
+            button.textContent = pageNum;
+
+            if (pageNum !== currentPage) {
+                button.addEventListener('click', function() {
+                    currentPage = pageNum;
+                    searchProblemsWithPagination();
+                });
+            }
+
+            container.appendChild(button);
+        }
+
+        // 移除分页控件
+        function removePaginationControls() {
+            // 查找并移除所有分页容器
+            const existingPaginationElements = document.querySelectorAll('.pagination-container');
+            existingPaginationElements.forEach(element => {
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+            });
+        }
+
         // 添加问题记录行的悬浮提示功能
         function initProblemTooltip() {
-            // 创建悬浮提示元素
-            let tooltip = document.createElement('div');
-            tooltip.className = 'problem-tooltip';
-            tooltip.style.cssText = `
-                position: fixed;
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 5px 10px;
-                border-radius: 4px;
-                font-size: 12px;
-                pointer-events: auto;
-                z-index: 1000;
-                display: none;
-                white-space: nowrap;
-            `;
-            
-            // 创建尖角元素
-            let arrow = document.createElement('div');
-            arrow.style.cssText = `
-                position: absolute;
-                width: 0;
-                height: 0;
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-top: 6px solid rgba(0, 0, 0, 0.8);
-                bottom: -6px;
-                left: 50%;
-                transform: translateX(-50%);
-            `;
-            tooltip.appendChild(arrow);
-            
-            document.body.appendChild(tooltip);
-            
-            // 跟踪当前显示的行
-            let currentVisibleRow = null;
-            
-            // 格式化日期
-            const formatDate = (dateStr) => {
-                if (!dateStr) return '';
-                return new Date(dateStr).toLocaleString('zh-CN');
-            };
-            
-            // 定位到状态标签上方
-            function positionTooltipToStatusLabel(row) {
-                // 找到状态标签单元格（第8列）
-                const statusCell = row.cells[7]; // 假设状态是第8列
-                if (statusCell) {
-                    const statusRect = statusCell.getBoundingClientRect();
-                    const tooltipRect = tooltip.getBoundingClientRect();
-                    
-                    // 计算位置，显示在状态标签上方，不遮挡当前行
-                    let left = statusRect.left + statusRect.width / 2 - tooltipRect.width / 2;
-                    let top = statusRect.top - tooltipRect.height - 10; // 10px的间距
-                    
-                    // 确保提示不会超出视口
-                    if (left < 0) left = 0;
-                    if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width;
-                    
-                    tooltip.style.left = left + 'px';
-                    tooltip.style.top = top + 'px';
-                }
+            // 存储所有气泡及其关联的行
+            const tooltipsMap = new Map();
+            // 存储所有气泡元素的集合
+            const allTooltips = new Set();
+
+            // 创建新气泡的函数
+            function createTooltip() {
+                // 创建气泡容器
+                const tooltipContainer = document.createElement('div');
+                tooltipContainer.className = 'problem-tooltip-container';
+
+                // 创建气泡内容
+                const tooltip = document.createElement('div');
+                tooltip.className = 'problem-tooltip';
+
+                // 创建文本容器
+                const tooltipText = document.createElement('span');
+                tooltipText.className = 'problem-tooltip-text';
+                tooltip.appendChild(tooltipText);
+
+                // 创建尖角
+                const tooltipArrow = document.createElement('div');
+                tooltipArrow.className = 'problem-tooltip-arrow';
+
+                tooltip.appendChild(tooltipArrow);
+                tooltipContainer.appendChild(tooltip);
+                document.body.appendChild(tooltipContainer);
+                allTooltips.add(tooltipContainer);
+
+                return tooltipContainer;
             }
-            
-            // 点击行切换显示/隐藏提示
-            document.addEventListener('click', function(e) {
-                const row = e.target.closest('.data-table tr');
-                
-                // 如果点击的是当前显示的行，则隐藏提示
-                if (row === currentVisibleRow) {
-                    tooltip.style.display = 'none';
-                    currentVisibleRow = null;
-                    return;
+
+            // 更新提示位置（固定在状态标签上方）
+            function updateTooltipPosition(tooltipContainer, row) {
+                // 找到状态标签元素
+                const statusTag = row.querySelector('.status-tag');
+                if (!statusTag) return;
+
+                const tooltip = tooltipContainer.querySelector('.problem-tooltip');
+
+                // 确保tooltip元素已经渲染
+                if (!tooltip.offsetWidth) {
+                    // 如果还没渲染，强制显示一下以获取尺寸
+                    const originalVisibility = tooltip.style.visibility;
+                    const originalDisplay = tooltipContainer.style.display;
+                    tooltip.style.visibility = 'hidden';
+                    tooltipContainer.style.display = 'block';
+
+                    // 强制重排
+                    void tooltip.offsetWidth;
+
+                    tooltip.style.visibility = originalVisibility;
+                    tooltipContainer.style.display = originalDisplay;
                 }
-                
-                // 如果点击的是其他行且有报告时间数据，则显示提示
-                if (row && row.dataset.reportTime) {
-                    const reportTime = row.dataset.reportTime;
-                    tooltip.textContent = '报告时间: ' + formatDate(reportTime);
-                    
-                    // 先临时显示气泡以正确测量尺寸
-                    tooltip.style.opacity = '0';
-                    tooltip.style.display = 'block';
-                    
-                    // 确保tooltip元素已经渲染
-                    if (!tooltip.offsetWidth) {
-                        // 如果还没渲染，强制显示一下以获取尺寸
-                        const originalVisibility = tooltip.style.visibility;
-                        tooltip.style.visibility = 'hidden';
-                        tooltip.style.display = 'block';
-                        
-                        // 重置visibility
-                        tooltip.style.visibility = originalVisibility;
+
+                // 获取状态标签和气泡的位置信息
+                const statusRect = statusTag.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+
+                // 计算水平居中位置
+                let left = statusRect.left + statusRect.width / 2 - tooltipRect.width / 2;
+
+                // 确保气泡不会超出视口
+                if (left < 0) left = 0;
+                if (left + tooltipRect.width > window.innerWidth) left = window.innerWidth - tooltipRect.width;
+
+                // 设置最终位置 (减少间距从10px到5px)
+                tooltipContainer.style.left = left + 'px';
+                tooltipContainer.style.top = (statusRect.top - tooltipRect.height - 5) + 'px';
+            }
+
+            // 显示气泡的函数
+            function showTooltip(tooltipContainer, row) {
+                const reportTime = row.dataset.reportTime;
+                const resolutionTime = row.dataset.resolutionTime;
+                const status = row.dataset.status;
+                const tooltip = tooltipContainer.querySelector('.problem-tooltip');
+                const tooltipText = tooltipContainer.querySelector('.problem-tooltip-text');
+
+                // 构建气泡文本内容
+                let tooltipContent = '发现时间: ' + reportTime;
+                // 如果是已闭环状态且有解决时间，则添加解决时间显示
+                if (status === '1' && resolutionTime && resolutionTime.trim() !== '') {
+                    tooltipContent += '\n解决时间: ' + resolutionTime;
+                    // 为多行文本更新样式
+                    tooltip.style.whiteSpace = 'pre-line';
+                    tooltip.style.padding = '8px 10px';
+                } else {
+                    // 恢复单行样式
+                    tooltip.style.whiteSpace = 'nowrap';
+                    tooltip.style.padding = '5px 10px';
+                }
+
+                tooltipText.textContent = tooltipContent;
+
+                // 定位到状态标签上方
+                updateTooltipPosition(tooltipContainer, row);
+
+                // 显示气泡
+                tooltipContainer.style.display = 'block';
+                // 使用setTimeout确保浏览器有时间处理样式变化
+                setTimeout(() => {
+                    tooltipContainer.style.opacity = '1';
+                }, 10);
+            }
+
+            // 隐藏气泡的函数
+            function hideTooltip(tooltipContainer) {
+                tooltipContainer.style.opacity = '0';
+                setTimeout(() => {
+                    tooltipContainer.style.display = 'none';
+                }, 200);
+            }
+
+            // 移除所有气泡的函数
+            function removeAllTooltips() {
+                allTooltips.forEach(tooltipContainer => {
+                    tooltipContainer.style.display = 'none';
+                    if (tooltipContainer.parentNode) {
+                        tooltipContainer.parentNode.removeChild(tooltipContainer);
                     }
-                    
-                    positionTooltipToStatusLabel(row);
-                    
-                    // 恢复气泡可见性
-                    setTimeout(() => {
-                        tooltip.style.opacity = '1';
-                    }, 10);
-                      
-                    currentVisibleRow = row;
-                    // 更新全局引用
-                    window.currentProblemsTooltip = {
-                        tooltip: tooltip,
-                        updatePosition: positionTooltipToStatusLabel
-                    };
-                    window.currentProblemsTooltipRow = row;
-                } else if (currentVisibleRow) {
-                    // 如果点击的不是行且有显示的提示，则隐藏提示
-                    tooltip.style.display = 'none';
-                    currentVisibleRow = null;
-                    window.currentProblemsTooltipRow = null;
+                });
+                allTooltips.clear();
+                tooltipsMap.clear();
+            }
+
+            // 点击行显示/隐藏气泡
+            document.addEventListener('click', function(e) {
+                const row = e.target.closest('.problems-table tr');
+
+                // 如果点击的是有效行
+                if (row && row.dataset.reportTime) {
+                    // 检查是否已有该行列的气泡
+                    const existingTooltip = tooltipsMap.get(row);
+
+                    if (existingTooltip) {
+                        // 如果已有气泡，则隐藏它
+                        hideTooltip(existingTooltip);
+                        tooltipsMap.delete(row);
+                    } else {
+                        // 如果没有气泡，则创建并显示新气泡
+                        const newTooltip = createTooltip();
+                        tooltipsMap.set(row, newTooltip);
+                        showTooltip(newTooltip, row);
+                    }
                 }
             });
-            
-            // 页面滚动时更新气泡位置
-            function handleProblemsScroll() {
-                // 确保当前有显示的气泡
-                if (window.currentProblemsTooltip && window.currentProblemsTooltipRow) {
-                    // 重新计算气泡位置
-                    window.currentProblemsTooltip.updatePosition(window.currentProblemsTooltipRow);
+
+            // 监听分页控件点击，移除所有气泡
+            document.addEventListener('click', function(e) {
+                // 检测是否点击了分页控件
+                if (e.target.closest('.pagination-container') ||
+                    e.target.closest('.pagination-btn') ||
+                    e.target.closest('.page-size-select')) {
+                    removeAllTooltips();
                 }
+            });
+
+            // 页面滚动时更新所有气泡位置
+            function handleScroll() {
+                tooltipsMap.forEach((tooltipContainer, row) => {
+                    if (tooltipContainer.style.display !== 'none') {
+                        updateTooltipPosition(tooltipContainer, row);
+                    }
+                });
             }
-        
+
             // 添加滚动事件监听器
-            window.addEventListener('scroll', handleProblemsScroll);
+            window.addEventListener('scroll', handleScroll);
+
+            // 添加窗口大小改变事件监听器
+            window.addEventListener('resize', handleScroll);
+
+            // 导出清除所有气泡的函数，以便在其他地方调用
+            window.clearProblemTooltips = removeAllTooltips;
         }
+
+        // 页面加载完成后初始化悬浮提示功能
+        document.addEventListener('DOMContentLoaded', initProblemTooltip);
+
+        // 使用当前分页参数搜索问题
+        function searchProblemsWithPagination() {
+            const {
+                departmentId,
+                stationId,
+                typeId,
+                deviceId,
+                keywords
+            } = currentSearchParams;
+
+            fetch(`api.php?action=getProblems&cid=${departmentId}&sid=${stationId}&tid=${typeId}&did=${deviceId}&keyword=${encodeURIComponent(keywords)}&page=${currentPage}&pageSize=${currentPageSize}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('search-result');
+
+                    if (data.success && data.data && data.data.length > 0) {
+                        let html = '<table class="problems-table">';
+                        html += '<thead><tr><th>序号</th><th>设备名称</th><th>问题描述</th><th>状态</th></tr></thead>';
+                        html += '<tbody>';
+
+                        data.data.forEach((problem, index) => {
+                            // 计算正确的序号
+                            const serialNumber = (currentPage - 1) * currentPageSize + index + 1;
+
+                            // 状态显示
+                            const statusClass = problem.process === 0 ? 'status-red' : 'status-green';
+                            const statusText = problem.process === 0 ? '已创建' : '已闭环';
+
+                            // 添加data属性用于悬浮提示
+                            html += `<tr data-report-time="${problem.report_time}" data-resolution-time="${problem.resolution_time || ''}" data-status="${problem.process}">
+                                <td>${serialNumber}</td>
+                                <td><a href="devices.php?did=${problem.did}">${getDeviceName(problem)}</a></td>
+                                <td><a href="problems.php?pid=${problem.pid}">${problem.description}</a></td>
+                                <td><span class="status-tag ${statusClass}">${statusText}</span></td>
+                            </tr>`;
+                        });
+
+                        html += '</tbody></table>';
+                        resultDiv.innerHTML = html;
+                        
+                        // 重新初始化悬浮提示功能
+                        if (typeof window.clearProblemTooltips === 'function') {
+                            window.clearProblemTooltips();
+                        }
+                        
+                        // 更新分页控件
+                        addPaginationControls(data.total, currentPage, currentPageSize);
+                    } else {
+                        resultDiv.innerHTML = '<p class="no-result">没有查询到问题</p>';
+                        // 移除分页控件
+                        removePaginationControls();
+                    }
+                })
+                .catch(error => {
+                    const resultDiv = document.getElementById('search-result');
+                    resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
+                    // 移除分页控件
+                    removePaginationControls();
+                });
+        }
+
+        // 更新备注图标功能
+        function updateRemarkBadges() {
+            // 移除所有现有气泡
+            document.querySelectorAll('.remark-bubble').forEach(bubble => {
+                bubble.remove();
+            });
+
+            // 为所有备注图标添加悬浮事件
+            document.querySelectorAll('.remark-badge').forEach(badge => {
+                badge.addEventListener('mouseenter', function(e) {
+                    const remark = this.getAttribute('data-remark');
+                    if (remark) {
+                        // 创建气泡容器
+                        const bubble = document.createElement('div');
+                        bubble.className = 'remark-bubble';
+                        bubble.textContent = remark;
+
+                        // 设置位置
+                        const rect = this.getBoundingClientRect();
+                        bubble.style.position = 'fixed';
+                        bubble.style.left = rect.left + 'px';
+                        bubble.style.top = (rect.top - 30) + 'px';
+                        bubble.style.zIndex = '1000';
+
+                        // 添加样式
+                        bubble.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                        bubble.style.color = 'white';
+                        bubble.style.padding = '4px 8px';
+                        bubble.style.borderRadius = '4px';
+                        bubble.style.fontSize = '12px';
+                        bubble.style.whiteSpace = 'nowrap';
+
+                        document.body.appendChild(bubble);
+                    }
+                });
+
+                badge.addEventListener('mouseleave', function() {
+                    // 移除气泡
+                    const bubble = document.querySelector('.remark-bubble');
+                    if (bubble) {
+                        bubble.remove();
+                    }
+                });
+            });
+        }
+
+        // 页面加载完成后初始化备注图标功能
+        window.addEventListener('DOMContentLoaded', updateRemarkBadges);
     </script>
 
-<?php include 'footer.php'; ?>
+    <style>
+        .problems-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        /* 宽屏设备左右分栏布局 */
+        .problems-layout {
+            display: flex;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .problems-search {
+            flex: 0 0 320px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .search-row {
+            margin-bottom: 20px;
+        }
+
+        .search-item {
+            margin-bottom: 15px;
+        }
+
+        .search-item label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .select-container {
+            position: relative;
+        }
+
+        .select-container input[type="text"] {
+            width: 100%;
+            padding: 12px 40px 12px 12px;
+            /* 右侧留出40px空间给删除按钮 */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: white;
+            box-sizing: border-box;
+        }
+
+        /* 为关键字输入框设置正确的光标样式 */
+        .select-container #keywords {
+            cursor: text;
+        }
+
+        .select-container input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        /* 删除按钮样式 */
+        .clear-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: #ddd;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            line-height: 1;
+            color: #666;
+        }
+
+        .clear-btn:before {
+            content: '×';
+            font-weight: bold;
+        }
+
+        .clear-btn:hover {
+            background: #ccc;
+            color: #333;
+        }
+
+        .search-button-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        #search-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        #search-button:hover {
+            background-color: #2980b9;
+        }
+
+        .search-result {
+            flex: 1;
+            min-height: 400px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .no-result {
+            text-align: center;
+            color: #999;
+            padding: 50px 0;
+        }
+
+        .error {
+            text-align: center;
+            color: #e74c3c;
+            padding: 20px 0;
+        }
+
+        .problems-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* 固定表格布局，防止内容撑开 */
+        }
+
+        .problems-table th,
+        .problems-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        /* 设置序号列固定宽度（两个字符宽度） */
+        .problems-table th:nth-child(1),
+        .problems-table td:nth-child(1) {
+            width: 40px;
+            min-width: 40px;
+            max-width: 40px;
+        }
+        
+        /* 设置设备名称列固定宽度（至少4个字符宽度） */
+        .problems-table th:nth-child(2),
+        .problems-table td:nth-child(2) {
+            width: 120px;
+            min-width: 120px;
+        }
+        
+        /* 设置问题描述列占据剩余空间 */
+        .problems-table th:nth-child(3),
+        .problems-table td:nth-child(3) {
+            width: auto;
+        }
+        
+        /* 设置状态列固定宽度（刚好显示状态内容） */
+        .problems-table th:nth-child(4),
+        .problems-table td:nth-child(4) {
+            width: 60px;
+            min-width: 60px;
+            max-width: 60px;
+        }
+        
+        /* 问题描述列左对齐 */
+        .problems-table td:nth-child(3) {
+            text-align: left;
+        }
+        
+        /* 问题描述链接样式 - 限制行数并显示省略号 */
+        .problems-table td:nth-child(3) a {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* 电脑上最多显示三行 */
+            -webkit-line-clamp: 3;
+        }
+        
+        /* 手机上最多显示五行 */
+        @media (max-width: 768px) {
+            .problems-table td:nth-child(3) a {
+                -webkit-line-clamp: 5;
+            }
+        }
+        
+        /* 悬浮提示样式 */
+        .problem-tooltip-container {
+            position: fixed;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .problem-tooltip {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            white-space: nowrap;
+            position: relative;
+            min-width: 230px;
+            text-align: center;
+            width: auto;
+            box-sizing: border-box;
+        }
+
+        .problem-tooltip-text {
+            display: block;
+        }
+
+        .problem-tooltip-arrow {
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+        }
+
+        .problems-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+
+        .problems-table td a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .problems-table td a:hover {
+            text-decoration: underline;
+        }
+
+        .status-tag {
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: normal;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            min-width: 40px;
+        }
+
+        .status-red {
+            background-color: #fee;
+            color: #e74c3c;
+            transition: all 0.3s ease;
+        }
+
+        .status-red:hover {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .status-green {
+            background-color: #efe;
+            color: #27ae60;
+            transition: all 0.3s ease;
+        }
+
+        .status-green:hover {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        /* 分页控件样式 */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 0;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .pagination-navigation {
+            display: flex;
+            gap: 5px;
+        }
+
+        .pagination-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #f5f5f5;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .pagination-ellipsis {
+            padding: 6px 12px;
+            color: #999;
+        }
+
+        .pagination-pageSize {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .pagination-pageSize select {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            background: #f9f9f9;
+        }
+
+        .modal-header-left,
+        .modal-header-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .modal-btn:hover {
+            background: #f5f5f5;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .select-path {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            color: #666;
+        }
+
+        .path-item {
+            cursor: pointer;
+            color: #3498db;
+        }
+
+        .path-item:hover {
+            text-decoration: underline;
+        }
+
+        .select-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .select-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .select-item:hover {
+            background: #f5f5f5;
+            border-color: #3498db;
+        }
+
+        .loading,
+        .error,
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            color: #e74c3c;
+        }
+
+        /* 备注图标样式 */
+        .remark-badge {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            background: #3498db;
+            color: white;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: help;
+            margin-left: 5px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .problems-container {
+                padding: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .problems-layout {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .problems-search {
+                flex: none;
+                width: 100%;
+                border-radius: 0;
+                padding: 15px;
+            }
+
+            .search-result {
+                padding: 10px;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .select-items {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .pagination-container {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .pagination-info {
+                text-align: center;
+            }
+
+            .pagination-navigation {
+                justify-content: center;
+            }
+
+            .pagination-pageSize {
+                justify-content: center;
+            }
+            
+            /* 设置设备名称列在移动端的宽度为三个字符 */
+            .problems-table th:nth-child(2),
+            .problems-table td:nth-child(2) {
+                width: 60px;
+                min-width: 60px;
+            }
+            
+            /* 设置状态列在移动端的固定宽度 */
+            .problems-table th:nth-child(4),
+            .problems-table td:nth-child(4) {
+                width: 60px;
+                min-width: 60px;
+                max-width: 60px;
+            }
+            
+            /* 确保分页控件在移动端居中显示 */
+            .pagination-btn,
+            .pagination-ellipsis {
+                margin: 0 2px;
+            }
+        }
+    </style>
+
+<?php
+}
+include 'footer.php';
+?>
