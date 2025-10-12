@@ -985,6 +985,8 @@ function getProblems()
         // 获取筛选参数
         $did = isset($_GET['did']) ? $_GET['did'] : '';
         $cid = isset($_GET['cid']) ? $_GET['cid'] : '';
+        $sid = isset($_GET['sid']) ? $_GET['sid'] : '';
+        $tid = isset($_GET['tid']) ? $_GET['tid'] : '';
         $reporter = isset($_GET['reporter']) ? $_GET['reporter'] : '';
         $resolver = isset($_GET['resolver']) ? $_GET['resolver'] : '';
         $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : '';
@@ -1007,85 +1009,116 @@ function getProblems()
         
         // did精准匹配
         if (!empty($did)) {
-            $conditions .= " AND problems.did = :did";  // 修改：添加problems.前缀
-            $params[':did'] = $did;
+            $conditions .= " AND problems.did = ?";
+            $params[] = $did;
         }
         
         // cid精准匹配
         if (!empty($cid)) {
-            $conditions .= " AND problems.cid = :cid";  // 修改：添加problems.前缀
-            $params[':cid'] = $cid;
+            $conditions .= " AND problems.cid = ?";
+            $params[] = $cid;
+        }
+        
+        // sid精准匹配
+        if (!empty($sid)) {
+            $conditions .= " AND devices.sid = ?";
+            $params[] = $sid;
+        }
+        
+        // tid精准匹配
+        if (!empty($tid)) {
+            $conditions .= " AND devices.tid = ?";
+            $params[] = $tid;
         }
         
         // reporter包含字符串
         if (!empty($reporter)) {
-            $conditions .= " AND problems.reporter LIKE CONCAT('%', :reporter, '%')";  // 修改：添加problems.前缀
-            $params[':reporter'] = $reporter;
+            $conditions .= " AND problems.reporter LIKE CONCAT('%', ?, '%')";
+            $params[] = $reporter;
         }
         
         // resolver包含字符串
         if (!empty($resolver)) {
-            $conditions .= " AND problems.resolver LIKE CONCAT('%', :resolver, '%')";  // 修改：添加problems.前缀
-            $params[':resolver'] = $resolver;
+            $conditions .= " AND problems.resolver LIKE CONCAT('%', ?, '%')";
+            $params[] = $resolver;
         }
         
         // keyword在description和resolution_content中包含
         if (!empty($keyword)) {
-            $conditions .= " AND (problems.description LIKE CONCAT('%', :keyword, '%') OR problems.resolution_content LIKE CONCAT('%', :keyword, '%'))";  // 修改：添加problems.前缀
-            $params[':keyword'] = $keyword;
+            $conditions .= " AND (problems.description LIKE CONCAT('%', ?, '%') OR problems.resolution_content LIKE CONCAT('%', ?, '%'))";
+            $params[] = $keyword;
+            $params[] = $keyword;
         }
         
         // create_time时间范围（该时间至今）
         if (!empty($create_time)) {
-            $conditions .= " AND problems.report_time >= :create_time";  // 修改：添加problems.前缀
-            $params[':create_time'] = $create_time;
+            $conditions .= " AND problems.report_time >= ?";
+            $params[] = $create_time;
         }
         
         // create_time_end时间范围（create_time至该时间）
         if (!empty($create_time_end)) {
-            $conditions .= " AND problems.report_time <= :create_time_end";  // 修改：添加problems.前缀
-            $params[':create_time_end'] = $create_time_end;
+            $conditions .= " AND problems.report_time <= ?";
+            $params[] = $create_time_end;
         }
         
         // resolution_time时间范围（该时间至今）
         if (!empty($resolution_time)) {
-            $conditions .= " AND problems.resolution_time >= :resolution_time";  // 修改：添加problems.前缀
-            $params[':resolution_time'] = $resolution_time;
+            $conditions .= " AND problems.resolution_time >= ?";
+            $params[] = $resolution_time;
         }
         
         // resolution_time_end时间范围（resolution_time至该时间）
         if (!empty($resolution_time_end)) {
-            $conditions .= " AND problems.resolution_time <= :resolution_time_end";  // 修改：添加problems.前缀
-            $params[':resolution_time_end'] = $resolution_time_end;
+            $conditions .= " AND problems.resolution_time <= ?";
+            $params[] = $resolution_time_end;
         }
 
         // 查询总记录数
-        $countSql = "SELECT COUNT(*) as total FROM problems WHERE $conditions";
+        $countSql = "SELECT COUNT(*) as total FROM problems INNER JOIN devices ON problems.did = devices.did WHERE $conditions";
         $stmt = $pdo->prepare($countSql);
-        $stmt->execute($params);
+        
+        // 绑定参数用于计数查询
+        $paramIndex = 1;
+        foreach ($params as $value) {
+            $stmt->bindValue($paramIndex++, $value);
+        }
+        
+        $stmt->execute();
         $total = $stmt->fetchColumn();
 
         // 如果pageSize为0，表示查询所有记录
-        $limitClause = '';
+        $sql = '';
         if ($pageSize > 0) {
             $offset = ($page - 1) * $pageSize;
-            $limitClause = "LIMIT :offset, :pageSize";
+            // 查询当前页数据，按用户要求的字段结构
+            // 修改：使用INNER JOIN连接devices表获取设备名称
+            $sql = "SELECT problems.pid, problems.did, problems.cid, problems.reporter, problems.report_time, problems.description, problems.resolver, problems.resolution_time, problems.resolution_content, devices.device_name FROM problems INNER JOIN devices ON problems.did = devices.did WHERE $conditions ORDER BY problems.$sortField $sortOrder LIMIT ?, ?";
+            // 将分页参数添加到$params数组中
+            $params[] = $offset;
+            $params[] = $pageSize;
+        } else {
+            // 查询所有数据
+            $sql = "SELECT problems.pid, problems.did, problems.cid, problems.reporter, problems.report_time, problems.description, problems.resolver, problems.resolution_time, problems.resolution_content, devices.device_name FROM problems INNER JOIN devices ON problems.did = devices.did WHERE $conditions ORDER BY problems.$sortField $sortOrder";
         }
-
-        // 查询当前页数据，按用户要求的字段结构
-        // 修改：使用INNER JOIN连接devices表获取设备名称
-        $sql = "SELECT problems.pid, problems.did, problems.cid, problems.reporter, problems.report_time, problems.description, problems.resolver, problems.resolution_time, problems.resolution_content, devices.device_name FROM problems INNER JOIN devices ON problems.did = devices.did WHERE $conditions ORDER BY problems.$sortField $sortOrder $limitClause";
+        
         $stmt = $pdo->prepare($sql);
         
-        // 绑定参数
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
+        // 调试信息
+        // echo "Main SQL: " . $sql . "\n";
+        // echo "Main Params: " . json_encode($params) . "\n";
+        // echo "Offset: " . $offset . ", PageSize: " . $pageSize . "\n";
         
-        // 绑定分页参数（需要指定类型）
-        if ($pageSize > 0) {
-            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-            $stmt->bindValue(':pageSize', $pageSize, PDO::PARAM_INT);
+        // 绑定参数
+        $paramIndex = 1;
+        $paramsCount = count($params);
+        foreach ($params as $index => $value) {
+            // 对于分页参数（最后两个参数），需要指定类型为整数
+            if ($index >= $paramsCount - 2) {
+                $stmt->bindValue($paramIndex++, $value, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($paramIndex++, $value);
+            }
         }
         
         $stmt->execute();
@@ -1134,16 +1167,16 @@ function getWorkLogsCount()
         // 根据类型查询记录总数
         if ($type == 1 || $type === 'inspection') {
             // 查询巡视记录总数
-            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM inspections WHERE did = :did AND status = 1");
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM inspections WHERE did = ? AND status = 1");
         } else if ($type == 2 || $type === 'maintenance') {
             // 查询检修记录总数
-            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM maintenances WHERE did = :did AND status = 1");
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM maintenances WHERE did = ? AND status = 1");
         } else {
             echo json_encode(['success' => false, 'message' => '无效的记录类型']);
             return;
         }
 
-        $stmt->execute(['did' => $did]);
+        $stmt->execute([$did]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         echo json_encode([
@@ -1163,9 +1196,9 @@ function getProblemsCount()
     try {
         $did = $_GET['did'];
 
-        // 查询问题记录总数
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM problems WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $did]);
+        // 获取问题记录总数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM problems WHERE did = ? AND status = 1");
+        $stmt->execute([$did]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         echo json_encode([
@@ -1186,8 +1219,8 @@ function getDeviceDetail()
         $did = $_GET['did'];
 
         // 查询设备信息
-        $stmt = $pdo->prepare("SELECT * FROM devices WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $did]);
+        $stmt = $pdo->prepare("SELECT * FROM devices WHERE did = ? AND status = 1");
+        $stmt->execute([$did]);
         $device = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$device) {
@@ -1196,26 +1229,26 @@ function getDeviceDetail()
         }
 
         // 获取设备类型名称
-        $stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = :tid AND status = 1");
-        $stmt->execute(['tid' => $device['tid']]);
+        $stmt = $pdo->prepare("SELECT type_name FROM types WHERE tid = ? AND status = 1");
+        $stmt->execute([$device['tid']]);
         $type = $stmt->fetch(PDO::FETCH_ASSOC);
         $device['type_name'] = $type ? $type['type_name'] : '其他类型';
 
         // 获取所属站场名称
-        $stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = :sid AND status = 1");
-        $stmt->execute(['sid' => $device['sid']]);
+        $stmt = $pdo->prepare("SELECT station_name FROM stations WHERE sid = ? AND status = 1");
+        $stmt->execute([$device['sid']]);
         $station = $stmt->fetch(PDO::FETCH_ASSOC);
         $device['station_name'] = $station ? $station['station_name'] : '其他站场';
 
         // 获取包保部门名称
-        $stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = :cid AND status = 1");
-        $stmt->execute(['cid' => $device['cid']]);
+        $stmt = $pdo->prepare("SELECT full_name FROM departments WHERE cid = ? AND status = 1");
+        $stmt->execute([$device['cid']]);
         $department = $stmt->fetch(PDO::FETCH_ASSOC);
         $device['department_name'] = $department ? $department['full_name'] : '其他部门';
 
         // 获取设备图纸数量
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM drawings WHERE did = :did AND status = 1");
-        $stmt->execute(['did' => $device['did']]);
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM drawings WHERE did = ? AND status = 1");
+        $stmt->execute([$device['did']]);
         $drawing_count = $stmt->fetch(PDO::FETCH_ASSOC);
         $device['drawing_count'] = $drawing_count ? $drawing_count['count'] : 0;
 
@@ -1243,10 +1276,9 @@ function getProblemDetail()
         $sql = "SELECT 
                     pid, did, cid, reporter, report_time, description, resolver, resolution_time, resolution_content
                 FROM problems 
-                WHERE pid = :pid";
+                WHERE pid = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->bindParam(':pid', $pid);
-        $stmt->execute();
+        $stmt->execute([$pid]);
         $problemData = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$problemData) {
@@ -1297,18 +1329,18 @@ function getProblemList()
         $params = [];
 
         if (!empty($department)) {
-            $conditions .= " AND devices.cid = :department";
-            $params[':department'] = $department;
+            $conditions .= " AND devices.cid = ?";
+            $params[] = $department;
         }
 
         if (!empty($station)) {
-            $conditions .= " AND devices.sid = :station";
-            $params[':station'] = $station;
+            $conditions .= " AND devices.sid = ?";
+            $params[] = $station;
         }
 
         if (!empty($type)) {
-            $conditions .= " AND devices.tid = :type";
-            $params[':type'] = $type;
+            $conditions .= " AND devices.tid = ?";
+            $params[] = $type;
         }
 
         if (!empty($status)) {
@@ -1321,8 +1353,10 @@ function getProblemList()
         }
 
         if (!empty($keyword)) {
-            $conditions .= " AND (devices.device_name LIKE CONCAT('%', :keyword, '%') OR problems.pid LIKE CONCAT('%', :keyword, '%') OR problems.description LIKE CONCAT('%', :keyword, '%'))";
-            $params[':keyword'] = $keyword;
+            $conditions .= " AND (devices.device_name LIKE CONCAT('%', ?, '%') OR problems.pid LIKE CONCAT('%', ?, '%') OR problems.description LIKE CONCAT('%', ?, '%'))";
+            $params[] = $keyword;
+            $params[] = $keyword;
+            $params[] = $keyword;
         }
 
         // 查询总记录数
@@ -1332,7 +1366,7 @@ function getProblemList()
         $total = $stmt->fetchColumn();
 
         // 查询当前页数据，按用户要求的字段结构
-        $sql = "
+        $sql = "SELECT 
                     problems.pid, 
                     problems.did, 
                     problems.cid, 
@@ -1346,15 +1380,16 @@ function getProblemList()
                 INNER JOIN devices ON problems.did = devices.did 
                 WHERE $conditions 
                 ORDER BY problems.report_time DESC 
-                LIMIT :offset, :pageSize";
+                LIMIT ?, ?";
         $stmt = $pdo->prepare($sql);
 
         // 绑定参数
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
+        $paramIndex = 1;
+        foreach ($params as $value) {
+            $stmt->bindValue($paramIndex++, $value);
         }
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $stmt->bindValue(':pageSize', $pageSize, PDO::PARAM_INT);
+        $stmt->bindValue($paramIndex++, $offset, PDO::PARAM_INT);
+        $stmt->bindValue($paramIndex++, $pageSize, PDO::PARAM_INT);
         $stmt->execute();
         $problems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
