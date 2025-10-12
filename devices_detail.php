@@ -5993,7 +5993,23 @@ include 'header.php';
                     'imageData': imageData
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                // 先检查响应状态
+                if (!response.ok) {
+                    throw new Error(`服务器响应错误: ${response.status}`);
+                }
+                
+                // 尝试解析为JSON，但添加错误处理
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (jsonError) {
+                        // 如果解析失败，记录原始响应内容便于调试
+                        console.error('服务器返回非JSON内容:', text);
+                        throw new Error('服务器返回格式错误，无法解析为JSON');
+                    }
+                });
+            })
             .then(result => {
                 if (result.success) {
                     console.log('二维码成功保存到服务器:', result.filePath);
