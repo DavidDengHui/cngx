@@ -131,16 +131,6 @@ if (isset($_GET['pid'])) {
         });
 
         document.getElementById('device').addEventListener('click', function() {
-            const departmentId = document.getElementById('department-id').value;
-            const stationId = document.getElementById('station-id').value;
-            const typeId = document.getElementById('type-id').value;
-
-            // 必须先选择部门、站场、类型才能选择设备
-            if (!departmentId || !stationId || !typeId) {
-                alert('请先选择部门、站场和类型');
-                return;
-            }
-
             openSelectModal('device', '设备');
         });
 
@@ -196,11 +186,22 @@ if (isset($_GET['pid'])) {
                     apiUrl = `api.php?action=getTypes&parentId=${parentId}`;
                     break;
                 case 'device':
-                    // 获取设备需要传入部门、站场、类型参数
+                    // 获取设备可以传入部门、站场、类型参数中的任意组合
                     const departmentId = document.getElementById('department-id').value;
                     const stationId = document.getElementById('station-id').value;
                     const typeId = document.getElementById('type-id').value;
-                    apiUrl = `api.php?action=searchDevices&departmentId=${departmentId}&stationId=${stationId}&typeId=${typeId}&pageSize=0`;
+                    // 获取关键字
+                    const keywords = document.getElementById('keywords').value;
+                    
+                    // 构建查询参数
+                    let params = [];
+                    if (departmentId) params.push(`departmentId=${encodeURIComponent(departmentId)}`);
+                    if (stationId) params.push(`stationId=${encodeURIComponent(stationId)}`);
+                    if (typeId) params.push(`typeId=${encodeURIComponent(typeId)}`);
+                    if (keywords) params.push(`keywords=${encodeURIComponent(keywords)}`);
+                    params.push('pageSize=0');
+                    
+                    apiUrl = `api.php?action=searchDevices&${params.join('&')}`;
                     break;
             }
 
