@@ -148,6 +148,9 @@ if (isset($_GET['did'])) {
             // 确保模态框内容居中
             const modalContent = document.querySelector('.modal-content');
             modalContent.style.margin = 'auto';
+
+            // 阻止背景页面滚动
+            document.body.style.overflow = 'hidden';
         }
 
         // 加载选择数据
@@ -276,6 +279,8 @@ if (isset($_GET['did'])) {
 
             // 关闭模态框
             document.getElementById('select-modal').style.display = 'none';
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
         }
 
         // 重置选择
@@ -326,6 +331,8 @@ if (isset($_GET['did'])) {
         document.querySelector('.confirm-btn').addEventListener('click', confirmSelect);
         document.querySelector('.cancel-btn').addEventListener('click', function() {
             document.getElementById('select-modal').style.display = 'none';
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
         });
         document.querySelector('.reset-btn').addEventListener('click', resetSelect);
         document.querySelector('.default-btn').addEventListener('click', setDefaultDepartment);
