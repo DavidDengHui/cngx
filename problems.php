@@ -1033,6 +1033,9 @@ if (isset($_GET['pid'])) {
 
         // 使用当前分页参数搜索问题
         function searchProblemsWithPagination() {
+            // 显示加载框
+            showLoadingModal('加载中，请稍候...');
+            
             const {
                 departmentId,
                 stationId,
@@ -1086,12 +1089,18 @@ if (isset($_GET['pid'])) {
                         // 移除分页控件
                         removePaginationControls();
                     }
+                    
+                    // 隐藏加载框
+                    hideLoadingModal();
                 })
                 .catch(error => {
                     const resultDiv = document.getElementById('search-result');
                     resultDiv.innerHTML = `<p class="error">查询失败: ${error.message}</p>`;
                     // 移除分页控件
                     removePaginationControls();
+                    
+                    // 隐藏加载框
+                    hideLoadingModal();
                 });
         }
 
@@ -1139,6 +1148,26 @@ if (isset($_GET['pid'])) {
                     }
                 });
             });
+        }
+
+        // 显示加载模态框
+        function showLoadingModal(text = '加载中，请稍候...') {
+            const modal = document.getElementById('loading-modal');
+            const loadingText = modal.querySelector('.loading-content p');
+            if (loadingText) {
+                loadingText.textContent = text;
+            }
+            modal.style.display = 'flex';
+            // 阻止背景页面滚动
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 隐藏加载模态框
+        function hideLoadingModal() {
+            const modal = document.getElementById('loading-modal');
+            modal.style.display = 'none';
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
         }
 
         // 页面加载完成后初始化备注图标功能
