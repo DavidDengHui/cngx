@@ -61,6 +61,16 @@ if (!empty($base_title) && strpos($base_title, $site_suffix) === false) {
             z-index: 1000;
         }
 
+        /* 当页面在iframe中时隐藏导航栏 */
+        body.in-iframe .header {
+            display: none;
+        }
+
+        /* 当页面在iframe中时移除顶部padding */
+        body.in-iframe {
+            padding-top: 0;
+        }
+
         .header-title {
             font-size: 18px;
             font-weight: bold;
@@ -100,6 +110,15 @@ if (!empty($base_title) && strpos($base_title, $site_suffix) === false) {
             }
         }
     </style>
+    <script>
+        // 检测页面是否在iframe中加载
+        window.addEventListener('load', function() {
+            if (window.self !== window.top) {
+                // 页面在iframe中
+                document.body.classList.add('in-iframe');
+            }
+        });
+    </script>
 </head>
 
 <body>
