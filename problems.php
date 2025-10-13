@@ -961,32 +961,148 @@ if (isset($_GET['pid'])) {
 
         // 打开设备详情模态框
         function openDeviceDetailModal(deviceId) {
+            // 先显示加载模态框
+            showLoadingModal('正在加载设备详情...');
+            
             const modal = document.getElementById('device-detail-modal');
             const iframe = document.getElementById('device-detail-iframe');
+            const loadingModal = document.getElementById('loading-modal');
 
-            // 设置iframe的src
-            iframe.src = `devices.php?did=${deviceId}`;
+            // 确保获取到元素
+            if (!modal || !iframe || !loadingModal) {
+                console.error('无法找到模态框相关元素:', {modal, iframe, loadingModal});
+                hideLoadingModal();
+                return;
+            }
 
-            // 显示模态框
-            modal.style.display = 'flex';
-
-            // 阻止背景滚动
+            // 立即禁止背景滚动
             document.body.style.overflow = 'hidden';
+            document.body.style.pointerEvents = '';
+            document.body.style.userSelect = '';
+
+            // 清除模态框的所有隐藏样式和类
+            modal.classList.remove('modal-hidden');
+            modal.style.display = '';
+            modal.style.height = '';
+            modal.style.width = '';
+            modal.style.opacity = '';
+            modal.style.pointerEvents = '';
+            
+            // 清除加载模态框的所有隐藏样式和类
+            loadingModal.classList.remove('modal-hidden');
+            loadingModal.style.display = '';
+            loadingModal.style.height = '';
+            loadingModal.style.width = '';
+            loadingModal.style.opacity = '';
+            loadingModal.style.pointerEvents = '';
+
+            // 显示加载模态框
+            if (loadingModal) {
+                loadingModal.style.display = 'flex';
+            }
+
+            // 移除之前可能存在的onload事件监听器，避免重复绑定
+            iframe.onload = null;
+            
+            // 重置iframe状态
+            iframe.src = '';
+            
+            // 设置iframe的src
+            setTimeout(() => {
+                iframe.src = `devices.php?did=${deviceId}`;
+            }, 100); // 短暂延迟确保src重置生效
+            
+            // 监听iframe加载完成事件
+            iframe.onload = function() {
+                // 隐藏加载模态框
+                if (loadingModal) {
+                    loadingModal.style.display = 'none';
+                }
+                
+                // 显示设备详情模态框
+                modal.style.display = 'flex';
+            };
+
+            // 即使iframe加载失败，也应该能够关闭模态框
+            setTimeout(function() {
+                if (loadingModal && loadingModal.style.display === 'flex') {
+                    loadingModal.style.display = 'none';
+                    if (modal) {
+                        modal.style.display = 'flex';
+                    }
+                }
+            }, 10000); // 10秒后自动显示模态框（如果加载超时）
         }
 
         // 关闭设备详情模态框
         function closeDeviceDetailModal() {
+            // 使用getElementById的变体以确保获取到最新的DOM元素
             const modal = document.getElementById('device-detail-modal');
             const iframe = document.getElementById('device-detail-iframe');
+            const loadingModal = document.getElementById('loading-modal');
 
-            // 隐藏模态框
-            modal.style.display = 'none';
+            // 强制隐藏所有模态框 - 使用最激进的方式
+            if (modal) {
+                // 三重保障隐藏模态框
+                modal.style.display = 'none !important';
+                modal.setAttribute('style', 'display: none !important');
+                // 额外添加一个类用于覆盖任何其他可能的显示样式
+                modal.classList.add('modal-hidden');
+                // 临时设置高度和宽度为0以确保不可见
+                modal.style.height = '0px';
+                modal.style.width = '0px';
+                modal.style.opacity = '0';
+                modal.style.pointerEvents = 'none';
+            }
+            if (loadingModal) {
+                loadingModal.style.display = 'none !important';
+                loadingModal.setAttribute('style', 'display: none !important');
+                loadingModal.classList.add('modal-hidden');
+                loadingModal.style.height = '0px';
+                loadingModal.style.width = '0px';
+                loadingModal.style.opacity = '0';
+                loadingModal.style.pointerEvents = 'none';
+            }
 
-            // 清空iframe的src
-            iframe.src = '';
+            // 清空iframe的src和内容，使用更完善的清理逻辑
+            if (iframe) {
+                try {
+                    // 先停止iframe中正在运行的JavaScript
+                    if (iframe.contentWindow) {
+                        // 移除所有事件监听器
+                        iframe.onload = null;
+                        iframe.onreadystatechange = null;
+                        
+                        // 尝试停止正在进行的网络请求
+                        try {
+                            iframe.contentWindow.stop && iframe.contentWindow.stop();
+                        } catch (e) {
+                            console.log('停止iframe内容时出错:', e);
+                        }
+                    }
+                } catch (e) {
+                    console.log('停止iframe JavaScript执行时出错:', e);
+                }
+                
+                // 然后再清空src和内容
+                try {
+                    // 先设置为about:blank以确保完全断开与原页面的连接
+                    iframe.src = 'about:blank';
+                    
+                    // 清空iframe的内容
+                    if (iframe.contentDocument) {
+                        iframe.contentDocument.write('');
+                        iframe.contentDocument.close();
+                    }
+                } catch (e) {
+                    console.log('清空iframe内容时出错:', e);
+                }
+            }
 
             // 恢复背景滚动
             document.body.style.overflow = '';
+            document.body.style.pointerEvents = '';
+            document.body.style.userSelect = '';
         }
 
         // 最大化/还原模态框
@@ -1552,6 +1668,28 @@ if (isset($_GET['pid'])) {
             height: 100%;
             background: rgba(0, 0, 0, 0.5);
             z-index: 1000;
+        }
+        
+        /* 确保隐藏的模态框完全不可见 */
+        .modal-hidden {
+            display: none !important;
+            height: 0 !important;
+            width: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            overflow: hidden !important;
+            z-index: -1 !important;
+        }
+        
+        /* 确保模态框在display:none时也完全不可见 */
+        .modal[style*="display: none"],
+        .modal[style*="display:none"] {
+            height: 0 !important;
+            width: 0 !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            overflow: hidden !important;
+            z-index: -1 !important;
         }
 
         /* 加载提示框样式 */
