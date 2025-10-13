@@ -963,14 +963,18 @@ if (isset($_GET['pid'])) {
         function openDeviceDetailModal(deviceId) {
             // 先显示加载模态框
             showLoadingModal('正在加载设备详情...');
-            
+
             const modal = document.getElementById('device-detail-modal');
             const iframe = document.getElementById('device-detail-iframe');
             const loadingModal = document.getElementById('loading-modal');
 
             // 确保获取到元素
             if (!modal || !iframe || !loadingModal) {
-                console.error('无法找到模态框相关元素:', {modal, iframe, loadingModal});
+                console.error('无法找到模态框相关元素:', {
+                    modal,
+                    iframe,
+                    loadingModal
+                });
                 hideLoadingModal();
                 return;
             }
@@ -987,7 +991,7 @@ if (isset($_GET['pid'])) {
             modal.style.width = '';
             modal.style.opacity = '';
             modal.style.pointerEvents = '';
-            
+
             // 清除加载模态框的所有隐藏样式和类
             loadingModal.classList.remove('modal-hidden');
             loadingModal.style.display = '';
@@ -1003,22 +1007,22 @@ if (isset($_GET['pid'])) {
 
             // 移除之前可能存在的onload事件监听器，避免重复绑定
             iframe.onload = null;
-            
+
             // 重置iframe状态
             iframe.src = '';
-            
+
             // 设置iframe的src
             setTimeout(() => {
                 iframe.src = `devices.php?did=${deviceId}`;
             }, 100); // 短暂延迟确保src重置生效
-            
+
             // 监听iframe加载完成事件
             iframe.onload = function() {
                 // 隐藏加载模态框
                 if (loadingModal) {
                     loadingModal.style.display = 'none';
                 }
-                
+
                 // 显示设备详情模态框
                 modal.style.display = 'flex';
             };
@@ -1072,7 +1076,7 @@ if (isset($_GET['pid'])) {
                         // 移除所有事件监听器
                         iframe.onload = null;
                         iframe.onreadystatechange = null;
-                        
+
                         // 尝试停止正在进行的网络请求
                         try {
                             iframe.contentWindow.stop && iframe.contentWindow.stop();
@@ -1083,12 +1087,12 @@ if (isset($_GET['pid'])) {
                 } catch (e) {
                     console.log('停止iframe JavaScript执行时出错:', e);
                 }
-                
+
                 // 然后再清空src和内容
                 try {
                     // 先设置为about:blank以确保完全断开与原页面的连接
                     iframe.src = 'about:blank';
-                    
+
                     // 清空iframe的内容
                     if (iframe.contentDocument) {
                         iframe.contentDocument.write('');
@@ -1669,7 +1673,7 @@ if (isset($_GET['pid'])) {
             background: rgba(0, 0, 0, 0.5);
             z-index: 1000;
         }
-        
+
         /* 确保隐藏的模态框完全不可见 */
         .modal-hidden {
             display: none !important;
@@ -1680,7 +1684,7 @@ if (isset($_GET['pid'])) {
             overflow: hidden !important;
             z-index: -1 !important;
         }
-        
+
         /* 确保模态框在display:none时也完全不可见 */
         .modal[style*="display: none"],
         .modal[style*="display:none"] {
@@ -1853,11 +1857,13 @@ if (isset($_GET['pid'])) {
             border: 1px solid #bbdefb;
             color: #3498db;
             cursor: pointer;
-            padding: 2px 6px;
+            padding: 0x 1px;
             font-size: 12px;
             border-radius: 4px;
             display: inline-block;
             transition: all 0.3s ease;
+            min-width: 50px;
+            /* 确保至少能容下4个字符 */
         }
 
         .device-link-btn:hover,
