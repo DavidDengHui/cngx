@@ -961,6 +961,9 @@ if (isset($_GET['pid'])) {
 
         // 打开设备详情模态框
         function openDeviceDetailModal(deviceId) {
+            // 保存当前设备ID
+            currentDeviceId = deviceId;
+
             // 先显示加载模态框
             showLoadingModal('正在加载设备详情...');
 
@@ -1109,19 +1112,16 @@ if (isset($_GET['pid'])) {
             document.body.style.userSelect = '';
         }
 
-        // 最大化/还原模态框
-        function toggleModalMaximize() {
-            const modal = document.getElementById('device-detail-modal');
-            const maximizeBtn = document.getElementById('maximize-modal-btn');
+        // 当前打开的设备ID
+        let currentDeviceId = null;
 
-            if (modal.classList.contains('maximized')) {
-                // 还原
-                modal.classList.remove('maximized');
-                maximizeBtn.textContent = '□';
-            } else {
-                // 最大化
-                modal.classList.add('maximized');
-                maximizeBtn.textContent = '❐';
+        // 跳转到设备详情页面
+        function navigateToDeviceDetail() {
+            if (currentDeviceId) {
+                // 关闭模态框
+                closeDeviceDetailModal();
+                // 跳转到设备详情页面
+                window.location.href = `devices.php?did=${currentDeviceId}`;
             }
         }
 
@@ -1136,7 +1136,9 @@ if (isset($_GET['pid'])) {
             }
 
             if (maximizeModalBtn) {
-                maximizeModalBtn.addEventListener('click', toggleModalMaximize);
+                maximizeModalBtn.addEventListener('click', navigateToDeviceDetail);
+                // 修改按钮文本，表明这是跳转功能
+                maximizeModalBtn.textContent = '+';
             }
 
             if (deviceDetailModal) {
