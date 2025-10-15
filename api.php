@@ -1272,11 +1272,14 @@ function getProblemDetail()
             return;
         }
 
-        // 查询问题基本信息，按用户要求的字段结构
+        // 查询问题基本信息，关联设备和部门表获取名称
         $sql = "SELECT 
-                    pid, did, cid, reporter, report_time, description, resolver, resolution_time, resolution_content
-                FROM problems 
-                WHERE pid = ?";
+                    p.pid, p.did, p.cid, p.reporter, p.report_time, p.description, p.resolver, p.resolution_time, p.resolution_content,
+                    d.device_name AS device, dept.full_name AS department
+                FROM problems p
+                LEFT JOIN devices d ON p.did = d.did
+                LEFT JOIN departments dept ON p.cid = dept.cid
+                WHERE p.pid = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$pid]);
         $problemData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1297,7 +1300,9 @@ function getProblemDetail()
             'resolver' => $problemData['resolver'],
             'resolution_time' => $problemData['resolution_time'],
             'resolution_content' => $problemData['resolution_content'],
-            'process' => !empty($problemData['resolver']) ? 1 : 0 // resolver非空则为1表示已闭环，否则为0已创建
+            'process' => !empty($problemData['resolver']) ? 1 : 0, // resolver非空则为1表示已闭环，否则为0已创建
+            'device' => $problemData['device'] ?? '', // 设备真实名字
+            'department' => $problemData['department'] ?? '' // 部门名称
         ];
 
         echo json_encode(['success' => true, 'data' => $result]);

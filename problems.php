@@ -1,17 +1,19 @@
 <?php
 // 设置导航标题和页面标题
-$nav_title = '问题信息查询';
-$page_title = '问题信息查询 - 个人设备信息管理平台';
+$nav_title = '问题库查询';
+$page_title = '问题库查询';
 
 // 引入配置文件和页眉
 include 'config.php';
-include 'header.php';
 
 // 判断是否为问题详情页面
 if (isset($_GET['pid'])) {
-    // 问题详情页面逻辑（暂时留空，后续可添加）
-    echo "<div class='container'><h1>问题详情页面正在开发中...</h1></div>";
+    $pid = $_GET['pid'];
+    // 问题详情页面逻辑
+    include 'problems_detail.php';
+    exit();
 } else {
+    include 'header.php';
     // 问题查询页面逻辑
 ?>
     <div class="problems-container">
