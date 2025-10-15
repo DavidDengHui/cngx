@@ -851,13 +851,8 @@ include 'header.php';
             e.preventDefault();
 
             const zoomFactor = e.deltaY > 0 ? 0.8 : 1.2;
-            const newScale = scale * zoomFactor;
-
-            // 限制缩放范围
-            if (newScale >= initialScale * 0.5 && newScale <= 5) {
-                scale = newScale;
-                applyTransform();
-            }
+            scale *= zoomFactor;
+            applyTransform();
         });
 
         // 触摸事件支持
@@ -915,31 +910,29 @@ include 'header.php';
                 const scaleChange = touchEndDistance / touchStartDistance;
                 const newScale = scale * scaleChange;
 
-                // 限制缩放范围
-                if (newScale >= initialScale * 0.5 && newScale <= 5) {
-                    // 计算新的中点
-                    const touchEndMidpoint = {
-                        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                    };
+                // 取消缩放范围限制
+                // 计算新的中点
+                const touchEndMidpoint = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
 
-                    // 计算位置偏移变化
-                    const deltaX = (touchEndMidpoint.x - touchStartMidpoint.x) / (newScale * 2);
-                    const deltaY = (touchEndMidpoint.y - touchStartMidpoint.y) / (newScale * 2);
+                // 计算位置偏移变化
+                const deltaX = (touchEndMidpoint.x - touchStartMidpoint.x) / (newScale * 2);
+                const deltaY = (touchEndMidpoint.y - touchStartMidpoint.y) / (newScale * 2);
 
-                    // 更新缩放和位置
-                    scale = newScale;
-                    offsetX += deltaX;
-                    offsetY += deltaY;
+                // 更新缩放和位置
+                scale = newScale;
+                offsetX += deltaX;
+                offsetY += deltaY;
 
-                    applyTransform();
+                applyTransform();
 
-                    // 更新起点
-                    touchStartDistance = touchEndDistance;
-                    touchStartMidpoint = touchEndMidpoint;
-                    lastX = touchEndMidpoint.x;
-                    lastY = touchEndMidpoint.y;
-                }
+                // 更新起点
+                touchStartDistance = touchEndDistance;
+                touchStartMidpoint = touchEndMidpoint;
+                lastX = touchEndMidpoint.x;
+                lastY = touchEndMidpoint.y;
                 e.preventDefault();
             }
         });
