@@ -121,6 +121,9 @@ switch ($action) {
     case 'saveQRCodeImage':
         saveQRCodeImage();
         break;
+    case 'getProblemPhotos':
+        getProblemPhotos();
+        break;
     default:
         echo json_encode(['success' => false, 'message' => '未知的操作']);
         break;
@@ -1557,6 +1560,46 @@ function uploadProblemPhoto()
     } catch (Exception $e) {
         logError('上传问题照片失败: ' . $e->getMessage(), 'uploadProblemPhoto');
         echo json_encode(['success' => false, 'message' => '上传文件失败: ' . $e->getMessage()]);
+    }
+}
+
+// 获取问题照片
+function getProblemPhotos()
+{
+    global $pdo;
+
+    try {
+        $pid = $_GET['pid'];
+        // 获取分页参数
+        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+        $pageSize = isset($_GET['pageSize']) ? intval($_GET['pageSize']) : 5;
+
+        // 如果pageSize为0，表示查询所有记录
+        $limitClause = '';
+        if ($pageSize > 0) {
+            $offset = ($page - 1) * $pageSize;
+            $limitClause = "LIMIT $offset, $pageSize";
+        }
+
+        // 查询总记录数
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM problem_attachments WHERE pid = :pid AND status = 1");
+        $stmt->execute(['pid' => $pid]);
+        $total = $stmt->fetchColumn();
+
+        // 查询当前页数据
+        $stmt = $pdo->prepare("SELECT id, original_name, link_name, root_dir, file_size FROM problem_attachments WHERE pid = :pid AND status = 1 ORDER BY upload_time DESC $limitClause");
+        $stmt->execute(['pid' => $pid]);
+        $photos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 返回分页结果
+        echo json_encode([
+            'data' => $photos,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => '获取照片失败: ' . $e->getMessage()]);
     }
 }
 
