@@ -58,9 +58,9 @@ include 'header.php';
         // 保存问题数据到全局变量
         globalProblemData = problem;
 
-        // 设置页面标题，格式为：问题详情 - [设备名称] - 个人设备信息管理平台
+        // 设置页面标题，格式为：问题详情 - [设备名称] - 长南高信车间设备信息管理平台
         const deviceName = problem.device || '未知设备';
-        const siteSuffix = ' - 个人设备信息管理平台';
+        const siteSuffix = ' - 长南高信车间设备信息管理平台';
         document.title = '问题详情[' + deviceName + ']' + siteSuffix;
 
         // 构建问题详情HTML

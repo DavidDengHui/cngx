@@ -1,7 +1,7 @@
 <?php
 // 设置导航标题和页面标题
-$nav_title = '个人设备信息管理平台';
-$page_title = '个人设备信息管理平台';
+$nav_title = '长南高信车间设备信息管理平台';
+$page_title = '长南高信车间设备信息管理平台';
 
 // 引入配置文件和页眉
 include 'config.php';

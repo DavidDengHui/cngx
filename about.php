@@ -1,7 +1,7 @@
 <?php
 // 设置导航标题和页面标题
 $nav_title = '网站备案信息';
-$page_title = '网站备案信息 - 个人设备信息管理平台';
+$page_title = '网站备案信息 - 长南高信车间设备信息管理平台';
 
 // 引入配置文件和页眉
 include 'config.php';
@@ -12,7 +12,7 @@ include 'header.php';
 
     <div class="备案信息" style="background-color: #f9f9f9; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
         <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">基本信息</h2>
-        <p><strong>网站名称：</strong>个人设备信息管理平台</p>
+        <p><strong>网站名称：</strong>长南高信车间设备信息管理平台</p>
         <p><strong>备案网站主办者：</strong>个人 <a href="mailto:david.deng.hui@qq.com">david.deng.hui@qq.com</a></p>
         <p><strong>域名：</strong>csngx.cn</p>
         <p><strong>网站性质：</strong>个人技术记录平台</p>
@@ -23,7 +23,7 @@ include 'header.php';
 
         <div style="margin-bottom: 30px;">
             <h3 style="color: #333; margin-bottom: 15px;">1. 网站内容概述</h3>
-            <p style="line-height: 1.6; color: #666;">本网站是本人设计开发的个人设备信息管理平台，用于记录我经手的设备公开信息和问题库，方便查询和管理。</p>
+            <p style="line-height: 1.6; color: #666;">本网站是设计开发的长南高信车间设备信息管理平台，用于记录车间设备公开信息和问题库，方便查询和管理。</p>
 
             <!-- 网站内容截图 -->
             <div style="margin: 20px 0; text-align: center;">
@@ -57,7 +57,7 @@ include 'header.php';
         <div>
             <h3 style="color: #333; margin-bottom: 15px;">3. 网站用途和域名使用情况</h3>
             <p style="line-height: 1.6; color: #666; margin-bottom: 15px;"><strong>网站用途：</strong>个人技术记录和管理平台，用于整理和查询个人经手的设备信息和问题记录。</p>
-            <p style="line-height: 1.6; color: #666;"><strong>域名使用情况：</strong>域名csngx.cn仅用于本个人设备信息管理平台，无其他子域名或用途。网站内容不包含违法违规信息。</p>
+            <p style="line-height: 1.6; color: #666;"><strong>域名使用情况：</strong>域名csngx.cn仅用于本长南高信车间设备信息管理平台，无其他子域名或用途。网站内容不包含违法违规信息。</p>
         </div>
     </div>
 

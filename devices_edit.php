@@ -275,7 +275,7 @@ if (empty(trim($did))) {
                     document.getElementById('page-title').textContent = formattedTitle;
 
                     // 更新页面标题
-                    document.title = `${formattedTitle} - 个人设备信息管理平台`;
+                    document.title = `${formattedTitle} - 长南高信车间设备信息管理平台`;
 
                     // 保存从数据库加载的原始数据
                     originalDeviceData = {
@@ -324,7 +324,7 @@ if (empty(trim($did))) {
                     // 如果设备不存在，切换为新增模式
                     document.getElementById('page-title').textContent = `新增[${did}]`;
                     // 更新浏览器标签标题
-                    document.title = `新增[${did}] - 个人设备信息管理平台`;
+                    document.title = `新增[${did}] - 长南高信车间设备信息管理平台`;
                 }
             })
             .catch(error => {

@@ -61,7 +61,7 @@ include 'header.php';
         globalDeviceData = device;
 
         // 设置页面标题
-        document.title = device.device_name + ' - 个人设备信息管理平台';
+        document.title = device.device_name + ' - 长南高信车间设备信息管理平台';
 
         // 构建设备详情HTML
         const deviceDetailHTML = `
