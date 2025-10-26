@@ -1,7 +1,8 @@
 <?php
 // 检查是否被直接访问
 if (basename($_SERVER['PHP_SELF']) == 'devices_detail.php') {
-    header('Location: /devices.php');
+    // 直接输出404页面内容
+    include '404.html';
     exit();
 }
 

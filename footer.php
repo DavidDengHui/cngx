@@ -1,7 +1,8 @@
 <?php
 // 防止直接访问此页面
 if (basename($_SERVER['PHP_SELF']) == 'footer.php') {
-    header('Location: /');
+    // 直接输出404页面内容
+    include '404.html';
     exit();
 }
 
