@@ -21,6 +21,8 @@ include 'header.php';
 
 <!-- 引入QRCode.js库 -->
 <script src="files/js/qrcode.min.js"></script>
+<!-- 引入js-base64库用于文件预览 -->
+<script src="/files/js/base64.min.js"></script>
 <script>
     // 全局变量存储设备ID
     const deviceId = '<?php echo $did; ?>';
@@ -955,7 +957,7 @@ include 'header.php';
                 placeholder.appendChild(downloadBtn);
             };
         } else if (['pdf'].includes(fileExtension)) {
-            // PDF文件预览
+            // PDF文件预览 - 使用kkFileView
             const embedContainer = document.createElement('div');
             // 获取视口的实际尺寸，减去标题和控制按钮的高度
             const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
@@ -968,39 +970,27 @@ include 'header.php';
                 max-height: 100%;
             `;
 
-            // 检测是否为移动设备
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            // 确保URL是完整的HTTPS URL
+            const fullHttpsUrl = ensureFullHttpsUrl(url);
+            // 使用js-base64对URL进行编码，然后调用kkFileView预览接口
+            const encodedUrl = encodeURIComponent(Base64.encode(fullHttpsUrl));
+            const previewUrl = `https://preview.csngx.cn/onlinePreview?url=${encodedUrl}`;
 
-            if (isMobile) {
-                // 移动设备使用iframe或提供下载选项
-                // 添加PDF预览和下载选项
-                const previewInfo = document.createElement('div');
-                previewInfo.innerHTML = `
-                    <h3 style="margin-bottom: 20px; color: white; text-align: center;">PDF文件预览</h3>
-                    <p style="margin-bottom: 30px; max-width: 600px; text-align: center; color: #ccc;">在移动设备上查看PDF文件</p>
-                    <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
-                        <iframe src="${url}" style="width: 100%; height: 60%; border: none;"></iframe>
-                        <a href="${url}" download="${title}" style="padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">直接下载PDF文件</a>
-                    </div>
-                `;
-                embedContainer.appendChild(previewInfo);
-            } else {
-                // 桌面设备使用embed标签
-                const embed = document.createElement('embed');
-                embed.src = url;
-                embed.type = 'application/pdf';
-                embed.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                `;
-                embedContainer.appendChild(embed);
-            }
+            // 使用iframe加载kkFileView预览
+            const iframe = document.createElement('iframe');
+            iframe.src = previewUrl;
+            iframe.style.cssText = `
+                width: 100%;
+                height: 100%;
+                border: none;
+            `;
+            embedContainer.appendChild(iframe);
 
             contentContainer.appendChild(embedContainer);
 
             // PDF预览不需要额外的缩放控制功能
         } else if (['doc', 'docx'].includes(fileExtension)) {
-            // Word文档预览
+            // Word文档预览 - 使用kkFileView
             const embedContainer = document.createElement('div');
             // 获取视口的实际尺寸，减去标题和控制按钮的高度
             const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
@@ -1013,43 +1003,27 @@ include 'header.php';
                 max-height: 100%;
             `;
 
-            // 检测是否为移动设备
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            // 确保URL是完整的HTTPS URL
+            const fullHttpsUrl = ensureFullHttpsUrl(url);
+            // 使用js-base64对URL进行编码，然后调用kkFileView预览接口
+            const encodedUrl = encodeURIComponent(Base64.encode(fullHttpsUrl));
+            const previewUrl = `https://preview.csngx.cn/onlinePreview?url=${encodedUrl}`;
 
-            if (isMobile) {
-                // 移动设备提供下载选项，Office Online在移动设备上体验不佳
-                const previewInfo = document.createElement('div');
-                // 确保URL是完整的HTTPS URL
-                const fullHttpsUrl = ensureFullHttpsUrl(url);
-                previewInfo.innerHTML = `
-                    <h3 style="margin-bottom: 20px; color: white; text-align: center;">Word文档预览</h3>
-                    <p style="margin-bottom: 30px; max-width: 600px; text-align: center; color: #ccc;">在移动设备上查看Word文档</p>
-                    <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
-                        <a href="${fullHttpsUrl}" download="${title}" style="padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">直接下载Word文件</a>
-                        <a href="https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fullHttpsUrl)}" target="_blank" style="padding: 10px 20px; background-color: #2ecc71; color: white; text-decoration: none; border-radius: 4px;">在新窗口中使用Office Online查看器</a>
-                    </div>
-                `;
-                embedContainer.appendChild(previewInfo);
-            } else {
-                // 桌面设备使用Microsoft Office Online查看器
-                const iframe = document.createElement('iframe');
-                // 将完整HTTPS URL编码后作为src参数传递给Office Online查看器
-                const fullHttpsUrl = ensureFullHttpsUrl(url);
-                const encodedUrl = encodeURIComponent(fullHttpsUrl);
-                iframe.src = `https://view.officeapps.live.com/op/view.aspx?src=${encodedUrl}`;
-                iframe.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    border: none;
-                `;
-                embedContainer.appendChild(iframe);
-            }
+            // 使用iframe加载kkFileView预览
+            const iframe = document.createElement('iframe');
+            iframe.src = previewUrl;
+            iframe.style.cssText = `
+                width: 100%;
+                height: 100%;
+                border: none;
+            `;
+            embedContainer.appendChild(iframe);
 
             contentContainer.appendChild(embedContainer);
 
             // Word文档预览不需要额外的缩放控制功能
         } else if (['dwg', 'dxf'].includes(fileExtension)) {
-            // CAD文件预览
+            // CAD文件预览 - 使用kkFileView
             const embedContainer = document.createElement('div');
             // 获取视口的实际尺寸，减去标题和控制按钮的高度
             const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
@@ -1060,93 +1034,23 @@ include 'header.php';
                 height: ${viewportHeight}px;
                 max-width: 100%;
                 max-height: 100%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                background-color: #f0f0f0;
-                color: #333;
             `;
 
-            // 检测是否为移动设备
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            // 确保URL是完整的HTTPS URL
+            const fullHttpsUrl = ensureFullHttpsUrl(url);
+            // 使用js-base64对URL进行编码，然后调用kkFileView预览接口
+            const encodedUrl = encodeURIComponent(Base64.encode(fullHttpsUrl));
+            const previewUrl = `https://preview.csngx.cn/onlinePreview?url=${encodedUrl}`;
 
-            // CAD文件预览提示和下载选项
-            const previewInfo = document.createElement('div');
-
-            if (isMobile) {
-                // 移动设备优化的选项
-                // 确保URL是完整的HTTPS URL
-                const fullHttpsUrl = ensureFullHttpsUrl(url);
-                previewInfo.innerHTML = `
-                    <h3 style="margin-bottom: 20px; text-align: center;">CAD文件预览</h3>
-                    <p style="margin-bottom: 30px; max-width: 600px; text-align: center; font-size: 16px; line-height: 1.5;">在移动设备上查看CAD文件可能受限，请选择以下选项：</p>
-                    <div style="display: flex; flex-direction: column; gap: 20px; width: 90%; max-width: 400px;">
-                        <a href="https://viewer.autodesk.com/viewer.html?url=${encodeURIComponent(fullHttpsUrl)}" target="_blank" style="padding: 15px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 16px;">使用Autodesk查看器</a>
-                        <a href="${fullHttpsUrl}" download="${title}" style="padding: 15px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 16px;">下载CAD文件</a>
-                    </div>
-                `;
-            } else {
-                // 桌面设备选项 - 由于Autodesk Viewer的CSP限制，提供更好的备选方案
-                // 确保URL是完整的HTTPS URL
-                const fullHttpsUrl = ensureFullHttpsUrl(url);
-                const encodedUrl = encodeURIComponent(fullHttpsUrl);
-
-                // 创建预览区域，提供更友好的用户体验
-                const viewerPlaceholder = document.createElement('div');
-                viewerPlaceholder.style.cssText = `
-                    width: 100%;
-                    height: ${viewportHeight - 180}px;
-                    margin-bottom: 20px;
-                    background-color: #f8f8f8;
-                    border: 2px dashed #4CAF50;
-                    border-radius: 8px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 20px;
-                    text-align: center;
-                `;
-
-                // CAD文件图标和信息
-                viewerPlaceholder.innerHTML = `
-                    <svg width="80" height="80" viewBox="0 0 24 24" fill="#4CAF50" style="margin-bottom: 20px;">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <h4 style="margin: 0 0 15px 0; color: #333;">CAD文件预览</h4>
-                    <p style="max-width: 600px; line-height: 1.6; color: #666;">由于浏览器安全限制，CAD文件无法直接内嵌预览。请选择以下选项之一查看文件内容。</p>
-                `;
-
-                // 添加占位符到embedContainer
-                embedContainer.appendChild(viewerPlaceholder);
-
-                // 添加选项按钮
-                previewInfo.innerHTML = `
-                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                        <a href="https://viewer.autodesk.com/viewer.html?url=${encodedUrl}" target="_blank" style="padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; font-size: 16px; transition: background-color 0.3s;">在新窗口中使用Autodesk查看器</a>
-                        <a href="${fullHttpsUrl}" download="${title}" style="padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; font-size: 16px; transition: background-color 0.3s;">直接下载文件</a>
-                    </div>
-                `;
-
-                // 添加悬停效果
-                embedContainer.onmouseover = function() {
-                    const buttons = previewInfo.querySelectorAll('a');
-                    buttons.forEach(button => {
-                        button.style.backgroundColor = button.style.backgroundColor === 'rgb(76, 175, 80)' ? '#45a049' : '#2980b9';
-                    });
-                };
-
-                embedContainer.onmouseout = function() {
-                    const buttons = previewInfo.querySelectorAll('a');
-                    buttons.forEach(button => {
-                        button.style.backgroundColor = button.style.backgroundColor === 'rgb(69, 160, 73)' ? '#4CAF50' : '#3498db';
-                    });
-                };
-
-                // 将预览信息添加到embedContainer
-                embedContainer.appendChild(previewInfo);
-            }
+            // 使用iframe加载kkFileView预览
+            const iframe = document.createElement('iframe');
+            iframe.src = previewUrl;
+            iframe.style.cssText = `
+                width: 100%;
+                height: 100%;
+                border: none;
+            `;
+            embedContainer.appendChild(iframe);
 
             contentContainer.appendChild(embedContainer);
 
