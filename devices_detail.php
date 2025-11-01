@@ -507,13 +507,6 @@ include 'header.php';
         confirmBtn.style.fontSize = '14px';
         confirmBtn.textContent = '确认';
         confirmBtn.onclick = function() {
-            // 创建隐藏的a标签进行下载
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
             modal.remove();
         };
 
@@ -568,7 +561,7 @@ include 'header.php';
             // 创建一个隐藏的a标签用于下载
             const a = document.createElement('a');
             a.href = url;
-            a.download = '';
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -591,7 +584,34 @@ include 'header.php';
 
     // 预览图纸
     function previewDrawing(url, title) {
+        // 确保URL是完整的HTTPS URL的辅助函数
+        function ensureFullHttpsUrl(url) {
+            if (!url) return '';
 
+            // 如果URL已经是完整的HTTPS或HTTP URL，则直接返回
+            if (url.startsWith('https://') || url.startsWith('http://')) {
+                return url;
+            }
+
+            // 如果URL以//开头，则添加https:
+            if (url.startsWith('//')) {
+                return 'https:' + url;
+            }
+
+            // 获取当前页面的协议和域名
+            const origin = window.location.origin;
+
+            // 如果是相对路径（以/开头），则与origin拼接
+            if (url.startsWith('/')) {
+                return origin + url;
+            }
+
+            // 其他情况（相对路径不以/开头），确保使用完整的origin
+            return origin + '/' + url.replace(/^\/?/, '');
+        }
+
+        // 确保URL是完整的HTTPS URL
+        url = ensureFullHttpsUrl(url);
 
         // 创建预览模态框
         const modal = document.createElement('div');
@@ -654,6 +674,8 @@ include 'header.php';
             document.body.removeChild(modal);
             // 恢复背景页面滚动
             document.body.style.overflow = '';
+            // 移除窗口大小变化事件监听
+            window.removeEventListener('resize', resizeListener);
         };
         closeBtn.onmouseover = () => {
             closeBtn.style.color = '#ff6b6b';
@@ -831,22 +853,29 @@ include 'header.php';
         controlsContainer.appendChild(resetBtn);
         controlsContainer.appendChild(zoomInBtn);
 
+        // 检查文件扩展名，决定如何预览
+        const fileExtension = url.split('.').pop().toLowerCase();
+
         // 创建图片容器
         const viewport = document.createElement('div');
+        // 根据是否显示控制按钮决定视口高度
+        const hasControls = !['pdf', 'dwg', 'dxf', 'doc', 'docx'].includes(fileExtension);
+        const bottomValue = hasControls ? 50 : 20;
+        const heightValue = hasControls ? 'calc(100% - 95px)' : 'calc(100% - 65px)';
+
         viewport.style.cssText = `
             max-width: 100%;
             width: 100%;
             position: absolute;
             top: 45px;
-            bottom: 50px;
-            height: calc(100% - 95px);
+            bottom: ${bottomValue}px;
+            height: ${heightValue};
             overflow: hidden;
             z-index: 1;
             background-color: rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
-            justify-content: center;
-        `;
+            justify-content: center;`;
 
         // 创建可拖动的内容容器
         const contentContainer = document.createElement('div');
@@ -854,6 +883,7 @@ include 'header.php';
             position: absolute;
             top: 50%;
             left: 50%;
+            transform: translate(-50%, -50%);
             transform-origin: center;
             cursor: grab;
             transition: transform 0.1s ease;
@@ -864,9 +894,6 @@ include 'header.php';
         contentContainer.onmouseup = () => {
             contentContainer.style.cursor = 'grab';
         };
-
-        // 检查文件扩展名，决定如何预览
-        const fileExtension = url.split('.').pop().toLowerCase();
 
         if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(fileExtension)) {
             // 图片文件直接预览
@@ -927,8 +954,205 @@ include 'header.php';
                 `;
                 placeholder.appendChild(downloadBtn);
             };
+        } else if (['pdf'].includes(fileExtension)) {
+            // PDF文件预览
+            const embedContainer = document.createElement('div');
+            // 获取视口的实际尺寸，减去标题和控制按钮的高度
+            const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
+            const viewportWidth = window.innerWidth - 40; // 左右各留20px边距
+
+            embedContainer.style.cssText = `
+                width: ${viewportWidth}px;
+                height: ${viewportHeight}px;
+                max-width: 100%;
+                max-height: 100%;
+            `;
+
+            // 检测是否为移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                // 移动设备使用iframe或提供下载选项
+                // 添加PDF预览和下载选项
+                const previewInfo = document.createElement('div');
+                previewInfo.innerHTML = `
+                    <h3 style="margin-bottom: 20px; color: white; text-align: center;">PDF文件预览</h3>
+                    <p style="margin-bottom: 30px; max-width: 600px; text-align: center; color: #ccc;">在移动设备上查看PDF文件</p>
+                    <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+                        <iframe src="${url}" style="width: 100%; height: 60%; border: none;"></iframe>
+                        <a href="${url}" download="${title}" style="padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">直接下载PDF文件</a>
+                    </div>
+                `;
+                embedContainer.appendChild(previewInfo);
+            } else {
+                // 桌面设备使用embed标签
+                const embed = document.createElement('embed');
+                embed.src = url;
+                embed.type = 'application/pdf';
+                embed.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                `;
+                embedContainer.appendChild(embed);
+            }
+
+            contentContainer.appendChild(embedContainer);
+
+            // PDF预览不需要额外的缩放控制功能
+        } else if (['doc', 'docx'].includes(fileExtension)) {
+            // Word文档预览
+            const embedContainer = document.createElement('div');
+            // 获取视口的实际尺寸，减去标题和控制按钮的高度
+            const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
+            const viewportWidth = window.innerWidth - 40; // 左右各留20px边距
+
+            embedContainer.style.cssText = `
+                width: ${viewportWidth}px;
+                height: ${viewportHeight}px;
+                max-width: 100%;
+                max-height: 100%;
+            `;
+
+            // 检测是否为移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                // 移动设备提供下载选项，Office Online在移动设备上体验不佳
+                const previewInfo = document.createElement('div');
+                // 确保URL是完整的HTTPS URL
+                const fullHttpsUrl = ensureFullHttpsUrl(url);
+                previewInfo.innerHTML = `
+                    <h3 style="margin-bottom: 20px; color: white; text-align: center;">Word文档预览</h3>
+                    <p style="margin-bottom: 30px; max-width: 600px; text-align: center; color: #ccc;">在移动设备上查看Word文档</p>
+                    <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+                        <a href="${fullHttpsUrl}" download="${title}" style="padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">直接下载Word文件</a>
+                        <a href="https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fullHttpsUrl)}" target="_blank" style="padding: 10px 20px; background-color: #2ecc71; color: white; text-decoration: none; border-radius: 4px;">在新窗口中使用Office Online查看器</a>
+                    </div>
+                `;
+                embedContainer.appendChild(previewInfo);
+            } else {
+                // 桌面设备使用Microsoft Office Online查看器
+                const iframe = document.createElement('iframe');
+                // 将完整HTTPS URL编码后作为src参数传递给Office Online查看器
+                const fullHttpsUrl = ensureFullHttpsUrl(url);
+                const encodedUrl = encodeURIComponent(fullHttpsUrl);
+                iframe.src = `https://view.officeapps.live.com/op/view.aspx?src=${encodedUrl}`;
+                iframe.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    border: none;
+                `;
+                embedContainer.appendChild(iframe);
+            }
+
+            contentContainer.appendChild(embedContainer);
+
+            // Word文档预览不需要额外的缩放控制功能
+        } else if (['dwg', 'dxf'].includes(fileExtension)) {
+            // CAD文件预览
+            const embedContainer = document.createElement('div');
+            // 获取视口的实际尺寸，减去标题和控制按钮的高度
+            const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
+            const viewportWidth = window.innerWidth - 40; // 左右各留20px边距
+
+            embedContainer.style.cssText = `
+                width: ${viewportWidth}px;
+                height: ${viewportHeight}px;
+                max-width: 100%;
+                max-height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-color: #f0f0f0;
+                color: #333;
+            `;
+
+            // 检测是否为移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            // CAD文件预览提示和下载选项
+            const previewInfo = document.createElement('div');
+
+            if (isMobile) {
+                // 移动设备优化的选项
+                // 确保URL是完整的HTTPS URL
+                const fullHttpsUrl = ensureFullHttpsUrl(url);
+                previewInfo.innerHTML = `
+                    <h3 style="margin-bottom: 20px; text-align: center;">CAD文件预览</h3>
+                    <p style="margin-bottom: 30px; max-width: 600px; text-align: center; font-size: 16px; line-height: 1.5;">在移动设备上查看CAD文件可能受限，请选择以下选项：</p>
+                    <div style="display: flex; flex-direction: column; gap: 20px; width: 90%; max-width: 400px;">
+                        <a href="https://viewer.autodesk.com/viewer.html?url=${encodeURIComponent(fullHttpsUrl)}" target="_blank" style="padding: 15px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 16px;">使用Autodesk查看器</a>
+                        <a href="${fullHttpsUrl}" download="${title}" style="padding: 15px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 16px;">下载CAD文件</a>
+                    </div>
+                `;
+            } else {
+                // 桌面设备选项 - 由于Autodesk Viewer的CSP限制，提供更好的备选方案
+                // 确保URL是完整的HTTPS URL
+                const fullHttpsUrl = ensureFullHttpsUrl(url);
+                const encodedUrl = encodeURIComponent(fullHttpsUrl);
+
+                // 创建预览区域，提供更友好的用户体验
+                const viewerPlaceholder = document.createElement('div');
+                viewerPlaceholder.style.cssText = `
+                    width: 100%;
+                    height: ${viewportHeight - 180}px;
+                    margin-bottom: 20px;
+                    background-color: #f8f8f8;
+                    border: 2px dashed #4CAF50;
+                    border-radius: 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                    text-align: center;
+                `;
+
+                // CAD文件图标和信息
+                viewerPlaceholder.innerHTML = `
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="#4CAF50" style="margin-bottom: 20px;">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h4 style="margin: 0 0 15px 0; color: #333;">CAD文件预览</h4>
+                    <p style="max-width: 600px; line-height: 1.6; color: #666;">由于浏览器安全限制，CAD文件无法直接内嵌预览。请选择以下选项之一查看文件内容。</p>
+                `;
+
+                // 添加占位符到embedContainer
+                embedContainer.appendChild(viewerPlaceholder);
+
+                // 添加选项按钮
+                previewInfo.innerHTML = `
+                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                        <a href="https://viewer.autodesk.com/viewer.html?url=${encodedUrl}" target="_blank" style="padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px; font-size: 16px; transition: background-color 0.3s;">在新窗口中使用Autodesk查看器</a>
+                        <a href="${fullHttpsUrl}" download="${title}" style="padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; font-size: 16px; transition: background-color 0.3s;">直接下载文件</a>
+                    </div>
+                `;
+
+                // 添加悬停效果
+                embedContainer.onmouseover = function() {
+                    const buttons = previewInfo.querySelectorAll('a');
+                    buttons.forEach(button => {
+                        button.style.backgroundColor = button.style.backgroundColor === 'rgb(76, 175, 80)' ? '#45a049' : '#2980b9';
+                    });
+                };
+
+                embedContainer.onmouseout = function() {
+                    const buttons = previewInfo.querySelectorAll('a');
+                    buttons.forEach(button => {
+                        button.style.backgroundColor = button.style.backgroundColor === 'rgb(69, 160, 73)' ? '#4CAF50' : '#3498db';
+                    });
+                };
+
+                // 将预览信息添加到embedContainer
+                embedContainer.appendChild(previewInfo);
+            }
+
+            contentContainer.appendChild(embedContainer);
+
+            // CAD文件预览不需要额外的缩放控制功能
         } else {
-            // 非图片文件提供下载链接
+            // 其他非图片文件提供下载链接
             const downloadLink = document.createElement('a');
             downloadLink.href = url;
             downloadLink.download = title;
@@ -964,7 +1188,11 @@ include 'header.php';
         modal.appendChild(closeBtn);
         modal.appendChild(titleElement);
         modal.appendChild(viewport);
-        modal.appendChild(controlsContainer);
+
+        // 只有当不是PDF、CAD和Word文档时，才添加缩放控制按钮
+        if (!['pdf', 'dwg', 'dxf', 'doc', 'docx'].includes(fileExtension)) {
+            modal.appendChild(controlsContainer);
+        }
 
         // 添加到文档
 
@@ -978,17 +1206,22 @@ include 'header.php';
                 document.body.removeChild(modal);
                 // 恢复背景页面滚动
                 document.body.style.overflow = '';
+                // 移除窗口大小变化事件监听
+                window.removeEventListener('resize', resizeListener);
             }
         });
 
-        // 为标题元素、控制按钮和视口添加事件监听器，防止事件冒泡
+        // 为标题元素和视口添加事件监听器，防止事件冒泡
         titleElement.addEventListener('click', (e) => {
             e.stopPropagation();
         });
 
-        controlsContainer.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
+        // 只有当存在控制按钮时才添加阻止冒泡事件
+        if (!['pdf', 'dwg', 'dxf'].includes(fileExtension)) {
+            controlsContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
 
         // 为关闭按钮添加阻止冒泡，确保只有点击关闭按钮本身才关闭弹窗
         closeBtn.addEventListener('click', (e) => {
@@ -1007,8 +1240,29 @@ include 'header.php';
                 document.removeEventListener('keydown', escListener);
                 // 恢复背景页面滚动
                 document.body.style.overflow = '';
+                // 移除窗口大小变化事件监听
+                window.removeEventListener('resize', resizeListener);
             }
         });
+
+        // 窗口大小变化时调整预览容器大小
+        function resizeListener() {
+            // 获取视口的实际尺寸，减去标题和控制按钮的高度
+            const viewportHeight = window.innerHeight - 95; // 45px顶部 + 50px底部
+            const viewportWidth = window.innerWidth - 40; // 左右各留20px边距
+
+            // 查找预览容器并调整大小
+            const containers = modal.querySelectorAll('div[style*="width:"]:not(.preview-modal):not(.image-placeholder)');
+            containers.forEach(container => {
+                if (container.parentElement === modal || container.parentElement.className === 'viewport') {
+                    container.style.width = `${viewportWidth}px`;
+                    container.style.height = `${viewportHeight}px`;
+                }
+            });
+        }
+
+        // 添加窗口大小变化事件监听
+        window.addEventListener('resize', resizeListener);
 
 
     }
@@ -1035,6 +1289,7 @@ include 'header.php';
             contentContainer.style.position = 'absolute';
             contentContainer.style.top = '50%';
             contentContainer.style.left = '50%';
+            contentContainer.style.transform = 'translate(-50%, -50%)';
 
             // 处理视口高度为0的情况
             let effectiveViewportHeight = viewportRect.height;
@@ -4127,6 +4382,25 @@ include 'header.php';
         color: white;
     }
 
+    /* 确认下载按钮样式，与download-btn保持一致 */
+    .confirm-download-btn {
+        background-color: #27ae60;
+        color: white !important;
+        border: none;
+        padding: 5px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        display: inline-block;
+        text-decoration: none !important;
+    }
+
+    .confirm-download-btn:hover {
+        background-color: #229954;
+        color: white;
+        text-decoration: underline;
+    }
+
     .delete-btn {
         background-color: #e74c3c;
         color: white;
@@ -6164,15 +6438,15 @@ include 'header.php';
             tempImg.onload = function() {
                 // 预加载完成后更新实际显示的图片
                 qrcodeImage.src = newImgUrl;
-                
+
                 // 显示二维码区域
                 qrcodeDisplayArea.style.display = 'block';
-                
+
                 // 更新按钮文本
                 if (qrcodeButton) {
                     qrcodeButton.textContent = '重新生成设备码';
                 }
-                
+
                 console.log('二维码图片缓存已刷新并显示');
             };
             tempImg.src = newImgUrl;

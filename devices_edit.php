@@ -102,10 +102,10 @@ if (empty(trim($did))) {
                                 <label>图纸管理</label>
                                 <div class="drawing-upload-section">
                                     <div class="drawing-upload-area" id="drawing-upload-area">
-                                        <input type="file" id="drawing-upload" multiple accept=".jpg,.jpeg,.png,.pdf,.dwg,.dxf">
+                                        <input type="file" id="drawing-upload" multiple accept=".jpg,.jpeg,.png,.bmp,.pdf,.dwg,.dxf,.doc,.docx">
                                         <div class="upload-text">
                                             <p>点击或拖拽文件到此处上传</p>
-                                            <p class="upload-tip">支持JPG、PNG、PDF、DWG、DXF格式文件</p>
+                                            <p class="upload-tip">支持图片、Word文档、PDF文档、CAD文档</p>
                                         </div>
                                     </div>
                                     <div id="drawing-list" class="drawing-list"></div>
@@ -899,7 +899,7 @@ if (empty(trim($did))) {
                 // 添加新文件到列表
                 Array.from(this.files).forEach(file => {
                     // 检查文件类型
-                    const validExtensions = ['.jpg', '.jpeg', '.png', '.pdf', '.dwg', '.dxf'];
+                    const validExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.pdf', '.dwg', '.dxf', '.doc', '.docx'];
                     const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
 
                     if (validExtensions.includes(fileExtension)) {
